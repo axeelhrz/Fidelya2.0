@@ -3,7 +3,6 @@
 import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import Image from 'next/image';
 import { 
   QrCode, 
   Store, 
@@ -298,13 +297,10 @@ const ValidarBeneficioContent: React.FC = () => {
           >
             <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100 flex items-center space-x-4">
               {comercio.logo ? (
-                <Image
+                <img
                   src={comercio.logo}
                   alt={comercio.nombreComercio}
-                  width={48}
-                  height={48}
                   className="w-12 h-12 rounded-xl object-cover"
-                  style={{ objectFit: 'cover' }}
                 />
               ) : (
                 <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl flex items-center justify-center">
@@ -345,10 +341,8 @@ const ValidarBeneficioContent: React.FC = () => {
         >
           {user ? (
             <>
-              {/* VALIDACIÓN DE ESTADO DEL SOCIO */}
-              {user.role === 'socio' && user.estado === 'activo' && 
-               (!user.asociacionId || !user.estadoMembresia || 
-                !['vencido', 'pendiente', 'suspendido', 'inactivo'].includes(user.estadoMembresia)) ? (
+              {/* VALIDACIÓN DE ESTADO DEL SOCIO - CORREGIDA */}
+              {user.role === 'socio' && user.estado === 'activo' ? (
                 <div className="bg-green-50 border border-green-200 rounded-2xl p-4">
                   <div className="flex items-center space-x-3">
                     <User className="w-5 h-5 text-green-600" />
@@ -378,12 +372,6 @@ const ValidarBeneficioContent: React.FC = () => {
                       <p className="text-red-600 text-sm">
                         {user.estado !== 'activo' 
                           ? `Tu cuenta está ${user.estado}. Contacta al administrador.`
-                          : user.asociacionId && user.estadoMembresia && ['vencido', 'pendiente', 'suspendido', 'inactivo'].includes(user.estadoMembresia)
-                          ? `Tu membresía está ${user.estadoMembresia}. ${
-                              user.estadoMembresia === 'vencido' 
-                                ? 'Renueva tu cuota para acceder a beneficios.' 
-                                : 'Contacta a tu asociación.'
-                            }`
                           : 'Estado de cuenta no válido para validar beneficios.'
                         }
                       </p>
@@ -466,13 +454,10 @@ const ValidarBeneficioContent: React.FC = () => {
             <div className="space-y-4">
               {beneficios.map((beneficio) => {
                 const isValid = isValidBenefit(beneficio);
-                // VALIDACIÓN ADICIONAL: Verificar que el usuario sea socio activo
+                // VALIDACIÓN CORREGIDA: Solo verificar que el usuario sea socio activo
                 const canValidate = user && 
                                    user.role === 'socio' && 
-                                   user.estado === 'activo' && 
-                                   (!user.asociacionId || 
-                                    !user.estadoMembresia || 
-                                    !['vencido', 'pendiente', 'suspendido', 'inactivo'].includes(user.estadoMembresia));
+                                   user.estado === 'activo';
                 
                 return (
                   <div
@@ -500,7 +485,7 @@ const ValidarBeneficioContent: React.FC = () => {
                                 ? 'Solo socios' 
                                 : user.estado !== 'activo'
                                 ? 'Cuenta inactiva'
-                                : 'Membresía inválida'
+                                : 'Estado inválido'
                               }
                             </span>
                           )}
@@ -542,7 +527,7 @@ const ValidarBeneficioContent: React.FC = () => {
                                       ? 'Solo los socios pueden validar beneficios' 
                                       : user.estado !== 'activo'
                                       ? `Tu cuenta está ${user.estado}`
-                                      : 'Tu estado de membresía no permite validar beneficios'
+                                      : 'Estado de cuenta inválido'
                                     )
                                   : 'Debes iniciar sesión como socio'
                                 )

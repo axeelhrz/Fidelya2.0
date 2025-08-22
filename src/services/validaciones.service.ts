@@ -126,13 +126,13 @@ class ValidacionesService {
     if (socioData.asociacionId) {
       console.log('🔍 Validando membresía de socio asociado...');
       
-      // Estados de membresía que NO permiten usar beneficios
-      const estadosInvalidos = ['vencido', 'pendiente', 'suspendido', 'inactivo'];
+      // CORRECCIÓN: Si el socio tiene asociación y estado activo, permitir el acceso
+      // Solo bloquear si el estado de membresía es explícitamente uno de los estados bloqueantes
+      const estadosBloquantes = ['vencido', 'suspendido', 'inactivo'];
       
-      if (socioData.estadoMembresia && estadosInvalidos.includes(socioData.estadoMembresia)) {
+      if (socioData.estadoMembresia && estadosBloquantes.includes(socioData.estadoMembresia)) {
         const membershipMessages: Record<string, string> = {
           'vencido': 'Tu membresía está vencida. Renueva tu cuota para acceder a beneficios.',
-          'pendiente': 'Tu membresía está pendiente de activación. Contacta a tu asociación.',
           'suspendido': 'Tu membresía está suspendida. Contacta a tu asociación.',
           'inactivo': 'Tu membresía está inactiva. Contacta a tu asociación.'
         };
@@ -141,6 +141,12 @@ class ValidacionesService {
                        `Tu membresía está ${socioData.estadoMembresia}. Contacta a tu asociación.`;
         
         throw new Error(message);
+      }
+
+      // CORRECCIÓN: Si estadoMembresia es 'pendiente' pero el socio tiene estado 'activo' y asociación,
+      // permitir el acceso (esto indica que la asociación ya lo activó)
+      if (socioData.estadoMembresia === 'pendiente') {
+        console.log('⚠️ Estado de membresía pendiente pero socio activo con asociación - permitiendo acceso');
       }
 
       // 3. VALIDACIÓN DE FECHA DE VENCIMIENTO
@@ -165,7 +171,8 @@ class ValidacionesService {
       // 4. VALIDACIÓN PARA SOCIOS INDEPENDIENTES
       console.log('🔍 Validando socio independiente...');
       
-      if (socioData.estadoMembresia && socioData.estadoMembresia !== 'al_dia' && socioData.estadoMembresia !== 'activo') {
+      // CORRECCIÓN: Para socios independientes, solo verificar que no tengan estados bloqueantes
+      if (socioData.estadoMembresia && ['vencido', 'suspendido', 'inactivo'].includes(socioData.estadoMembresia)) {
         throw new Error('Tu estado de membresía no permite acceder a beneficios en este momento.');
       }
     }
