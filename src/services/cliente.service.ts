@@ -325,7 +325,7 @@ export class ClienteService {
       const now = Timestamp.now();
       
       // Preparar datos del cliente, manejando campos opcionales correctamente
-      const nuevoCliente: any = {
+      const nuevoCliente: Record<string, unknown> = {
         nombre: clienteData.nombre,
         email: clienteData.email,
         estado: 'activo',
@@ -419,7 +419,7 @@ export class ClienteService {
       const { fechaNacimiento, ...restClienteData } = clienteData;
       
       // Preparar datos de actualización
-      const updateData: any = {
+      const updateData: Record<string, unknown> = {
         actualizadoEn: Timestamp.now(),
       };
 

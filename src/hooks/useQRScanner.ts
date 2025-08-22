@@ -54,6 +54,54 @@ export const useQRScanner = (options: QRScannerOptions) => {
     return isMobileDevice || isSmallScreen;
   }, []);
 
+  // Detener escaneo
+  const stopScanning = useCallback(() => {
+    try {
+      console.log('🛑 Stopping QR scan...');
+      
+      // Limpiar intervalo
+      if (scanIntervalRef.current) {
+        clearInterval(scanIntervalRef.current);
+        scanIntervalRef.current = null;
+      }
+
+      // Detener stream
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => {
+          track.stop();
+          console.log('📹 Stopped track:', track.kind);
+        });
+        streamRef.current = null;
+      }
+
+      // Limpiar video
+      if (videoRef.current) {
+        videoRef.current.srcObject = null;
+      }
+
+      // Reset scanner
+      if (scannerRef.current) {
+        try {
+          scannerRef.current.reset();
+        } catch (error) {
+          console.warn('Error resetting scanner:', error);
+        }
+      }
+
+      setState(prev => ({
+        ...prev,
+        isScanning: false,
+        isProcessing: false,
+        flashEnabled: false,
+        hasPermission: null
+      }));
+      
+      console.log('✅ QR scan stopped');
+    } catch (error) {
+      console.error('❌ Error stopping scanner:', error);
+    }
+  }, []);
+
   // Inicializar escáner
   const initializeScanner = useCallback(async () => {
     if (isInitializedRef.current) return;
@@ -243,7 +291,7 @@ export const useQRScanner = (options: QRScannerOptions) => {
         }
       }
     }
-  }, [state.isProcessing, state.isMobile, onScan]);
+  }, [state.isProcessing, state.isMobile, onScan, stopScanning]);
 
   // Iniciar escaneo
   const startScanning = useCallback(async () => {
@@ -273,54 +321,6 @@ export const useQRScanner = (options: QRScannerOptions) => {
       }));
     }
   }, [state.isScanning, requestCameraPermission, scanQRCode, scanInterval]);
-
-  // Detener escaneo
-  const stopScanning = useCallback(() => {
-    try {
-      console.log('🛑 Stopping QR scan...');
-      
-      // Limpiar intervalo
-      if (scanIntervalRef.current) {
-        clearInterval(scanIntervalRef.current);
-        scanIntervalRef.current = null;
-      }
-
-      // Detener stream
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach(track => {
-          track.stop();
-          console.log('📹 Stopped track:', track.kind);
-        });
-        streamRef.current = null;
-      }
-
-      // Limpiar video
-      if (videoRef.current) {
-        videoRef.current.srcObject = null;
-      }
-
-      // Reset scanner
-      if (scannerRef.current) {
-        try {
-          scannerRef.current.reset();
-        } catch (error) {
-          console.warn('Error resetting scanner:', error);
-        }
-      }
-
-      setState(prev => ({
-        ...prev,
-        isScanning: false,
-        isProcessing: false,
-        flashEnabled: false,
-        hasPermission: null
-      }));
-      
-      console.log('✅ QR scan stopped');
-    } catch (error) {
-      console.error('❌ Error stopping scanner:', error);
-    }
-  }, []);
 
   // Alternar flash
   const toggleFlash = useCallback(async () => {

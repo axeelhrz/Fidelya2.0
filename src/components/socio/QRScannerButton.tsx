@@ -64,6 +64,49 @@ export const QRScannerButton: React.FC<QRScannerButtonProps> = ({
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
+  const stopScanning = useCallback(() => {
+    try {
+      console.log('🛑 Stopping QR scan...');
+      
+      // Cancel animation frame
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = null;
+      }
+
+      // Stop the scanner
+      if (scannerRef.current) {
+        try {
+          scannerRef.current.reset();
+        } catch (error) {
+          console.warn('Error resetting scanner:', error);
+        }
+      }
+
+      // Stop video stream
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => {
+          track.stop();
+          console.log('📹 Stopped video track:', track.kind);
+        });
+        streamRef.current = null;
+      }
+
+      // Clear video element
+      if (videoRef.current) {
+        videoRef.current.srcObject = null;
+      }
+
+      setIsScanning(false);
+      setIsProcessing(false);
+      setFlashEnabled(false);
+      
+      console.log('✅ QR scan stopped successfully');
+    } catch (error) {
+      console.error('❌ Error stopping scanner:', error);
+    }
+  }, []);
+
   // Initialize QR scanner when component mounts
   useEffect(() => {
     const initializeScanner = async () => {
@@ -87,7 +130,7 @@ export const QRScannerButton: React.FC<QRScannerButtonProps> = ({
     return () => {
       stopScanning();
     };
-  }, []);
+  }, [stopScanning]);
 
   const getAvailableCameras = async () => {
     try {
@@ -210,104 +253,6 @@ export const QRScannerButton: React.FC<QRScannerButtonProps> = ({
     }
   };
 
-  const startScanning = async () => {
-    console.log('🔍 startScanning called - Button clicked!');
-    console.log('Scanner ref:', scannerRef.current);
-    console.log('Loading:', loading);
-    console.log('Disabled:', disabled);
-    
-    if (!scannerRef.current) {
-      console.error('❌ Scanner not initialized');
-      setError('Escáner no inicializado. Recarga la página e intenta de nuevo.');
-      return;
-    }
-
-    try {
-      console.log('🔍 Starting QR scan...');
-      setError(null);
-      setIsScanning(true);
-      setIsProcessing(false);
-
-      if (scanMethod === 'camera') {
-        // Request camera permission and start stream
-        const hasAccess = await requestCameraPermission();
-        if (!hasAccess) {
-          setIsScanning(false);
-          return;
-        }
-
-        console.log('📹 Video ready, starting QR detection...');
-
-        // Start continuous scanning
-        startContinuousScanning();
-      }
-
-    } catch (error: unknown) {
-      console.error('❌ Scanning error:', error);
-
-      if (
-        typeof error === 'object' &&
-        error !== null &&
-        'message' in error &&
-        typeof (error as { message: string }).message === 'string'
-      ) {
-        const errorMessage = (error as { message: string }).message;
-        if (errorMessage.includes('Timeout')) {
-          setError('Tiempo de espera agotado. Verifica que la cámara esté funcionando correctamente.');
-        } else {
-          setError('Error al iniciar el escaneo. Intenta de nuevo.');
-        }
-      } else {
-        setError('Error al iniciar el escaneo. Intenta de nuevo.');
-      }
-
-      stopScanning();
-    }
-  };
-
-  const stopScanning = useCallback(() => {
-    try {
-      console.log('🛑 Stopping QR scan...');
-      
-      // Cancel animation frame
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-        animationFrameRef.current = null;
-      }
-
-      // Stop the scanner
-      if (scannerRef.current) {
-        try {
-          scannerRef.current.reset();
-        } catch (error) {
-          console.warn('Error resetting scanner:', error);
-        }
-      }
-
-      // Stop video stream
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach(track => {
-          track.stop();
-          console.log('📹 Stopped video track:', track.kind);
-        });
-        streamRef.current = null;
-      }
-
-      // Clear video element
-      if (videoRef.current) {
-        videoRef.current.srcObject = null;
-      }
-
-      setIsScanning(false);
-      setIsProcessing(false);
-      setFlashEnabled(false);
-      
-      console.log('✅ QR scan stopped successfully');
-    } catch (error) {
-      console.error('❌ Error stopping scanner:', error);
-    }
-  }, []);
-
   const startContinuousScanning = useCallback(() => {
     if (!scannerRef.current || !videoRef.current || !streamRef.current) {
       return;
@@ -369,6 +314,61 @@ export const QRScannerButton: React.FC<QRScannerButtonProps> = ({
     // Start the scanning loop
     scanFrame();
   }, [isScanning, isProcessing, onScan, stopScanning]);
+
+  const startScanning = async () => {
+    console.log('🔍 startScanning called - Button clicked!');
+    console.log('Scanner ref:', scannerRef.current);
+    console.log('Loading:', loading);
+    console.log('Disabled:', disabled);
+    
+    if (!scannerRef.current) {
+      console.error('❌ Scanner not initialized');
+      setError('Escáner no inicializado. Recarga la página e intenta de nuevo.');
+      return;
+    }
+
+    try {
+      console.log('🔍 Starting QR scan...');
+      setError(null);
+      setIsScanning(true);
+      setIsProcessing(false);
+
+      if (scanMethod === 'camera') {
+        // Request camera permission and start stream
+        const hasAccess = await requestCameraPermission();
+        if (!hasAccess) {
+          setIsScanning(false);
+          return;
+        }
+
+        console.log('📹 Video ready, starting QR detection...');
+
+        // Start continuous scanning
+        startContinuousScanning();
+      }
+
+    } catch (error: unknown) {
+      console.error('❌ Scanning error:', error);
+
+      if (
+        typeof error === 'object' &&
+        error !== null &&
+        'message' in error &&
+        typeof (error as { message: string }).message === 'string'
+      ) {
+        const errorMessage = (error as { message: string }).message;
+        if (errorMessage.includes('Timeout')) {
+          setError('Tiempo de espera agotado. Verifica que la cámara esté funcionando correctamente.');
+        } else {
+          setError('Error al iniciar el escaneo. Intenta de nuevo.');
+        }
+      } else {
+        setError('Error al iniciar el escaneo. Intenta de nuevo.');
+      }
+
+      stopScanning();
+    }
+  };
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];

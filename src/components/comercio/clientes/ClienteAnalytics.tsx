@@ -362,17 +362,13 @@ export function ClienteAnalytics() {
   // Estados para gestión de clientes
   const [searchTerm, setSearchTerm] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [, setShowEditModal] = useState(false);
-  const [, setShowDeleteModal] = useState(false);
-  const [, setShowDetailModal] = useState(false);
-  const [, setShowCreateModal] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
-  const [, setSelectedCliente] = useState<Cliente | null>(null);
+  const [selectedCliente, setSelectedCliente] = useState<Cliente | null>(null);
   const [searchResults, setSearchResults] = useState<Cliente[]>([]);
   const [showSearchResults, setShowSearchResults] = useState(false);
 
   // Estados del formulario
-  const [, setFormData] = useState<ClienteFormData>({
+  const [formData, setFormData] = useState<ClienteFormData>({
     nombre: '',
     email: '',
     telefono: '',
@@ -388,8 +384,6 @@ export function ClienteAnalytics() {
       recibirSMS: false,
     },
   });
-
-  
 
   // Funciones para gestión de clientes
   const resetForm = () => {
@@ -431,22 +425,13 @@ export function ClienteAnalytics() {
   const handleSelectCliente = async (cliente: Cliente) => {
     setSelectedCliente(cliente);
     await selectCliente(cliente.id);
-    setShowDetailModal(true);
     setShowSearchResults(false);
   };
-
-
-  // Remove incomplete handleEnhancedCreateCliente function
-
-
- 
 
   const handleToggleEstado = async (cliente: Cliente) => {
     const nuevoEstado = cliente.estado === 'activo' ? 'inactivo' : 'activo';
     await updateEstadoCliente(cliente.id, nuevoEstado);
   };
-
-
 
   const openEditModal = (cliente: Cliente) => {
     setSelectedCliente(cliente);
@@ -463,10 +448,7 @@ export function ClienteAnalytics() {
       tags: cliente.tags || [],
       configuracion: cliente.configuracion,
     });
-    setShowEditModal(true);
   };
-
- 
 
   // Calcular métricas avanzadas
   const advancedMetrics = useMemo(() => {
@@ -698,8 +680,6 @@ export function ClienteAnalytics() {
               )}
             </div>
           )}
-
-          {/* Aquí irían los componentes de segmentación y top clientes que ya tienes */}
         </>
       )}
 
@@ -788,7 +768,7 @@ export function ClienteAnalytics() {
                 {/* Dropdown para crear cliente */}
                 <div className="relative group">
                   <button
-                    onClick={() => setShowCreateModal(true)}
+                    onClick={resetForm}
                     className="flex items-center gap-2 bg-purple-500 text-white px-4 py-3 rounded-xl hover:bg-purple-600 transition-colors shadow-lg shadow-purple-500/30"
                   >
                     <UserPlus className="w-4 h-4" />
@@ -799,36 +779,33 @@ export function ClienteAnalytics() {
                   {/* Dropdown menu */}
                   <div className="absolute top-full right-0 mt-2 w-56 bg-white rounded-xl shadow-lg border border-slate-200 py-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10">
                     <button
-                      onClick={() => {
-                        setShowCreateModal(true);
-                        resetForm();
-                      }}
+                      onClick={resetForm}
                       className="w-full px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2"
                     >
                       <UserPlus size={14} />
                       Formulario básico
                     </button>
                     <button
-                      onClick={() => {
-                        setShowCreateModal(true);
-                        resetForm();
-                      }}
+                      onClick={resetForm}
                       className="w-full px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2"
                     >
                       <Zap size={14} />
                       Formulario completo
                     </button>
                   </div>
-                    <button
-                      onClick={() => {
-                        resetForm();
-                        // Aquí podrías abrir otro modal si lo implementas en el futuro
-                      }}
-                      className="w-full px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2"
-                    >
-                      <Zap size={14} />
-                      Formulario completo
-                    </button>
+                </div>
+
+                <div className="flex items-center bg-gray-100 rounded-lg p-1">
+                  <button
+                    onClick={() => setViewMode('grid')}
+                    className={`p-2 rounded-lg transition-colors ${
+                      viewMode === 'grid' 
+                        ? 'bg-white text-slate-900 shadow-sm' 
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <Users size={16} />
+                  </button>
                   <button
                     onClick={() => setViewMode('list')}
                     className={`p-2 rounded-lg transition-colors ${
@@ -947,7 +924,7 @@ export function ClienteAnalytics() {
                 </p>
                 <Button
                   leftIcon={<UserPlus size={16} />}
-                  onClick={() => setShowCreateModal(true)}
+                  onClick={resetForm}
                   className="bg-purple-600 hover:bg-purple-700 text-white"
                 >
                   Agregar Primer Cliente
@@ -968,7 +945,6 @@ export function ClienteAnalytics() {
                       onEdit={openEditModal}
                       onDelete={(cliente) => {
                         setSelectedCliente(cliente);
-                        setShowDeleteModal(true);
                       }}
                       onToggleEstado={handleToggleEstado}
                     />
@@ -998,9 +974,6 @@ export function ClienteAnalytics() {
           </div>
         </>
       )}
-
-      {/* Todos los modales que ya tienes (crear, editar, eliminar, detalle, compra) */}
-      {/* ... aquí van todos los modales del código anterior ... */}
 
       {/* Componente de creación rápida flotante */}
       <QuickClienteCreator
