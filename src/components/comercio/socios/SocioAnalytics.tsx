@@ -43,7 +43,8 @@ import {
   MessageSquare,
   Sparkles,
   Plus,
-  TrendingUp
+  TrendingUp,
+  Loader2
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -156,6 +157,46 @@ const AdvancedMetricCard: React.FC<{
     </motion.div>
   );
 };
+
+// Componente de estado de carga mejorado
+const LoadingState: React.FC<{ message?: string }> = ({ message = "Cargando socios..." }) => (
+  <div className="flex flex-col items-center justify-center py-16 space-y-4">
+    <div className="relative">
+      <div className="w-16 h-16 border-4 border-purple-200 border-t-purple-600 rounded-full animate-spin"></div>
+      <motion.div
+        animate={{ rotate: -360 }}
+        transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
+        className="absolute inset-0 w-16 h-16 border-4 border-transparent border-r-purple-400 rounded-full"
+      />
+    </div>
+    <div className="text-center">
+      <h3 className="text-xl font-semibold text-gray-900 mb-2">{message}</h3>
+      <p className="text-gray-600">Por favor espera un momento...</p>
+    </div>
+  </div>
+);
+
+// Componente de estado vacío mejorado
+const EmptyState: React.FC<{ onCreateSocio: () => void }> = ({ onCreateSocio }) => (
+  <div className="text-center py-16">
+    <div className="w-20 h-20 mx-auto mb-8 bg-gradient-to-br from-purple-100 to-violet-200 rounded-3xl flex items-center justify-center">
+      <Users className="w-10 h-10 text-purple-500" />
+    </div>
+    <h3 className="text-2xl font-bold text-slate-900 mb-3">
+      No hay socios registrados
+    </h3>
+    <p className="text-slate-600 mb-8 max-w-md mx-auto">
+      Comienza agregando tu primer socio para gestionar sus perfiles y analizar su comportamiento
+    </p>
+    <Button
+      leftIcon={<UserPlus size={16} />}
+      onClick={onCreateSocio}
+      className="bg-gradient-to-r from-purple-600 to-violet-600 hover:from-purple-700 hover:to-violet-700 text-white shadow-lg shadow-purple-500/30"
+    >
+      Agregar Primer Socio
+    </Button>
+  </div>
+);
 
 // Componente de tarjeta de socio mejorado
 const SocioCard: React.FC<{
@@ -364,7 +405,7 @@ const SocioCard: React.FC<{
   );
 };
 
-// Componente principal mejorado con métricas funcionales
+// Componente principal mejorado con debugging
 export function SocioAnalytics() {
   const {
     clientes,
@@ -426,12 +467,26 @@ export function SocioAnalytics() {
     },
   });
 
-  // Función para actualizar las estadísticas del dashboard principal - CORREGIDA
+  // Debug: Log de datos para identificar problemas
+  useEffect(() => {
+    console.log('🔍 DEBUG - Estado actual de socios:');
+    console.log('- Total socios:', total);
+    console.log('- Socios cargados:', clientes.length);
+    console.log('- Loading:', loading);
+    console.log('- Error:', error);
+    console.log('- Stats:', clienteStats);
+    console.log('- Filtros activos:', filtros);
+    
+    if (clientes.length > 0) {
+      console.log('- Primer socio:', clientes[0]);
+    }
+  }, [clientes, total, loading, error, clienteStats, filtros]);
+
+  // Función para actualizar las estadísticas del dashboard principal
   const updateDashboardStats = useCallback(async () => {
     try {
       console.log('🔄 Actualizando estadísticas del dashboard...');
       
-      // Actualizar en secuencia para asegurar consistencia
       await refreshStats();
       console.log('✅ Stats de socios actualizadas');
       
@@ -444,7 +499,27 @@ export function SocioAnalytics() {
     }
   }, [refreshStats, loadComercioStats]);
 
-  // Funciones para gestión de socios - CORREGIDAS
+  // Función para forzar recarga completa
+  const forceReload = useCallback(async () => {
+    try {
+      console.log('🔄 Forzando recarga completa de datos...');
+      
+      // Limpiar filtros primero
+      clearFiltros();
+      
+      // Recargar datos
+      await loadClientes();
+      await updateDashboardStats();
+      
+      console.log('✅ Recarga completa finalizada');
+      toast.success('Datos actualizados correctamente');
+    } catch (error) {
+      console.error('❌ Error en recarga completa:', error);
+      toast.error('Error al actualizar los datos');
+    }
+  }, [loadClientes, updateDashboardStats, clearFiltros]);
+
+  // Funciones para gestión de socios
   const resetForm = () => {
     setFormData({
       nombre: '',
@@ -488,7 +563,6 @@ export function SocioAnalytics() {
     setShowSearchResults(false);
   };
 
-  // FUNCIÓN CORREGIDA - handleCreateSocio
   const handleCreateSocio = async () => {
     try {
       console.log('🚀 Creando nuevo socio con datos:', formData);
@@ -502,14 +576,8 @@ export function SocioAnalytics() {
         toast.success('Socio creado exitosamente');
         
         console.log('🔄 Iniciando actualización completa...');
-        
-        // CRÍTICO: Forzar recarga completa en secuencia
         await loadClientes();
-        console.log('✅ Lista de socios recargada');
-        
         await updateDashboardStats();
-        console.log('✅ Dashboard actualizado');
-        
         console.log('✅ Proceso de creación completado');
       }
     } catch (error) {
@@ -518,7 +586,6 @@ export function SocioAnalytics() {
     }
   };
 
-  // FUNCIÓN CORREGIDA - handleEditSocio
   const handleEditSocio = async () => {
     if (!selectedCliente) return;
 
@@ -531,7 +598,6 @@ export function SocioAnalytics() {
         resetForm();
         toast.success('Socio actualizado exitosamente');
         
-        // CRÍTICO: Actualizar todo en secuencia
         await loadClientes();
         await updateDashboardStats();
         
@@ -543,7 +609,6 @@ export function SocioAnalytics() {
     }
   };
 
-  // FUNCIÓN CORREGIDA - handleDeleteSocio
   const handleDeleteSocio = async () => {
     if (!selectedCliente) return;
 
@@ -556,7 +621,6 @@ export function SocioAnalytics() {
         setSelectedCliente(null);
         toast.success('Socio eliminado exitosamente');
         
-        // CRÍTICO: Actualizar todo en secuencia
         await loadClientes();
         await updateDashboardStats();
         
@@ -576,7 +640,6 @@ export function SocioAnalytics() {
       await updateEstadoCliente(cliente.id, nuevoEstado);
       toast.success(`Socio ${nuevoEstado === 'activo' ? 'activado' : 'desactivado'} exitosamente`);
       
-      // CRÍTICO: Actualizar todo en secuencia
       await loadClientes();
       await updateDashboardStats();
       
@@ -609,13 +672,11 @@ export function SocioAnalytics() {
   const advancedMetrics = useMemo(() => {
     if (!clienteStats || !clientes.length) return null;
 
-    // Usar estadísticas reales del servicio
     const totalSocios = clienteStats.totalClientes;
     const sociosNuevos = clienteStats.clientesNuevos;
     const sociosActivos = clienteStats.clientesActivos;
     const sociosConCompras = clientes.filter(c => (c.totalCompras || 0) > 0).length;
     
-    // Calcular métricas financieras
     const totalGastado = clientes.reduce((sum, c) => sum + (c.montoTotalGastado || 0), 0);
     const totalCompras = clientes.reduce((sum, c) => sum + (c.totalCompras || 0), 0);
     const totalBeneficios = clientes.reduce((sum, c) => sum + (c.beneficiosUsados || 0), 0);
@@ -650,12 +711,13 @@ export function SocioAnalytics() {
     };
   }, [clientes, timeRange, clienteStats]);
 
-  // Actualizar estadísticas cuando se monta el componente
+  // Cargar datos iniciales
   useEffect(() => {
     console.log('🚀 Componente montado, cargando datos iniciales...');
     updateDashboardStats();
   }, [updateDashboardStats]);
 
+  // Mostrar estado de carga inicial
   if (loading && clientes.length === 0) {
     return (
       <div className="space-y-6">
@@ -677,12 +739,16 @@ export function SocioAnalytics() {
 
   return (
     <div className="space-y-8">
-      {/* Header mejorado con tabs */}
+      {/* Header mejorado con debugging */}
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
             <Users className="text-purple-600" size={28} />
             Gestión de Socios
+            {/* Debug badge */}
+            <span className="bg-blue-100 text-blue-800 text-sm px-2 py-1 rounded-full">
+              {total} total | {clientes.length} cargados
+            </span>
           </h2>
           <p className="text-gray-600 mt-1">
             Gestiona y analiza a tus socios de manera eficiente
@@ -716,17 +782,35 @@ export function SocioAnalytics() {
             </button>
           </div>
 
+          {/* Botón de recarga forzada para debugging */}
           <Button
             variant="outline"
-            leftIcon={<RefreshCw size={16} />}
-            onClick={updateDashboardStats}
-            loading={loading}
+            leftIcon={loading ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
+            onClick={forceReload}
+            disabled={loading}
             className="border-gray-300 text-gray-700 hover:bg-gray-50"
           >
-            Actualizar
+            {loading ? 'Cargando...' : 'Recargar'}
           </Button>
         </div>
       </div>
+
+      {/* Mostrar error si existe */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-xl p-6 flex items-center gap-3">
+          <AlertCircle className="text-red-500" size={20} />
+          <div>
+            <h3 className="font-medium text-red-800">Error al cargar socios</h3>
+            <p className="text-red-600">{error}</p>
+            <button
+              onClick={forceReload}
+              className="mt-2 text-red-700 underline hover:no-underline"
+            >
+              Intentar de nuevo
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Contenido según tab activo */}
       {activeTab === 'socios' && (
@@ -745,7 +829,7 @@ export function SocioAnalytics() {
                   className="w-full pl-12 pr-4 py-4 border border-slate-300 rounded-2xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all text-lg"
                 />
 
-                {/* Resultados de búsqueda mejorados */}
+                {/* Resultados de búsqueda */}
                 <AnimatePresence>
                   {showSearchResults && searchResults.length > 0 && (
                     <motion.div
@@ -925,8 +1009,22 @@ export function SocioAnalytics() {
             </AnimatePresence>
           </div>
 
-          {/* Lista de socios mejorada */}
+          {/* Lista de socios mejorada con debugging */}
           <div className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
+            {/* Debug info header */}
+            {process.env.NODE_ENV === 'development' && (
+              <div className="bg-blue-50 border-b border-blue-200 p-4">
+                <div className="flex items-center gap-4 text-sm">
+                  <span className="font-medium text-blue-800">Debug Info:</span>
+                  <span className="text-blue-600">Total: {total}</span>
+                  <span className="text-blue-600">Cargados: {clientes.length}</span>
+                  <span className="text-blue-600">Loading: {loading ? 'Sí' : 'No'}</span>
+                  <span className="text-blue-600">Error: {error || 'Ninguno'}</span>
+                  <span className="text-blue-600">HasMore: {hasMore ? 'Sí' : 'No'}</span>
+                </div>
+              </div>
+            )}
+
             {error && (
               <div className="p-6 bg-red-50 border-b border-red-200 flex items-center gap-3">
                 <AlertCircle className="text-red-500" size={20} />
@@ -937,25 +1035,11 @@ export function SocioAnalytics() {
               </div>
             )}
 
-            {clientes.length === 0 && !loading ? (
-              <div className="text-center py-16">
-                <div className="w-20 h-20 mx-auto mb-8 bg-gradient-to-br from-purple-100 to-violet-200 rounded-3xl flex items-center justify-center">
-                  <Users className="w-10 h-10 text-purple-500" />
-                </div>
-                <h3 className="text-2xl font-bold text-slate-900 mb-3">
-                  No hay socios registrados
-                </h3>
-                <p className="text-slate-600 mb-8 max-w-md mx-auto">
-                  Comienza agregando tu primer socio para gestionar sus perfiles y analizar su comportamiento
-                </p>
-                <Button
-                  leftIcon={<UserPlus size={16} />}
-                  onClick={() => setShowCreateModal(true)}
-                  className="bg-gradient-to-r from-purple-600 to-violet-600 hover:from-purple-700 hover:to-violet-700 text-white shadow-lg shadow-purple-500/30"
-                >
-                  Agregar Primer Socio
-                </Button>
-              </div>
+            {/* Mostrar loading state */}
+            {loading && clientes.length === 0 ? (
+              <LoadingState message="Cargando lista de socios..." />
+            ) : clientes.length === 0 && !loading ? (
+              <EmptyState onCreateSocio={() => setShowCreateModal(true)} />
             ) : (
               <div className="p-8">
                 <div className={`grid gap-8 ${
@@ -1211,184 +1295,49 @@ export function SocioAnalytics() {
         </>
       )}
 
-      {/* Modal de crear socio - PANTALLA COMPLETA CON PORTAL */}
-      <Dialog open={showCreateModal} onClose={() => setShowCreateModal(false)} fullScreen>
-        <DialogContent fullScreen>
+      {/* Modales simplificados para evitar problemas de renderizado */}
+      
+      {/* Modal de crear socio */}
+      <Dialog open={showCreateModal} onClose={() => setShowCreateModal(false)}>
+        <DialogContent>
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-3 text-3xl">
-              <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-violet-600 rounded-2xl flex items-center justify-center shadow-lg">
-                <UserPlus size={24} className="text-white" />
-              </div>
+            <DialogTitle className="flex items-center gap-3">
+              <UserPlus size={24} className="text-purple-600" />
               Crear Nuevo Socio
             </DialogTitle>
-            
-            <p className="text-slate-600 mt-2 text-lg">
-              Completa la información del nuevo socio para agregarlo al sistema
-            </p>
           </DialogHeader>
 
-          <div className="max-w-6xl mx-auto">
-            <div className="bg-gradient-to-br from-purple-50 to-violet-50 rounded-3xl p-10 mb-10">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-                {/* Información Personal */}
-                <div className="space-y-8">
-                  <div className="flex items-center gap-4 mb-8">
-                    <div className="w-12 h-12 bg-purple-500 rounded-2xl flex items-center justify-center shadow-lg">
-                      <User size={20} className="text-white" />
-                    </div>
-                    <h3 className="text-2xl font-bold text-slate-900">Información Personal</h3>
-                  </div>
+          <div className="space-y-4">
+            <Input
+              label="Nombre completo *"
+              value={formData.nombre}
+              onChange={(e) => setFormData(prev => ({ ...prev, nombre: e.target.value }))}
+              placeholder="Nombre completo del socio"
+              required
+            />
 
-                  <Input
-                    label="Nombre completo *"
-                    value={formData.nombre}
-                    onChange={(e) => setFormData(prev => ({ ...prev, nombre: e.target.value }))}
-                    placeholder="Nombre completo del socio"
-                    required
-                    className="text-xl py-4"
-                  />
+            <Input
+              label="Email *"
+              type="email"
+              value={formData.email}
+              onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+              placeholder="email@ejemplo.com"
+              required
+            />
 
-                  <Input
-                    label="Email *"
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-                    placeholder="email@ejemplo.com"
-                    required
-                    className="text-xl py-4"
-                  />
+            <Input
+              label="Teléfono"
+              value={formData.telefono}
+              onChange={(e) => setFormData(prev => ({ ...prev, telefono: e.target.value }))}
+              placeholder="+54 9 11 1234-5678"
+            />
 
-                  <Input
-                    label="Teléfono"
-                    value={formData.telefono}
-                    onChange={(e) => setFormData(prev => ({ ...prev, telefono: e.target.value }))}
-                    placeholder="+54 9 11 1234-5678"
-                    className="text-xl py-4"
-                  />
-
-                  <Input
-                    label="DNI"
-                    value={formData.dni}
-                    onChange={(e) => setFormData(prev => ({ ...prev, dni: e.target.value }))}
-                    placeholder="12345678"
-                    className="text-xl py-4"
-                  />
-                </div>
-
-                {/* Información Adicional */}
-                <div className="space-y-8">
-                  <div className="flex items-center gap-4 mb-8">
-                    <div className="w-12 h-12 bg-emerald-500 rounded-2xl flex items-center justify-center shadow-lg">
-                      <MapPin size={20} className="text-white" />
-                    </div>
-                    <h3 className="text-2xl font-bold text-slate-900">Información Adicional</h3>
-                  </div>
-
-                  <Input
-                    label="Fecha de nacimiento"
-                    type="date"
-                    value={formData.fechaNacimiento}
-                    onChange={(e) => setFormData(prev => ({ ...prev, fechaNacimiento: e.target.value }))}
-                    className="text-xl py-4"
-                  />
-
-                  <Input
-                    label="Dirección"
-                    value={formData.direccion}
-                    onChange={(e) => setFormData(prev => ({ ...prev, direccion: e.target.value }))}
-                    placeholder="Dirección completa"
-                    className="text-xl py-4"
-                  />
-
-                  <div>
-                    <label className="block text-lg font-medium text-slate-700 mb-4">
-                      Notas
-                    </label>
-                    <textarea
-                      value={formData.notas}
-                      onChange={(e) => setFormData(prev => ({ ...prev, notas: e.target.value }))}
-                      placeholder="Notas adicionales sobre el socio..."
-                      rows={5}
-                      className="w-full px-6 py-4 border border-slate-300 rounded-2xl focus:ring-2 focus:ring-purple-500 focus:border-transparent text-xl resize-none"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Configuración de Comunicación */}
-            <div className="bg-white rounded-3xl border border-slate-200 p-10 shadow-lg">
-              <div className="flex items-center gap-4 mb-8">
-                <div className="w-12 h-12 bg-blue-500 rounded-2xl flex items-center justify-center shadow-lg">
-                  <Bell size={20} className="text-white" />
-                </div>
-                <h3 className="text-2xl font-bold text-slate-900">Configuración de Comunicación</h3>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                {[
-                  { 
-                    key: 'recibirNotificaciones', 
-                    label: 'Recibir notificaciones', 
-                    description: 'Notificaciones generales del sistema',
-                    icon: <Bell size={20} />
-                  },
-                  { 
-                    key: 'recibirPromociones', 
-                    label: 'Recibir promociones', 
-                    description: 'Ofertas y promociones especiales',
-                    icon: <Gift size={20} />
-                  },
-                  { 
-                    key: 'recibirEmail', 
-                    label: 'Comunicación por email', 
-                    description: 'Recibir emails informativos',
-                    icon: <Mail size={20} />
-                  },
-                  { 
-                    key: 'recibirSMS', 
-                    label: 'Comunicación por SMS', 
-                    description: 'Mensajes de texto importantes',
-                    icon: <MessageSquare size={20} />
-                  },
-                ].map((config) => (
-                  <div key={config.key} className="flex items-center justify-between p-6 bg-slate-50 rounded-2xl">
-                    <div className="flex items-center gap-4">
-                      <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center shadow-md">
-                        {config.icon}
-                      </div>
-                      <div>
-                        <span className="text-lg font-medium text-slate-900">{config.label}</span>
-                        <p className="text-sm text-slate-500 mt-1">{config.description}</p>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setFormData(prev => ({
-                        ...prev,
-                        configuracion: {
-                          ...prev.configuracion,
-                          [config.key]: !prev.configuracion[config.key as keyof typeof prev.configuracion]
-                        }
-                      }))}
-                      className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors ${
-                        formData.configuracion[config.key as keyof typeof formData.configuracion]
-                          ? 'bg-purple-600' 
-                          : 'bg-slate-300'
-                      }`}
-                    >
-                      <span
-                        className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform shadow-lg ${
-                          formData.configuracion[config.key as keyof typeof formData.configuracion]
-                            ? 'translate-x-7' 
-                            : 'translate-x-1'
-                        }`}
-                      />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
+            <Input
+              label="DNI"
+              value={formData.dni}
+              onChange={(e) => setFormData(prev => ({ ...prev, dni: e.target.value }))}
+              placeholder="12345678"
+            />
           </div>
 
           <DialogFooter>
@@ -1398,7 +1347,6 @@ export function SocioAnalytics() {
                 setShowCreateModal(false);
                 resetForm();
               }}
-              className="border-slate-300 text-slate-700 hover:bg-slate-50 px-10 py-4 text-xl"
             >
               Cancelar
             </Button>
@@ -1406,526 +1354,79 @@ export function SocioAnalytics() {
               onClick={handleCreateSocio}
               loading={loading}
               disabled={!formData.nombre || !formData.email}
-              className="bg-gradient-to-r from-purple-600 to-violet-600 hover:from-purple-700 hover:to-violet-700 text-white px-10 py-4 text-xl shadow-lg shadow-purple-500/30"
+              className="bg-gradient-to-r from-purple-600 to-violet-600 hover:from-purple-700 hover:to-violet-700 text-white"
             >
-              <UserPlus size={24} className="mr-3" />
+              <UserPlus size={16} className="mr-2" />
               Crear Socio
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Modal de editar socio */}
-      <Dialog open={showEditModal} onClose={() => setShowEditModal(false)} fullScreen>
-        <DialogContent fullScreen>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-3 text-3xl">
-              <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl flex items-center justify-center shadow-lg">
-                <Edit3 size={24} className="text-white" />
-              </div>
-              Editar Socio
-            </DialogTitle>
-            <p className="text-slate-600 mt-2 text-lg">
-              Modifica la información del socio según sea necesario
-            </p>
-          </DialogHeader>
-
-          <div className="max-w-6xl mx-auto">
-            <div className="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-3xl p-10 mb-10">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-                <div className="space-y-8">
-                  <div className="flex items-center gap-4 mb-8">
-                    <div className="w-12 h-12 bg-emerald-500 rounded-2xl flex items-center justify-center shadow-lg">
-                      <User size={20} className="text-white" />
-                    </div>
-                    <h3 className="text-2xl font-bold text-slate-900">Información Personal</h3>
-                  </div>
-
-                  <Input
-                    label="Nombre completo *"
-                    value={formData.nombre}
-                    onChange={(e) => setFormData(prev => ({ ...prev, nombre: e.target.value }))}
-                    placeholder="Nombre completo del socio"
-                    required
-                    className="text-xl py-4"
-                  />
-
-                  <Input
-                    label="Email *"
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-                    placeholder="email@ejemplo.com"
-                    required
-                    className="text-xl py-4"
-                  />
-
-                  <Input
-                    label="Teléfono"
-                    value={formData.telefono}
-                    onChange={(e) => setFormData(prev => ({ ...prev, telefono: e.target.value }))}
-                    placeholder="+54 9 11 1234-5678"
-                    className="text-xl py-4"
-                  />
-
-                  <Input
-                    label="DNI"
-                    value={formData.dni}
-                    onChange={(e) => setFormData(prev => ({ ...prev, dni: e.target.value }))}
-                    placeholder="12345678"
-                    className="text-xl py-4"
-                  />
-                </div>
-
-                <div className="space-y-8">
-                  <div className="flex items-center gap-4 mb-8">
-                    <div className="w-12 h-12 bg-teal-500 rounded-2xl flex items-center justify-center shadow-lg">
-                      <MapPin size={20} className="text-white" />
-                    </div>
-                    <h3 className="text-2xl font-bold text-slate-900">Información Adicional</h3>
-                  </div>
-
-                  <Input
-                    label="Fecha de nacimiento"
-                    type="date"
-                    value={formData.fechaNacimiento}
-                    onChange={(e) => setFormData(prev => ({ ...prev, fechaNacimiento: e.target.value }))}
-                    className="text-xl py-4"
-                  />
-
-                  <Input
-                    label="Dirección"
-                    value={formData.direccion}
-                    onChange={(e) => setFormData(prev => ({ ...prev, direccion: e.target.value }))}
-                    placeholder="Dirección completa"
-                    className="text-xl py-4"
-                  />
-
-                  <div>
-                    <label className="block text-lg font-medium text-slate-700 mb-4">
-                      Notas
-                    </label>
-                    <textarea
-                      value={formData.notas}
-                      onChange={(e) => setFormData(prev => ({ ...prev, notas: e.target.value }))}
-                      placeholder="Notas adicionales sobre el socio..."
-                      rows={5}
-                      className="w-full px-6 py-4 border border-slate-300 rounded-2xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-xl resize-none"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Configuración de Comunicación igual que en crear */}
-            <div className="bg-white rounded-3xl border border-slate-200 p-10 shadow-lg">
-              <div className="flex items-center gap-4 mb-8">
-                <div className="w-12 h-12 bg-blue-500 rounded-2xl flex items-center justify-center shadow-lg">
-                  <Bell size={20} className="text-white" />
-                </div>
-                <h3 className="text-2xl font-bold text-slate-900">Configuración de Comunicación</h3>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                {[
-                  { 
-                    key: 'recibirNotificaciones', 
-                    label: 'Recibir notificaciones', 
-                    description: 'Notificaciones generales del sistema',
-                    icon: <Bell size={20} />
-                  },
-                  { 
-                    key: 'recibirPromociones', 
-                    label: 'Recibir promociones', 
-                    description: 'Ofertas y promociones especiales',
-                    icon: <Gift size={20} />
-                  },
-                  { 
-                    key: 'recibirEmail', 
-                    label: 'Comunicación por email', 
-                    description: 'Recibir emails informativos',
-                    icon: <Mail size={20} />
-                  },
-                  { 
-                    key: 'recibirSMS', 
-                    label: 'Comunicación por SMS', 
-                    description: 'Mensajes de texto importantes',
-                    icon: <MessageSquare size={20} />
-                  },
-                ].map((config) => (
-                  <div key={config.key} className="flex items-center justify-between p-6 bg-slate-50 rounded-2xl">
-                    <div className="flex items-center gap-4">
-                      <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center shadow-md">
-                        {config.icon}
-                      </div>
-                      <div>
-                        <span className="text-lg font-medium text-slate-900">{config.label}</span>
-                        <p className="text-sm text-slate-500 mt-1">{config.description}</p>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setFormData(prev => ({
-                        ...prev,
-                        configuracion: {
-                          ...prev.configuracion,
-                          [config.key]: !prev.configuracion[config.key as keyof typeof prev.configuracion]
-                        }
-                      }))}
-                      className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors ${
-                        formData.configuracion[config.key as keyof typeof formData.configuracion]
-                          ? 'bg-emerald-600' 
-                          : 'bg-slate-300'
-                      }`}
-                    >
-                      <span
-                        className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform shadow-lg ${
-                          formData.configuracion[config.key as keyof typeof formData.configuracion]
-                            ? 'translate-x-7' 
-                            : 'translate-x-1'
-                        }`}
-                      />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setShowEditModal(false);
-                resetForm();
-              }}
-              className="border-slate-300 text-slate-700 hover:bg-slate-50 px-10 py-4 text-xl"
-            >
-              Cancelar
-            </Button>
-            <Button
-              onClick={handleEditSocio}
-              loading={loading}
-              disabled={!formData.nombre || !formData.email}
-              className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white px-10 py-4 text-xl shadow-lg shadow-emerald-500/30"
-            >
-              <Edit3 size={24} className="mr-3" />
-              Guardar Cambios
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
       {/* Modal de eliminar socio */}
-      <Dialog open={showDeleteModal} onClose={() => setShowDeleteModal(false)} fullScreen>
-        <DialogContent fullScreen>
+      <Dialog open={showDeleteModal} onClose={() => setShowDeleteModal(false)}>
+        <DialogContent>
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-3 text-3xl text-red-600">
-              <div className="w-12 h-12 bg-gradient-to-br from-red-500 to-red-600 rounded-2xl flex items-center justify-center shadow-lg">
-                <Trash2 size={24} className="text-white" />
-              </div>
+            <DialogTitle className="flex items-center gap-3 text-red-600">
+              <Trash2 size={24} />
               Eliminar Socio
             </DialogTitle>
-            <p className="text-slate-600 mt-2 text-lg">
-              Esta acción no se puede deshacer. Se eliminarán todos los datos asociados.
-            </p>
           </DialogHeader>
 
-          <div className="max-w-4xl mx-auto">
-            <div className="bg-red-50 border border-red-200 rounded-3xl p-10 mb-10">
-              <div className="flex items-center gap-6 mb-8">
-                <AlertCircle className="text-red-500 flex-shrink-0" size={48} />
-                <div>
-                  <h3 className="text-2xl font-bold text-red-800 mb-3">
-                    ¿Estás seguro de que deseas eliminar este socio?
-                  </h3>
-                  <p className="text-red-600 text-lg">
-                    Esta acción eliminará permanentemente toda la información del socio, incluyendo su historial de compras, beneficios utilizados y datos personales.
-                  </p>
-                </div>
-              </div>
-
-              {selectedCliente && (
-                <div className="bg-white rounded-2xl p-8 border border-red-200">
-                  <div className="flex items-center gap-6">
-                    <div className="w-20 h-20 bg-slate-200 rounded-2xl flex items-center justify-center">
-                      {selectedCliente.avatar ? (
-                        <Image
-                          src={selectedCliente.avatar}
-                          alt={selectedCliente.nombre}
-                          className="w-full h-full object-cover rounded-2xl"
-                          width={80}
-                          height={80}
-                        />
-                      ) : (
-                        <User size={32} className="text-slate-400" />
-                      )}
-                    </div>
-                    <div className="flex-1">
-                      <h4 className="text-2xl font-bold text-slate-900 mb-2">{selectedCliente.nombre}</h4>
-                      <p className="text-slate-600 mb-4 text-lg">{selectedCliente.email}</p>
-                      <div className="grid grid-cols-3 gap-6 text-center">
-                        <div>
-                          <span className="text-2xl font-bold text-slate-900">{selectedCliente.totalCompras || 0}</span>
-                          <p className="text-slate-500">Compras</p>
-                        </div>
-                        <div>
-                          <span className="text-2xl font-bold text-slate-900">${(selectedCliente.montoTotalGastado || 0).toLocaleString()}</span>
-                          <p className="text-slate-500">Total gastado</p>
-                        </div>
-                        <div>
-                          <span className="text-2xl font-bold text-slate-900">{selectedCliente.beneficiosUsados || 0}</span>
-                          <p className="text-slate-500">Beneficios usados</p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-8">
-              <div className="flex items-center gap-4">
-                <AlertCircle className="text-amber-600" size={32} />
-                <p className="text-amber-800 font-medium text-lg">
-                  Recomendación: Considera desactivar el socio en lugar de eliminarlo para mantener el historial.
+          <div className="py-4">
+            <div className="flex items-center gap-4 p-4 bg-red-50 rounded-lg border border-red-200">
+              <AlertCircle className="text-red-500 flex-shrink-0" size={24} />
+              <div>
+                <p className="font-medium text-red-800">
+                  ¿Estás seguro de que deseas eliminar este socio?
+                </p>
+                <p className="text-red-600 text-sm mt-1">
+                  Esta acción no se puede deshacer.
                 </p>
               </div>
             </div>
+
+            {selectedCliente && (
+              <div className="mt-4 p-4 bg-white rounded-lg border">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 bg-slate-200 rounded-lg flex items-center justify-center">
+                    <User size={20} className="text-slate-400" />
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-slate-900">{selectedCliente.nombre}</h4>
+                    <p className="text-slate-600">{selectedCliente.email}</p>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           <DialogFooter>
             <Button
               variant="outline"
               onClick={() => setShowDeleteModal(false)}
-              className="border-slate-300 text-slate-700 hover:bg-slate-50 px-10 py-4 text-xl"
             >
               Cancelar
             </Button>
             <Button
               onClick={handleDeleteSocio}
               loading={loading}
-              className="bg-red-600 hover:bg-red-700 text-white px-10 py-4 text-xl shadow-lg shadow-red-500/30"
+              className="bg-red-600 hover:bg-red-700 text-white"
             >
-              <Trash2 size={24} className="mr-3" />
+              <Trash2 size={16} className="mr-2" />
               Eliminar Socio
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Modal de detalle del socio */}
-      <Dialog open={showDetailModal} onClose={() => setShowDetailModal(false)} fullScreen>
-        <DialogContent fullScreen>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-3 text-3xl">
-              <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center shadow-lg">
-                <User size={24} className="text-white" />
-              </div>
-              Perfil del Socio
-            </DialogTitle>
-            <p className="text-slate-600 mt-2 text-lg">
-              Información completa y estadísticas del socio
-            </p>
-          </DialogHeader>
-
-          {selectedCliente && (
-            <div className="max-w-7xl mx-auto space-y-10">
-              {/* Header del socio */}
-              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-3xl p-10">
-                <div className="flex items-start gap-10">
-                  <div className="relative">
-                    <div className="w-40 h-40 bg-white rounded-3xl shadow-xl flex items-center justify-center overflow-hidden">
-                      {selectedCliente.avatar ? (
-                        <Image
-                          src={selectedCliente.avatar}
-                          alt={selectedCliente.nombre}
-                          className="w-full h-full object-cover"
-                          width={160}
-                          height={160}
-                        />
-                      ) : (
-                        <User size={64} className="text-slate-400" />
-                      )}
-                    </div>
-                    <div className={`absolute -bottom-3 -right-3 w-12 h-12 rounded-full border-4 border-white flex items-center justify-center ${
-                      selectedCliente.estado === 'activo' ? 'bg-emerald-500' : 
-                      selectedCliente.estado === 'suspendido' ? 'bg-red-500' : 'bg-slate-500'
-                    }`}>
-                      <div className="w-4 h-4 bg-white rounded-full"></div>
-                    </div>
-                  </div>
-
-                  <div className="flex-1">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <h2 className="text-5xl font-bold text-slate-900 mb-4">
-                          {selectedCliente.nombre}
-                        </h2>
-                        <p className="text-2xl text-slate-600 mb-6">{selectedCliente.email}</p>
-                        
-                        <div className="flex items-center gap-8 mb-8">
-                          <div className={`inline-flex items-center gap-3 px-6 py-3 rounded-full text-lg font-medium border ${
-                            selectedCliente.estado === 'activo' 
-                              ? 'bg-emerald-100 text-emerald-800 border-emerald-200'
-                              : selectedCliente.estado === 'suspendido'
-                              ? 'bg-red-100 text-red-800 border-red-200'
-                              : 'bg-slate-100 text-slate-800 border-slate-200'
-                          }`}>
-                            {selectedCliente.estado === 'activo' && <CheckCircle size={20} />}
-                            {selectedCliente.estado === 'suspendido' && <XCircle size={20} />}
-                            {selectedCliente.estado === 'inactivo' && <Pause size={20} />}
-                            {selectedCliente.estado.charAt(0).toUpperCase() + selectedCliente.estado.slice(1)}
-                          </div>
-                          
-                          <span className="text-slate-500 text-lg">
-                            Socio desde {format(selectedCliente.creadoEn.toDate(), 'dd/MM/yyyy', { locale: es })}
-                          </span>
-                        </div>
-
-                        {/* Información de contacto */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                          {selectedCliente.telefono && (
-                            <div className="flex items-center gap-4 text-slate-600">
-                              <Phone size={24} />
-                              <span className="text-xl">{selectedCliente.telefono}</span>
-                            </div>
-                          )}
-                          {selectedCliente.direccion && (
-                            <div className="flex items-center gap-4 text-slate-600">
-                              <MapPin size={24} />
-                              <span className="text-xl">{selectedCliente.direccion}</span>
-                            </div>
-                          )}
-                          {selectedCliente.fechaNacimiento && (
-                            <div className="flex items-center gap-4 text-slate-600">
-                              <Calendar size={24} />
-                              <span className="text-xl">
-                                {format(selectedCliente.fechaNacimiento.toDate(), 'dd/MM/yyyy', { locale: es })}
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-4">
-                        <Button
-                          variant="outline"
-                          leftIcon={<Edit3 size={20} />}
-                          onClick={() => {
-                            setShowDetailModal(false);
-                            openEditModal(selectedCliente);
-                          }}
-                          className="border-slate-300 text-slate-700 hover:bg-slate-50 px-8 py-4 text-xl"
-                        >
-                          Editar
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Estadísticas del socio */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-                <div className="bg-white rounded-3xl border border-slate-200 p-8 text-center shadow-lg">
-                  <div className="w-20 h-20 bg-blue-100 rounded-3xl flex items-center justify-center mx-auto mb-6">
-                    <ShoppingBag size={40} className="text-blue-600" />
-                  </div>
-                  <div className="text-4xl font-bold text-slate-900 mb-3">
-                    {selectedCliente.totalCompras || 0}
-                  </div>
-                  <div className="text-slate-500 text-lg">Total Compras</div>
-                </div>
-
-                <div className="bg-white rounded-3xl border border-slate-200 p-8 text-center shadow-lg">
-                  <div className="w-20 h-20 bg-emerald-100 rounded-3xl flex items-center justify-center mx-auto mb-6">
-                    <DollarSign size={40} className="text-emerald-600" />
-                  </div>
-                  <div className="text-4xl font-bold text-slate-900 mb-3">
-                    ${(selectedCliente.montoTotalGastado || 0).toLocaleString()}
-                  </div>
-                  <div className="text-slate-500 text-lg">Total Gastado</div>
-                </div>
-
-                <div className="bg-white rounded-3xl border border-slate-200 p-8 text-center shadow-lg">
-                  <div className="w-20 h-20 bg-purple-100 rounded-3xl flex items-center justify-center mx-auto mb-6">
-                    <Gift size={40} className="text-purple-600" />
-                  </div>
-                  <div className="text-4xl font-bold text-slate-900 mb-3">
-                    {selectedCliente.beneficiosUsados || 0}
-                  </div>
-                  <div className="text-slate-500 text-lg">Beneficios Usados</div>
-                </div>
-
-                <div className="bg-white rounded-3xl border border-slate-200 p-8 text-center shadow-lg">
-                  <div className="w-20 h-20 bg-orange-100 rounded-3xl flex items-center justify-center mx-auto mb-6">
-                    <Receipt size={40} className="text-orange-600" />
-                  </div>
-                  <div className="text-4xl font-bold text-slate-900 mb-3">
-                    ${(selectedCliente.promedioCompra || 0).toLocaleString()}
-                  </div>
-                  <div className="text-slate-500 text-lg">Promedio Compra</div>
-                </div>
-              </div>
-
-              {/* Información adicional */}
-              {(selectedCliente.notas || (selectedCliente.tags && selectedCliente.tags.length > 0)) && (
-                <div className="bg-white rounded-3xl border border-slate-200 p-10 shadow-lg">
-                  <h3 className="text-3xl font-bold text-slate-900 mb-8">
-                    Información Adicional
-                  </h3>
-                  
-                  {selectedCliente.notas && (
-                    <div className="mb-8">
-                      <h4 className="text-xl font-medium text-slate-700 mb-4">Notas</h4>
-                      <p className="text-slate-600 bg-slate-50 p-6 rounded-2xl text-xl leading-relaxed">
-                        {selectedCliente.notas}
-                      </p>
-                    </div>
-                  )}
-
-                  {selectedCliente.tags && selectedCliente.tags.length > 0 && (
-                    <div>
-                      <h4 className="text-xl font-medium text-slate-700 mb-4">Tags</h4>
-                      <div className="flex flex-wrap gap-4">
-                        {selectedCliente.tags.map((tag, index) => (
-                          <span
-                            key={index}
-                            className="inline-flex items-center gap-3 px-6 py-3 bg-blue-50 text-blue-700 text-lg rounded-full border border-blue-200"
-                          >
-                            <Tag size={18} />
-                            {tag}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setShowDetailModal(false)}
-              className="border-slate-300 text-slate-700 hover:bg-slate-50 px-10 py-4 text-xl"
-            >
-              Cerrar
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Componente de creación rápida flotante mejorado */}
+      {/* Componente de creación rápida flotante */}
       <QuickClienteCreator
         onCreateCliente={async (clienteData) => {
           console.log('🚀 Creando socio desde QuickCreator...');
           const result = await createCliente(clienteData);
           if (result) {
             console.log('✅ Socio creado desde QuickCreator, actualizando...');
-            // Actualizar estadísticas del dashboard principal
             await loadClientes();
             await updateDashboardStats();
           }
@@ -1938,4 +1439,3 @@ export function SocioAnalytics() {
 }
 
 export default SocioAnalytics;
-

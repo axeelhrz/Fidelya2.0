@@ -84,7 +84,7 @@ export const useClientes = (): UseClientesReturn => {
   }, [user]);
 
   /**
-   * Refrescar estadísticas - CORREGIDO
+   * Refrescar estadísticas
    */
   const refreshStats = useCallback(async () => {
     if (!comercioId) return;
@@ -104,24 +104,46 @@ export const useClientes = (): UseClientesReturn => {
   }, [comercioId]);
 
   /**
-   * Cargar clientes con filtros - CORREGIDO
+   * Cargar clientes con filtros
    */
   const loadClientes = useCallback(async (nuevosFiltros?: ClienteFilter) => {
-    if (!comercioId) return;
+    if (!comercioId) {
+      console.log('❌ No hay comercioId disponible');
+      return;
+    }
 
     try {
-      console.log('🔄 Cargando lista de socios...');
+      console.log('🔄 Cargando lista de socios para comercio:', comercioId);
       setLoading(true);
       setError(null);
 
       const filtrosAplicar = nuevosFiltros || filtros;
+      console.log('🔍 Filtros que se aplicarán:', filtrosAplicar);
+      
       const resultado = await ClienteService.getClientesByComercio(comercioId, filtrosAplicar);
+
+      console.log('📊 Resultado de la consulta:', {
+        clientesEncontrados: resultado.clientes.length,
+        total: resultado.total,
+        hasMore: resultado.hasMore
+      });
 
       setClientes(resultado.clientes);
       setTotal(resultado.total);
       setHasMore(resultado.hasMore);
       
-      console.log('✅ Socios cargados:', resultado.clientes.length, 'de', resultado.total);
+      console.log('✅ Socios cargados exitosamente:', resultado.clientes.length, 'de', resultado.total);
+      
+      // Log de los primeros socios para debugging
+      if (resultado.clientes.length > 0) {
+        console.log('🔍 Primeros socios cargados:', resultado.clientes.slice(0, 3).map(c => ({
+          id: c.id,
+          nombre: c.nombre,
+          email: c.email,
+          estado: c.estado
+        })));
+      }
+      
     } catch (error) {
       console.error('❌ Error loading clientes:', error);
       const errorMessage = error instanceof Error ? error.message : 'Error al cargar socios';
@@ -216,7 +238,7 @@ export const useClientes = (): UseClientesReturn => {
   }, [loadClienteActivities]);
 
   /**
-   * Crear nuevo cliente - CORREGIDO PARA ACTUALIZACIÓN INMEDIATA
+   * Crear nuevo cliente
    */
   const createCliente = useCallback(async (clienteData: ClienteFormData): Promise<string | null> => {
     if (!comercioId) {
@@ -258,7 +280,7 @@ export const useClientes = (): UseClientesReturn => {
   }, [comercioId, loadClientes, refreshStats]);
 
   /**
-   * Actualizar cliente - CORREGIDO
+   * Actualizar cliente
    */
   const updateCliente = useCallback(async (
     clienteId: string, 
@@ -334,7 +356,7 @@ export const useClientes = (): UseClientesReturn => {
   }, [clienteSeleccionado, loadClientes, loadClientesPendientes, refreshStats]);
 
   /**
-   * Eliminar cliente - CORREGIDO
+   * Eliminar cliente
    */
   const deleteCliente = useCallback(async (clienteId: string): Promise<boolean> => {
     try {
@@ -367,7 +389,7 @@ export const useClientes = (): UseClientesReturn => {
   }, [clienteSeleccionado, loadClientes, loadClientesPendientes, refreshStats]);
 
   /**
-   * Actualizar estado del cliente - CORREGIDO
+   * Actualizar estado del cliente
    */
   const updateEstadoCliente = useCallback(async (
     clienteId: string, 
@@ -519,26 +541,32 @@ export const useClientes = (): UseClientesReturn => {
    * Limpiar filtros
    */
   const clearFiltros = useCallback(() => {
-    setFiltros({
-      ordenarPor: 'fechaCreacion',
-      orden: 'desc',
+    console.log('🧹 Limpiando filtros...');
+    const filtrosLimpios = {
+      ordenarPor: 'fechaCreacion' as const,
+      orden: 'desc' as const,
       limite: 20,
-    });
+    };
+    setFiltros(filtrosLimpios);
+    console.log('✅ Filtros limpiados:', filtrosLimpios);
   }, []);
 
   // Cargar datos iniciales
   useEffect(() => {
     if (comercioId) {
-      console.log('🚀 Cargando datos iniciales de socios...');
+      console.log('🚀 Cargando datos iniciales de socios para comercio:', comercioId);
       loadClientes();
       refreshStats();
       loadClientesPendientes();
+    } else {
+      console.log('⚠️ No hay comercioId disponible para cargar datos');
     }
   }, [comercioId, loadClientes, refreshStats, loadClientesPendientes]);
 
   // Recargar cuando cambien los filtros
   useEffect(() => {
     if (comercioId) {
+      console.log('🔄 Filtros cambiaron, recargando clientes...');
       loadClientes(filtros);
     }
   }, [filtros, comercioId, loadClientes]);

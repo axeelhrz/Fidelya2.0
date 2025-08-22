@@ -162,10 +162,12 @@ export class ClienteService {
         ...restDatos,
         datosCompletos: true,
         actualizadoEn: Timestamp.now(),
-        ...(fechaNacimiento
-          ? { fechaNacimiento: Timestamp.fromDate(new Date(fechaNacimiento)) }
-          : {}),
       };
+
+      // Solo agregar fechaNacimiento si existe y no está vacía
+      if (fechaNacimiento && fechaNacimiento.trim() !== '') {
+        updateData.fechaNacimiento = Timestamp.fromDate(new Date(fechaNacimiento));
+      }
 
       // Si se proporciona email válido, actualizar
       if (datosCompletos.email && !datosCompletos.email.includes('@temp.com')) {
@@ -194,6 +196,9 @@ export class ClienteService {
     filtros: ClienteFilter = {}
   ): Promise<{ clientes: Cliente[]; total: number; hasMore: boolean }> {
     try {
+      console.log('🔍 Buscando clientes para comercio:', comercioId);
+      console.log('🔍 Filtros aplicados:', filtros);
+      
       const clientesRef = collection(db, this.COLLECTION);
       let q = query(clientesRef, where('comercioId', '==', comercioId));
 
@@ -219,7 +224,7 @@ export class ClienteService {
       }
 
       // Ordenamiento
-      const ordenarPor = filtros.ordenarPor || 'creadoEn';
+      const ordenarPor = filtros.ordenarPor === 'fechaCreacion' ? 'creadoEn' : (filtros.ordenarPor || 'creadoEn');
       const orden = filtros.orden || 'desc';
       q = query(q, orderBy(ordenarPor, orden));
 
@@ -227,11 +232,19 @@ export class ClienteService {
       const limite = filtros.limite || 20;
       q = query(q, limit(limite));
 
+      console.log('🔍 Ejecutando query con ordenamiento:', ordenarPor, orden);
+
       const snapshot = await getDocs(q);
-      const clientes = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-      })) as Cliente[];
+      console.log('🔍 Documentos encontrados:', snapshot.size);
+      
+      const clientes = snapshot.docs.map(doc => {
+        const data = doc.data();
+        console.log('🔍 Cliente encontrado:', doc.id, data.nombre);
+        return {
+          id: doc.id,
+          ...data,
+        };
+      }) as Cliente[];
 
       // Filtros adicionales en memoria
       let clientesFiltrados = clientes;
@@ -264,13 +277,15 @@ export class ClienteService {
         );
       }
 
+      console.log('✅ Clientes filtrados:', clientesFiltrados.length);
+
       return {
         clientes: clientesFiltrados,
         total: clientesFiltrados.length,
         hasMore: snapshot.docs.length === limite,
       };
     } catch (error) {
-      console.error('Error fetching clientes:', error);
+      console.error('❌ Error fetching clientes:', error);
       throw new Error(handleFirebaseError(error));
     }
   }
@@ -305,13 +320,14 @@ export class ClienteService {
     clienteData: ClienteFormData
   ): Promise<string> {
     try {
+      console.log('🚀 Creando cliente con datos:', clienteData);
+      
       const now = Timestamp.now();
       
-      const nuevoCliente: Omit<Cliente, 'id'> = {
-        ...clienteData,
-        fechaNacimiento: clienteData.fechaNacimiento 
-          ? Timestamp.fromDate(new Date(clienteData.fechaNacimiento))
-          : undefined,
+      // Preparar datos del cliente, manejando campos opcionales correctamente
+      const nuevoCliente: any = {
+        nombre: clienteData.nombre,
+        email: clienteData.email,
         estado: 'activo',
         comercioId,
         creadoEn: now,
@@ -330,10 +346,50 @@ export class ClienteService {
         totalValidaciones: 0,
         categoriasFavoritas: [],
         promedioCompra: 0,
-        tags: clienteData.tags || [],
+        
+        // Configuración
+        configuracion: clienteData.configuracion,
       };
 
+      // Solo agregar campos opcionales si tienen valor
+      if (clienteData.telefono && clienteData.telefono.trim() !== '') {
+        nuevoCliente.telefono = clienteData.telefono.trim();
+      }
+
+      if (clienteData.dni && clienteData.dni.trim() !== '') {
+        nuevoCliente.dni = clienteData.dni.trim();
+      }
+
+      if (clienteData.direccion && clienteData.direccion.trim() !== '') {
+        nuevoCliente.direccion = clienteData.direccion.trim();
+      }
+
+      if (clienteData.notas && clienteData.notas.trim() !== '') {
+        nuevoCliente.notas = clienteData.notas.trim();
+      }
+
+      if (clienteData.tags && clienteData.tags.length > 0) {
+        nuevoCliente.tags = clienteData.tags;
+      } else {
+        nuevoCliente.tags = [];
+      }
+
+      // Solo agregar fechaNacimiento si existe y es válida
+      if (clienteData.fechaNacimiento && clienteData.fechaNacimiento.trim() !== '') {
+        try {
+          const fecha = new Date(clienteData.fechaNacimiento);
+          if (!isNaN(fecha.getTime())) {
+            nuevoCliente.fechaNacimiento = Timestamp.fromDate(fecha);
+          }
+        } catch (dateError) {
+          console.warn('⚠️ Error parsing fecha nacimiento, omitiendo campo:', dateError);
+        }
+      }
+
+      console.log('📝 Datos finales para crear cliente (sin undefined):', nuevoCliente);
+
       const clienteRef = await addDoc(collection(db, this.COLLECTION), nuevoCliente);
+      console.log('✅ Cliente creado con ID:', clienteRef.id);
 
       // Registrar actividad
       await this.logActivity(clienteRef.id, {
@@ -344,7 +400,8 @@ export class ClienteService {
 
       return clienteRef.id;
     } catch (error) {
-      console.error('Error creating cliente:', error);
+      console.error('❌ Error creating cliente:', error);
+      console.error('❌ Error details:', error);
       throw new Error(handleFirebaseError(error));
     }
   }
@@ -360,17 +417,31 @@ export class ClienteService {
       const clienteRef = doc(db, this.COLLECTION, clienteId);
       
       const { fechaNacimiento, ...restClienteData } = clienteData;
-      const updateData: Omit<Partial<ClienteFormData>, 'fechaNacimiento'> & { 
-        actualizadoEn: Timestamp; 
-        fechaNacimiento?: Timestamp;
-        datosCompletos?: boolean;
-      } = {
-        ...restClienteData,
+      
+      // Preparar datos de actualización
+      const updateData: any = {
         actualizadoEn: Timestamp.now(),
-        ...(fechaNacimiento
-          ? { fechaNacimiento: Timestamp.fromDate(new Date(fechaNacimiento)) }
-          : {}),
       };
+
+      // Solo agregar campos que tienen valor
+      Object.keys(restClienteData).forEach(key => {
+        const value = restClienteData[key as keyof typeof restClienteData];
+        if (value !== undefined && value !== null && value !== '') {
+          updateData[key] = value;
+        }
+      });
+
+      // Solo agregar fechaNacimiento si existe y no está vacía
+      if (fechaNacimiento && fechaNacimiento.trim() !== '') {
+        try {
+          const fecha = new Date(fechaNacimiento);
+          if (!isNaN(fecha.getTime())) {
+            updateData.fechaNacimiento = Timestamp.fromDate(fecha);
+          }
+        } catch (dateError) {
+          console.warn('⚠️ Error parsing fecha nacimiento en actualización, omitiendo campo:', dateError);
+        }
+      }
 
       // Si el cliente fue creado automáticamente y se están actualizando datos importantes,
       // marcar como datos completos
@@ -485,9 +556,13 @@ export class ClienteService {
    */
   static async getClienteStats(comercioId: string): Promise<ClienteStats> {
     try {
+      console.log('📊 Calculando estadísticas para comercio:', comercioId);
+      
       const clientesRef = collection(db, this.COLLECTION);
       const q = query(clientesRef, where('comercioId', '==', comercioId));
       const snapshot = await getDocs(q);
+
+      console.log('📊 Documentos encontrados para stats:', snapshot.size);
 
       const clientes = snapshot.docs.map(doc => ({
         id: doc.id,
@@ -532,7 +607,7 @@ export class ClienteService {
       // Valor de vida promedio
       const valorVidaPromedio = totalClientes > 0 ? montoTotal / totalClientes : 0;
 
-      return {
+      const stats = {
         totalClientes,
         clientesActivos,
         clientesNuevos,
@@ -547,6 +622,9 @@ export class ClienteService {
         valorVidaPromedio,
         validacionesTotales,
       };
+
+      console.log('📊 Stats calculadas:', stats);
+      return stats;
     } catch (error) {
       console.error('Error getting cliente stats:', error);
       throw new Error(handleFirebaseError(error));
