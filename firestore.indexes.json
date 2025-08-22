@@ -1,0 +1,147 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "beneficios",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "estado",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "asociacionesDisponibles",
+          "arrayConfig": "CONTAINS"
+        },
+        {
+          "fieldPath": "creadoEn",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "beneficios",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "comercioId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "creadoEn",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "beneficios",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "categoria",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "estado",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "creadoEn",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "beneficios",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "destacado",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "estado",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "creadoEn",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "beneficios",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "estado",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "fechaFin",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "beneficio_usos",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "socioId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "fechaUso",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "beneficio_usos",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "comercioId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "fechaUso",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "beneficio_usos",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "asociacionId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "fechaUso",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "beneficio_usos",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "beneficioId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "socioId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "estado",
+          "order": "ASCENDING"
+        }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

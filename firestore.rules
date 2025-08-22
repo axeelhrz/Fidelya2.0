@@ -1,0 +1,155 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Reglas para beneficios
+    match /beneficios/{beneficioId} {
+      // Lectura: socios pueden ver beneficios activos de su asociación
+      allow read: if request.auth != null && (
+        // Socios pueden ver beneficios activos de su asociación
+        (resource.data.estado == 'activo' && 
+         request.auth.token.role == 'socio' && 
+         request.auth.token.asociacionId in resource.data.asociacionesDisponibles) ||
+        // Comercios pueden ver sus propios beneficios
+        (request.auth.token.role == 'comercio' && 
+         request.auth.uid == resource.data.comercioId) ||
+        // Asociaciones pueden ver beneficios de su red
+        (request.auth.token.role == 'asociacion' && 
+         request.auth.uid in resource.data.asociacionesDisponibles)
+      );
+      
+      // Escritura: solo comercios pueden crear/editar sus beneficios
+      allow create: if request.auth != null && 
+        request.auth.token.role == 'comercio' &&
+        request.auth.uid == request.resource.data.comercioId &&
+        request.resource.data.keys().hasAll(['titulo', 'descripcion', 'tipo', 'descuento', 'comercioId', 'estado', 'creadoEn', 'actualizadoEn']);
+      
+      allow update: if request.auth != null && 
+        request.auth.token.role == 'comercio' &&
+        request.auth.uid == resource.data.comercioId &&
+        request.resource.data.comercioId == resource.data.comercioId; // No cambiar el comercio
+      
+      // Eliminación: solo el comercio propietario
+      allow delete: if request.auth != null && 
+        request.auth.token.role == 'comercio' &&
+        request.auth.uid == resource.data.comercioId;
+    }
+    
+    // Reglas para usos de beneficios
+    match /beneficio_usos/{usoId} {
+      // Lectura: socios pueden ver sus propios usos, comercios los de sus beneficios
+      allow read: if request.auth != null && (
+        (request.auth.token.role == 'socio' && 
+         request.auth.uid == resource.data.socioId) ||
+        (request.auth.token.role == 'comercio' && 
+         request.auth.uid == resource.data.comercioId) ||
+        (request.auth.token.role == 'asociacion' && 
+         request.auth.uid == resource.data.asociacionId)
+      );
+      
+      // Escritura: solo socios pueden crear usos
+      allow create: if request.auth != null && 
+        request.auth.token.role == 'socio' &&
+        request.auth.uid == request.resource.data.socioId &&
+        request.resource.data.keys().hasAll(['beneficioId', 'socioId', 'comercioId', 'asociacionId', 'fechaUso', 'estado', 'creadoEn']);
+      
+      // Actualización: comercios pueden validar usos
+      allow update: if request.auth != null && (
+        (request.auth.token.role == 'comercio' && 
+         request.auth.uid == resource.data.comercioId) ||
+        (request.auth.token.role == 'socio' && 
+         request.auth.uid == resource.data.socioId)
+      );
+    }
+    
+    // Reglas para validaciones de beneficios
+    match /beneficio_validaciones/{validacionId} {
+      allow read, write: if request.auth != null && (
+        request.auth.token.role == 'comercio' ||
+        request.auth.token.role == 'socio'
+      );
+    }
+    
+    // Reglas para clientes
+    match /clientes/{clienteId} {
+      // Lectura: comercios pueden ver sus propios clientes, asociaciones pueden ver clientes de sus comercios
+      allow read: if request.auth != null && (
+        (request.auth.token.role == 'comercio' && 
+         request.auth.uid == resource.data.comercioId) ||
+        (request.auth.token.role == 'asociacion' && 
+         request.auth.uid == resource.data.asociacionId) ||
+        (request.auth.token.role == 'socio' && 
+         request.auth.uid == resource.data.socioId)
+      );
+      
+      // Escritura: comercios pueden crear/editar clientes de su comercio
+      allow create: if request.auth != null && 
+        request.auth.token.role == 'comercio' &&
+        request.auth.uid == request.resource.data.comercioId &&
+        request.resource.data.keys().hasAll(['nombre', 'email', 'comercioId', 'estado', 'creadoEn', 'actualizadoEn']);
+      
+      allow update: if request.auth != null && 
+        request.auth.token.role == 'comercio' &&
+        request.auth.uid == resource.data.comercioId &&
+        request.resource.data.comercioId == resource.data.comercioId; // No cambiar el comercio
+      
+      // Eliminación: solo el comercio propietario
+      allow delete: if request.auth != null && 
+        request.auth.token.role == 'comercio' &&
+        request.auth.uid == resource.data.comercioId;
+    }
+    
+    // Reglas para actividades de clientes
+    match /cliente_activities/{activityId} {
+      // Lectura: comercios pueden ver actividades de sus clientes
+      allow read: if request.auth != null && 
+        request.auth.token.role == 'comercio';
+      
+      // Escritura: comercios pueden crear actividades
+      allow create: if request.auth != null && 
+        request.auth.token.role == 'comercio' &&
+        request.resource.data.keys().hasAll(['clienteId', 'tipo', 'descripcion', 'fecha']);
+      
+      // No permitir actualización o eliminación de actividades
+      allow update, delete: if false;
+    }
+    
+    // Reglas para segmentos de clientes
+    match /cliente_segments/{segmentId} {
+      // Solo comercios pueden gestionar sus segmentos
+      allow read, write: if request.auth != null && 
+        request.auth.token.role == 'comercio';
+    }
+    
+    // Reglas para usuarios (necesarias para obtener datos de perfil)
+    match /users/{userId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Reglas para comercios
+    match /comercios/{comercioId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == comercioId;
+    }
+    
+    // Reglas para asociaciones
+    match /asociaciones/{asociacionId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == asociacionId;
+    }
+    
+    // Reglas para socios
+    match /socios/{socioId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == socioId;
+    }
+    
+    // Reglas para validaciones QR (necesarias para crear clientes automáticamente)
+    match /validaciones/{validacionId} {
+      allow read, write: if request.auth != null && (
+        request.auth.token.role == 'comercio' ||
+        request.auth.token.role == 'socio'
+      );
+    }
+  }
+}
