@@ -123,7 +123,7 @@ class ValidacionesService {
   /**
    * VALIDACIÓN DESHABILITADA: No verificar estado en tabla del comercio
    */
-  private async validateSocioInComercio(socioId: string, comercioId: string): Promise<void> {
+  private async validateSocioInComercio(): Promise<void> {
     console.log('🔍 Validación de estado en comercio DESHABILITADA - permitiendo acceso libre');
     // Esta validación está deshabilitada para permitir acceso sin restricciones
     return;
