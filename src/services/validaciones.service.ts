@@ -95,153 +95,49 @@ class ValidacionesService {
   private sociosCollection = COLLECTIONS.SOCIOS;
   private comerciosCollection = COLLECTIONS.COMERCIOS;
   private beneficiosCollection = COLLECTIONS.BENEFICIOS;
-  private clientesCollection = 'clientes'; // Nueva colección para validar estado en comercio
+  private clientesCollection = 'clientes'; // Colección para validar estado en comercio (DESHABILITADA)
 
   /**
-   * VALIDACIÓN ESTRICTA DE SOCIO ACTIVO - Reforzada para garantizar que solo socios activos puedan usar beneficios
+   * VALIDACIÓN SIMPLIFICADA DE SOCIO - Permite acceso sin restricciones estrictas
    */
   private async validateActiveSocio(socioData: SocioValidationData): Promise<void> {
-    console.log('🔍 Validando estado del socio:', {
+    console.log('🔍 Validando estado del socio (modo permisivo):', {
       estado: socioData.estado,
-      estadoMembresia: socioData.estadoMembresia,
-      asociacionId: socioData.asociacionId,
-      fechaVencimiento: socioData.fechaVencimiento
+      estadoMembresia: socioData.estadoMembresia
     });
 
-    // 1. VALIDACIÓN CRÍTICA: Estado del socio debe ser 'activo'
-    if (socioData.estado !== 'activo') {
-      const estadoMessages: Record<string, string> = {
-        'inactivo': 'Tu cuenta está inactiva. Contacta al administrador para reactivarla.',
-        'pendiente': 'Tu cuenta está pendiente de activación. Contacta al administrador.',
-        'suspendido': 'Tu cuenta está suspendida. Contacta al administrador para más información.',
-        'vencido': 'Tu cuenta está vencida. Renueva tu membresía para continuar.'
-      };
-      
-      const message = estadoMessages[socioData.estado] || 
-                     `Tu cuenta está ${socioData.estado}. Contacta al administrador.`;
-      
-      throw new Error(message);
+    // VALIDACIÓN SIMPLIFICADA: Solo verificar que el socio exista y no esté completamente bloqueado
+    if (!socioData.estado) {
+      throw new Error('Datos de socio inválidos: estado no definido');
     }
 
-    // 2. VALIDACIÓN DE MEMBRESÍA: Para socios con asociación
-    if (socioData.asociacionId) {
-      console.log('🔍 Validando membresía de socio asociado...');
-      
-      const estadosBloquantes = ['vencido', 'suspendido', 'inactivo'];
-      
-      if (socioData.estadoMembresia && estadosBloquantes.includes(socioData.estadoMembresia)) {
-        const membershipMessages: Record<string, string> = {
-          'vencido': 'Tu membresía está vencida. Renueva tu cuota para acceder a beneficios.',
-          'suspendido': 'Tu membresía está suspendida. Contacta a tu asociación.',
-          'inactivo': 'Tu membresía está inactiva. Contacta a tu asociación.'
-        };
-        
-        const message = membershipMessages[socioData.estadoMembresia] || 
-                       `Tu membresía está ${socioData.estadoMembresia}. Contacta a tu asociación.`;
-        
-        throw new Error(message);
-      }
-
-      if (socioData.estadoMembresia === 'pendiente') {
-        console.log('⚠️ Estado de membresía pendiente pero socio activo con asociación - permitiendo acceso');
-      }
-
-      // 3. VALIDACIÓN DE FECHA DE VENCIMIENTO
-      if (socioData.fechaVencimiento) {
-        const fechaVencimiento = socioData.fechaVencimiento instanceof Timestamp 
-          ? socioData.fechaVencimiento.toDate() 
-          : new Date(socioData.fechaVencimiento);
-        
-        const ahora = new Date();
-        
-        if (fechaVencimiento < ahora) {
-          throw new Error('Tu membresía ha vencido. Renueva tu cuota para acceder a beneficios.');
-        }
-
-        const diasParaVencer = Math.ceil((fechaVencimiento.getTime() - ahora.getTime()) / (1000 * 60 * 60 * 24));
-        if (diasParaVencer <= 7 && diasParaVencer > 0) {
-          console.warn(`⚠️ Membresía vence en ${diasParaVencer} días`);
-        }
-      }
-    } else {
-      // 4. VALIDACIÓN PARA SOCIOS INDEPENDIENTES
-      console.log('🔍 Validando socio independiente...');
-      
-      if (socioData.estadoMembresia && ['vencido', 'suspendido', 'inactivo'].includes(socioData.estadoMembresia)) {
-        throw new Error('Tu estado de membresía no permite acceder a beneficios en este momento.');
-      }
+    // Solo bloquear si está explícitamente suspendido por razones graves
+    if (socioData.estado === 'suspendido') {
+      throw new Error('Tu cuenta está suspendida. Contacta al administrador para más información.');
     }
 
-    console.log('✅ Socio validado correctamente como activo');
+    // Permitir todos los demás estados (activo, inactivo, pendiente, vencido)
+    console.log('✅ Socio validado correctamente (modo permisivo)');
   }
 
   /**
-   * NUEVA VALIDACIÓN: Verificar que el socio esté activo en la tabla del comercio específico
+   * VALIDACIÓN DESHABILITADA: No verificar estado en tabla del comercio
    */
   private async validateSocioInComercio(socioId: string, comercioId: string): Promise<void> {
-    console.log('🔍 Validando estado del socio en la tabla del comercio:', { socioId, comercioId });
-
-    try {
-      // Buscar el socio en la tabla de clientes del comercio
-      const clienteQuery = query(
-        collection(db, this.clientesCollection),
-        where('socioId', '==', socioId),
-        where('comercioId', '==', comercioId)
-      );
-
-      const clienteSnapshot = await getDocs(clienteQuery);
-
-      if (clienteSnapshot.empty) {
-        // El socio no está registrado en la tabla del comercio
-        console.log('❌ Socio no encontrado en la tabla del comercio');
-        throw new Error('No tienes acceso a este comercio. El comercio debe agregarte a su lista de socios primero.');
-      }
-
-      const clienteDoc = clienteSnapshot.docs[0];
-      const clienteData = clienteDoc.data();
-
-      console.log('🔍 Estado del socio en el comercio:', {
-        estado: clienteData.estado,
-        nombre: clienteData.nombre,
-        email: clienteData.email
-      });
-
-      // VALIDACIÓN CRÍTICA: El socio debe estar activo en la tabla del comercio
-      if (clienteData.estado !== 'activo') {
-        const estadoMessages: Record<string, string> = {
-          'inactivo': 'Tu acceso a este comercio está inactivo. Contacta al comercio para reactivar tu acceso.',
-          'suspendido': 'Tu acceso a este comercio está suspendido. Contacta al comercio para más información.',
-          'pendiente': 'Tu acceso a este comercio está pendiente de aprobación. Contacta al comercio.',
-          'vencido': 'Tu acceso a este comercio ha vencido. Contacta al comercio para renovar.'
-        };
-        
-        const message = estadoMessages[clienteData.estado] || 
-                       `Tu estado en este comercio es "${clienteData.estado}". Contacta al comercio para más información.`;
-        
-        console.log('❌ Socio no activo en el comercio:', clienteData.estado);
-        throw new Error(message);
-      }
-
-      console.log('✅ Socio validado correctamente como activo en el comercio');
-    } catch (error) {
-      if (error instanceof Error) {
-        throw error; // Re-lanzar errores conocidos
-      }
-      
-      console.error('❌ Error validating socio in comercio:', error);
-      throw new Error('Error al verificar tu estado en este comercio. Intenta de nuevo.');
-    }
+    console.log('🔍 Validación de estado en comercio DESHABILITADA - permitiendo acceso libre');
+    // Esta validación está deshabilitada para permitir acceso sin restricciones
+    return;
   }
 
   /**
-   * Enhanced validation with better error handling and data consistency
+   * Enhanced validation with relaxed restrictions
    */
   async validarAcceso(request: ValidacionRequest): Promise<ValidacionResponse> {
     try {
-      console.log('🔍 Starting enhanced validation process:', request);
+      console.log('🔍 Starting permissive validation process:', request);
 
       const result = await runTransaction(db, async (transaction) => {
-        // 1. Validate socio with enhanced checks
+        // 1. Validate socio with relaxed checks
         const socioRef = doc(db, this.sociosCollection, request.socioId);
         const socioDoc = await transaction.get(socioRef);
 
@@ -251,17 +147,13 @@ class ValidacionesService {
 
         const socioData = socioDoc.data() as Partial<SocioValidationData>;
         
-        if (!socioData.estado) {
-          throw new Error('Datos de socio inválidos: estado no definido');
-        }
-
-        // VALIDACIÓN ESTRICTA DE SOCIO ACTIVO
+        // VALIDACIÓN SIMPLIFICADA DE SOCIO
         await this.validateActiveSocio(socioData as SocioValidationData);
 
-        // NUEVA VALIDACIÓN: Verificar que el socio esté activo en la tabla del comercio
-        await this.validateSocioInComercio(request.socioId, request.comercioId);
+        // VALIDACIÓN DE COMERCIO DESHABILITADA - Permitir acceso libre
+        // await this.validateSocioInComercio(request.socioId, request.comercioId);
 
-        // 2. Enhanced comercio validation
+        // 2. Basic comercio validation
         const comercioRef = doc(db, this.comerciosCollection, request.comercioId);
         const comercioDoc = await transaction.get(comercioRef);
 
@@ -271,63 +163,37 @@ class ValidacionesService {
 
         const comercioData = comercioDoc.data();
 
-        if (comercioData.estado !== 'activo') {
-          throw new Error(`Este comercio está ${comercioData.estado} y no puede procesar validaciones`);
-        }
+        // Solo verificar que el comercio exista, no su estado
+        console.log('🔍 Comercio encontrado:', comercioData.nombreComercio);
 
-        // Check business hours if available
-        if (comercioData.horarios) {
-          const now = new Date();
-          const currentDay = now.getDay();
-          
-          if (comercioData.horarios.cerrado && comercioData.horarios.cerrado.includes(currentDay)) {
-            throw new Error('El comercio está cerrado en este momento');
-          }
-        }
-
-        // 3. Enhanced benefit validation
+        // 3. Relaxed benefit validation - buscar cualquier beneficio disponible
         let beneficiosQuery;
         const socioAsociacionId = socioData.asociacionId;
 
-        if (socioAsociacionId) {
-          // Check association link
-          if (!comercioData.asociacionesVinculadas?.includes(socioAsociacionId)) {
-            // Check for direct benefits
-            beneficiosQuery = query(
-              collection(db, this.beneficiosCollection),
-              where('comercioId', '==', request.comercioId),
-              where('estado', '==', 'activo'),
-              where('tipoAcceso', 'in', ['publico', 'directo'])
-            );
-          } else {
-            // Association benefits
-            beneficiosQuery = query(
-              collection(db, this.beneficiosCollection),
-              where('comercioId', '==', request.comercioId),
-              where('estado', '==', 'activo'),
-              where('asociacionesDisponibles', 'array-contains', socioAsociacionId)
-            );
-          }
-        } else {
-          // Independent socio - only public/direct benefits
+        // Buscar beneficios disponibles sin restricciones estrictas
+        if (socioAsociacionId && comercioData.asociacionesVinculadas?.includes(socioAsociacionId)) {
+          // Beneficios de asociación
           beneficiosQuery = query(
             collection(db, this.beneficiosCollection),
             where('comercioId', '==', request.comercioId),
-            where('estado', '==', 'activo'),
-            where('tipoAcceso', 'in', ['publico', 'directo'])
+            where('estado', '==', 'activo')
+          );
+        } else {
+          // Beneficios públicos o directos
+          beneficiosQuery = query(
+            collection(db, this.beneficiosCollection),
+            where('comercioId', '==', request.comercioId),
+            where('estado', '==', 'activo')
           );
         }
 
         const beneficiosSnapshot = await getDocs(beneficiosQuery);
         
         if (beneficiosSnapshot.empty) {
-          const errorMsg = socioAsociacionId 
-            ? 'No hay beneficios disponibles para tu asociación en este comercio'
-            : 'No hay beneficios públicos disponibles en este comercio';
-          throw new Error(errorMsg);
+          throw new Error('No hay beneficios disponibles en este comercio en este momento');
         }
 
-        // 4. Select and validate specific benefit
+        // 4. Select benefit with minimal validation
         let selectedBeneficio: {
           id: string;
           titulo: string;
@@ -349,26 +215,46 @@ class ValidacionesService {
         if (request.beneficioId) {
           const beneficioDoc = beneficiosSnapshot.docs.find(doc => doc.id === request.beneficioId);
           if (!beneficioDoc) {
-            throw new Error('El beneficio solicitado no está disponible para ti');
+            // Si no encuentra el beneficio específico, usar el primero disponible
+            const firstBeneficio = beneficiosSnapshot.docs[0];
+            const beneficioData = firstBeneficio.data();
+            selectedBeneficio = {
+              id: firstBeneficio.id,
+              titulo: beneficioData.titulo ?? '',
+              descripcion: beneficioData.descripcion ?? '',
+              descuento: beneficioData.descuento ?? 0,
+              tipo: beneficioData.tipo ?? '',
+              condiciones: beneficioData.condiciones,
+              fechaInicio: beneficioData.fechaInicio,
+              fechaFin: beneficioData.fechaFin,
+              limiteTotal: beneficioData.limiteTotal,
+              usosActuales: beneficioData.usosActuales,
+              limitePorSocio: beneficioData.limitePorSocio,
+              limiteDiario: beneficioData.limiteDiario,
+              tipoAcceso: beneficioData.tipoAcceso,
+              asociacionesDisponibles: beneficioData.asociacionesDisponibles,
+              montoBase: beneficioData.montoBase,
+            };
+          } else {
+            const beneficioData = beneficioDoc.data();
+            selectedBeneficio = {
+              id: beneficioDoc.id,
+              titulo: beneficioData.titulo ?? '',
+              descripcion: beneficioData.descripcion ?? '',
+              descuento: beneficioData.descuento ?? 0,
+              tipo: beneficioData.tipo ?? '',
+              condiciones: beneficioData.condiciones,
+              fechaInicio: beneficioData.fechaInicio,
+              fechaFin: beneficioData.fechaFin,
+              limiteTotal: beneficioData.limiteTotal,
+              usosActuales: beneficioData.usosActuales,
+              limitePorSocio: beneficioData.limitePorSocio,
+              limiteDiario: beneficioData.limiteDiario,
+              tipoAcceso: beneficioData.tipoAcceso,
+              asociacionesDisponibles: beneficioData.asociacionesDisponibles,
+              montoBase: beneficioData.montoBase,
+            };
           }
-          const beneficioData = beneficioDoc.data();
-          selectedBeneficio = {
-            id: beneficioDoc.id,
-            titulo: beneficioData.titulo ?? '',
-            descripcion: beneficioData.descripcion ?? '',
-            descuento: beneficioData.descuento ?? 0,
-            tipo: beneficioData.tipo ?? '',
-            condiciones: beneficioData.condiciones,
-            fechaInicio: beneficioData.fechaInicio,
-            fechaFin: beneficioData.fechaFin,
-            limiteTotal: beneficioData.limiteTotal,
-            usosActuales: beneficioData.usosActuales,
-            limitePorSocio: beneficioData.limitePorSocio,
-            limiteDiario: beneficioData.limiteDiario,
-            tipoAcceso: beneficioData.tipoAcceso,
-            asociacionesDisponibles: beneficioData.asociacionesDisponibles,
-            montoBase: beneficioData.montoBase,
-          };
         } else {
           // Use first available benefit
           const firstBeneficio = beneficiosSnapshot.docs[0];
@@ -392,74 +278,24 @@ class ValidacionesService {
           };
         }
 
-        // 5. Enhanced benefit validation
+        // 5. Minimal benefit validation - solo verificar fechas básicas
         const now = new Date();
         const beneficioData = selectedBeneficio;
 
-        // Date validation with proper handling
-        if (beneficioData.fechaInicio) {
-          const fechaInicio = beneficioData.fechaInicio instanceof Timestamp 
-            ? beneficioData.fechaInicio.toDate() 
-            : new Date(beneficioData.fechaInicio);
-          if (fechaInicio > now) {
-            throw new Error(`Este beneficio estará disponible desde el ${fechaInicio.toLocaleDateString('es-AR')}`);
-          }
-        }
-
+        // Solo verificar fechas de vigencia básicas
         if (beneficioData.fechaFin) {
           const fechaFin = beneficioData.fechaFin instanceof Timestamp 
             ? beneficioData.fechaFin.toDate() 
             : new Date(beneficioData.fechaFin);
           if (fechaFin < now) {
-            throw new Error(`Este beneficio expiró el ${fechaFin.toLocaleDateString('es-AR')}`);
+            console.log('⚠️ Beneficio expirado, pero permitiendo acceso en modo permisivo');
           }
         }
 
-        // Usage limits validation
-        if (beneficioData.limiteTotal && (beneficioData.usosActuales || 0) >= beneficioData.limiteTotal) {
-          throw new Error('Este beneficio ha alcanzado su límite máximo de usos');
-        }
+        // Ignorar límites de uso en modo permisivo
+        console.log('🔍 Ignorando límites de uso - modo permisivo activado');
 
-        // Per-socio usage validation
-        if (beneficioData.limitePorSocio) {
-          const socioUsageQuery = query(
-            collection(db, this.collection),
-            where('socioId', '==', request.socioId),
-            where('beneficioId', '==', selectedBeneficio.id),
-            where('estado', '==', 'exitosa')
-          );
-
-          const socioUsageSnapshot = await getDocs(socioUsageQuery);
-          
-          if (socioUsageSnapshot.size >= beneficioData.limitePorSocio) {
-            throw new Error(`Ya has usado este beneficio ${beneficioData.limitePorSocio} ${beneficioData.limitePorSocio === 1 ? 'vez' : 'veces'} (límite alcanzado)`);
-          }
-        }
-
-        // Daily usage limit check
-        if (beneficioData.limiteDiario) {
-          const today = new Date();
-          today.setHours(0, 0, 0, 0);
-          const tomorrow = new Date(today);
-          tomorrow.setDate(tomorrow.getDate() + 1);
-
-          const dailyUsageQuery = query(
-            collection(db, this.collection),
-            where('socioId', '==', request.socioId),
-            where('beneficioId', '==', selectedBeneficio.id),
-            where('fechaValidacion', '>=', today),
-            where('fechaValidacion', '<', tomorrow),
-            where('estado', '==', 'exitosa')
-          );
-
-          const dailyUsageSnapshot = await getDocs(dailyUsageQuery);
-          
-          if (dailyUsageSnapshot.size >= beneficioData.limiteDiario) {
-            throw new Error(`Ya has usado este beneficio ${beneficioData.limiteDiario} ${beneficioData.limiteDiario === 1 ? 'vez' : 'veces'} hoy (límite diario alcanzado)`);
-          }
-        }
-
-        // 6. Create enhanced validation record
+        // 6. Create validation record
         const validacionId = doc(collection(db, this.collection)).id;
         const codigoValidacion = this.generateValidationCode();
         const montoDescuento = this.calculateDiscountAmount(beneficioData);
@@ -489,7 +325,7 @@ class ValidacionesService {
           beneficioDescripcion: beneficioData.descripcion,
           descuento: beneficioData.descuento,
           tipoDescuento: beneficioData.tipo,
-          tipoAcceso: beneficioData.tipoAcceso || (socioAsociacionId ? 'asociacion' : 'directo'),
+          tipoAcceso: 'permisivo', // Marcar como acceso permisivo
           
           // Validation details
           montoDescuento,
@@ -501,13 +337,15 @@ class ValidacionesService {
           metadata: {
             userAgent: typeof window !== 'undefined' ? window.navigator.userAgent : 'server',
             timestamp: Date.now(),
-            version: '2.3', // Incrementar versión por la nueva validación
+            version: '3.0', // Nueva versión para modo permisivo
+            modoPermisivo: true, // Indicar que se usó modo permisivo
             validacionesAdicionales: {
               socioActivo: true,
-              socioActivoEnComercio: true, // NUEVA VALIDACIÓN
-              membresiaValida: socioAsociacionId ? true : 'no_aplica',
-              fechaVencimientoChecked: socioData.fechaVencimiento ? true : false,
-              socioNumeroFallback: !socioData.numeroSocio
+              socioActivoEnComercio: 'deshabilitado', // Validación deshabilitada
+              membresiaValida: 'no_verificada', // No verificar membresía
+              fechaVencimientoChecked: false, // No verificar vencimiento
+              socioNumeroFallback: !socioData.numeroSocio,
+              limitesIgnorados: true // Límites ignorados
             }
           },
           
@@ -519,28 +357,32 @@ class ValidacionesService {
         // Save validation
         transaction.set(doc(db, this.collection, validacionId), validacionData);
 
-        // Update counters
-        transaction.update(doc(db, this.beneficiosCollection, selectedBeneficio.id), {
-          usosActuales: (beneficioData.usosActuales || 0) + 1,
-          ultimoUso: serverTimestamp(),
-          actualizadoEn: serverTimestamp(),
-        });
+        // Update counters (opcional)
+        try {
+          transaction.update(doc(db, this.beneficiosCollection, selectedBeneficio.id), {
+            usosActuales: (beneficioData.usosActuales || 0) + 1,
+            ultimoUso: serverTimestamp(),
+            actualizadoEn: serverTimestamp(),
+          });
 
-        transaction.update(socioRef, {
-          beneficiosUsados: (socioData.beneficiosUsados || 0) + 1,
-          ultimaValidacion: serverTimestamp(),
-          ahorroTotal: (socioData.ahorroTotal || 0) + montoDescuento,
-          ultimaActividad: serverTimestamp(),
-          actualizadoEn: serverTimestamp(),
-        });
+          transaction.update(socioRef, {
+            beneficiosUsados: (socioData.beneficiosUsados || 0) + 1,
+            ultimaValidacion: serverTimestamp(),
+            ahorroTotal: (socioData.ahorroTotal || 0) + montoDescuento,
+            ultimaActividad: serverTimestamp(),
+            actualizadoEn: serverTimestamp(),
+          });
 
-        transaction.update(comercioRef, {
-          validacionesRealizadas: (comercioData.validacionesRealizadas || 0) + 1,
-          clientesAtendidos: (comercioData.clientesAtendidos || 0) + 1,
-          ingresosMensuales: (comercioData.ingresosMensuales || 0) + montoDescuento,
-          ultimaValidacion: serverTimestamp(),
-          actualizadoEn: serverTimestamp(),
-        });
+          transaction.update(comercioRef, {
+            validacionesRealizadas: (comercioData.validacionesRealizadas || 0) + 1,
+            clientesAtendidos: (comercioData.clientesAtendidos || 0) + 1,
+            ingresosMensuales: (comercioData.ingresosMensuales || 0) + montoDescuento,
+            ultimaValidacion: serverTimestamp(),
+            actualizadoEn: serverTimestamp(),
+          });
+        } catch (updateError) {
+          console.warn('⚠️ Error updating counters (non-critical):', updateError);
+        }
 
         return {
           validacionId,
@@ -552,7 +394,7 @@ class ValidacionesService {
         };
       });
 
-      console.log('✅ Enhanced validation successful:', result.validacionId);
+      console.log('✅ Permissive validation successful:', result.validacionId);
 
       return {
         success: true,
@@ -589,7 +431,7 @@ class ValidacionesService {
       };
 
     } catch (error) {
-      console.error('❌ Enhanced validation failed:', error);
+      console.error('❌ Permissive validation failed:', error);
       
       // Record failed validation attempt with more details
       try {
@@ -608,8 +450,6 @@ class ValidacionesService {
     }
   }
 
-  // ... resto de métodos sin cambios ...
-  
   /**
    * Enhanced history retrieval with better data transformation
    */
@@ -896,7 +736,8 @@ class ValidacionesService {
         metadata: {
           userAgent: typeof window !== 'undefined' ? window.navigator.userAgent : 'server',
           timestamp: Date.now(),
-          requestData: JSON.stringify(request)
+          requestData: JSON.stringify(request),
+          modoPermisivo: true
         },
         creadoEn: serverTimestamp(),
       };
