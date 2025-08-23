@@ -528,6 +528,9 @@ const SocioSidebarWithLogout: React.FC<{
   );
 };
 
+// Props passed by DashboardLayout to render the sidebar (without onLogoutClick)
+type SidebarComponentProps = Omit<React.ComponentProps<typeof SocioSidebarWithLogout>, 'onLogoutClick'>;
+
 // Main component content
 const SocioHistorialContent: React.FC = () => {
   const { signOut } = useAuth();
@@ -742,12 +745,11 @@ const SocioHistorialContent: React.FC = () => {
     }
   };
 
-  // Error state
   if (error) {
     return (
       <DashboardLayout
         activeSection="historial"
-        sidebarComponent={(props) => (
+        sidebarComponent={(props: SidebarComponentProps) => (
           <SocioSidebarWithLogout
             {...props}
             onLogoutClick={handleLogout}
@@ -782,7 +784,7 @@ const SocioHistorialContent: React.FC = () => {
   return (
     <DashboardLayout
       activeSection="historial"
-      sidebarComponent={(props) => (
+      sidebarComponent={(props: SidebarComponentProps) => (
         <SocioSidebarWithLogout
           {...props}
           onLogoutClick={handleLogout}
@@ -1210,41 +1212,46 @@ const SocioHistorialContent: React.FC = () => {
 };
 
 // Main page component with Suspense boundary
-export default function SocioHistorialPage() {
+// Main page component with Suspense boundary
+const Page: React.FC = () => {
   return (
-    <Suspense fallback={
-      <DashboardLayout
-        activeSection="historial"
-        sidebarComponent={(props) => (
-          <SocioSidebarWithLogout
-            {...props}
-            onLogoutClick={() => {}}
-          />
-        )}
-      >
-        <div className="min-h-screen bg-gradient-to-br from-sky-50 via-white to-violet-50 relative overflow-hidden">
-          <div className="absolute inset-0 bg-grid-pattern opacity-20" />
-          <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-bl from-violet-100/30 to-transparent rounded-full blur-3xl animate-pulse" />
-          
-          <div className="relative z-10 flex items-center justify-center min-h-screen p-4">
-            <div className="text-center">
-              <div className="w-24 h-24 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-3xl flex items-center justify-center mx-auto mb-8 shadow-2xl">
-                <RefreshCw size={40} className="text-white animate-spin" />
-              </div>
-              <h3 className="text-3xl font-black text-gray-900 mb-4">Cargando historial...</h3>
-              <p className="text-gray-600 text-lg">Preparando tu historial de beneficios</p>
-              
-              <div className="mt-8 space-y-3">
-                <div className="h-4 bg-gray-200 rounded-full animate-pulse mx-auto w-3/4" />
-                <div className="h-4 bg-gray-200 rounded-full animate-pulse mx-auto w-1/2" />
-                <div className="h-4 bg-gray-200 rounded-full animate-pulse mx-auto w-2/3" />
+    <Suspense
+      fallback={
+        <DashboardLayout
+          activeSection="historial"
+          sidebarComponent={(props: SidebarComponentProps) => (
+            <SocioSidebarWithLogout
+              {...props}
+              onLogoutClick={() => {}}
+            />
+          )}
+        >
+          <div className="min-h-screen bg-gradient-to-br from-sky-50 via-white to-violet-50 relative overflow-hidden">
+            <div className="absolute inset-0 bg-grid-pattern opacity-20" />
+            <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-bl from-violet-100/30 to-transparent rounded-full blur-3xl animate-pulse" />
+            
+            <div className="relative z-10 flex items-center justify-center min-h-screen p-4">
+              <div className="text-center">
+                <div className="w-24 h-24 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-3xl flex items-center justify-center mx-auto mb-8 shadow-2xl">
+                  <RefreshCw size={40} className="text-white animate-spin" />
+                </div>
+                <h3 className="text-3xl font-black text-gray-900 mb-4">Cargando historial...</h3>
+                <p className="text-gray-600 text-lg">Preparando tu historial de beneficios</p>
+                
+                <div className="mt-8 space-y-3">
+                  <div className="h-4 bg-gray-200 rounded-full animate-pulse mx-auto w-3/4" />
+                  <div className="h-4 bg-gray-200 rounded-full animate-pulse mx-auto w-1/2" />
+                  <div className="h-4 bg-gray-200 rounded-full animate-pulse mx-auto w-2/3" />
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      </DashboardLayout>
-    }>
+        </DashboardLayout>
+      }
+    >
       <SocioHistorialContent />
     </Suspense>
   );
-}
+};
+
+export default Page;

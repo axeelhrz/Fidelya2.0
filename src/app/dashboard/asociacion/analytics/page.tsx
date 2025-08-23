@@ -107,7 +107,7 @@ export default function AsociacionAnalyticsPage() {
       <DashboardLayout 
         activeSection="analytics" 
         onSectionChange={() => {}}
-        sidebarComponent={(props) => (
+        sidebarComponent={(props: React.ComponentProps<typeof AsociacionSidebar>) => (
           <AsociacionSidebarWithLogout
             {...props}
             onLogoutClick={handleLogoutClick}

@@ -137,7 +137,7 @@ function AsociacionComerciosContent() {
       <DashboardLayout 
         activeSection="comercios" 
         onSectionChange={() => {}}
-        sidebarComponent={(props) => (
+        sidebarComponent={(props: React.ComponentProps<typeof AsociacionSidebarWithLogout>) => (
           <AsociacionSidebarWithLogout
             {...props}
             onLogoutClick={handleLogoutClick}

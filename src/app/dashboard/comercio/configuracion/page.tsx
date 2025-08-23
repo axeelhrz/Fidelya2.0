@@ -35,7 +35,7 @@ function ComercioConfiguracionSkeleton() {
   return (
     <DashboardLayout
       activeSection="configuracion"
-      sidebarComponent={(props) => (
+      sidebarComponent={(props: React.ComponentProps<typeof ComercioSidebar>) => (
         <ComercioSidebar
           {...props}
           onLogoutClick={() => {}}
@@ -223,7 +223,7 @@ function ComercioConfiguracionContent() {
     return (
       <DashboardLayout
         activeSection="configuracion"
-        sidebarComponent={(props) => (
+        sidebarComponent={(props: React.ComponentProps<typeof ComercioSidebar>) => (
           <ComercioSidebar
             {...props}
             onLogoutClick={handleLogout}
@@ -248,7 +248,7 @@ function ComercioConfiguracionContent() {
   return (
     <DashboardLayout
       activeSection="configuracion"
-      sidebarComponent={(props) => (
+      sidebarComponent={(props: React.ComponentProps<typeof ComercioSidebar>) => (
         <ComercioSidebar
           {...props}
           onLogoutClick={handleLogout}

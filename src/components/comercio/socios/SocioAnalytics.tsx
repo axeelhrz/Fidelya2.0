@@ -36,11 +36,6 @@ import {
   List,
   Grid,
   User,
-  ShoppingBag,
-  Gift,
-  Bell,
-  Mail,
-  MessageSquare,
   Sparkles,
   Plus,
   TrendingUp,
@@ -418,7 +413,6 @@ export function SocioAnalytics() {
     loadMoreClientes,
     selectCliente,
     createCliente,
-    updateCliente,
     deleteCliente,
     updateEstadoCliente,
     searchClientes,
@@ -440,9 +434,9 @@ export function SocioAnalytics() {
   // Estados para gestión de socios
   const [searchTerm, setSearchTerm] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [showEditModal, setShowEditModal] = useState(false);
+  const [, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [showDetailModal, setShowDetailModal] = useState(false);
+  const [, setShowDetailModal] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [selectedCliente, setSelectedCliente] = useState<Cliente | null>(null);
@@ -586,28 +580,7 @@ export function SocioAnalytics() {
     }
   };
 
-  const handleEditSocio = async () => {
-    if (!selectedCliente) return;
 
-    try {
-      console.log('🔄 Actualizando socio:', selectedCliente.id);
-      
-      const success = await updateCliente(selectedCliente.id, formData);
-      if (success) {
-        setShowEditModal(false);
-        resetForm();
-        toast.success('Socio actualizado exitosamente');
-        
-        await loadClientes();
-        await updateDashboardStats();
-        
-        console.log('✅ Socio actualizado correctamente');
-      }
-    } catch (error) {
-      console.error('❌ Error updating socio:', error);
-      toast.error('Error al actualizar el socio. Inténtalo de nuevo.');
-    }
-  };
 
   const handleDeleteSocio = async () => {
     if (!selectedCliente) return;

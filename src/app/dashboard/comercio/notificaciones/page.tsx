@@ -108,7 +108,7 @@ export default function ComercioNotificacionesPage() {
     return (
       <DashboardLayout
         activeSection="notificaciones"
-        sidebarComponent={(props) => (
+        sidebarComponent={(props: React.ComponentProps<typeof ComercioSidebar>) => (
           <ComercioSidebar
             {...props}
             onLogoutClick={handleLogout}
@@ -133,7 +133,7 @@ export default function ComercioNotificacionesPage() {
   return (
     <DashboardLayout
       activeSection="notificaciones"
-      sidebarComponent={(props) => (
+      sidebarComponent={(props: React.ComponentProps<typeof ComercioSidebar>) => (
         <ComercioSidebar
           {...props}
           onLogoutClick={handleLogout}

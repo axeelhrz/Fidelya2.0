@@ -118,7 +118,7 @@ function ComercioAnalyticsContent() {
     return (
       <DashboardLayout
         activeSection="analytics"
-        sidebarComponent={(props) => (
+        sidebarComponent={(props: React.ComponentProps<typeof ComercioSidebar>) => (
           <ComercioSidebar
             {...props}
             onLogoutClick={handleLogout}
@@ -143,7 +143,7 @@ function ComercioAnalyticsContent() {
   return (
     <DashboardLayout
       activeSection="analytics"
-      sidebarComponent={(props) => (
+      sidebarComponent={(props: React.ComponentProps<typeof ComercioSidebar>) => (
         <ComercioSidebar
           {...props}
           onLogoutClick={handleLogout}
@@ -321,7 +321,7 @@ function ComercioAnalyticsLoading() {
   return (
     <DashboardLayout
       activeSection="analytics"
-      sidebarComponent={(props) => (
+      sidebarComponent={(props: React.ComponentProps<typeof ComercioSidebar>) => (
         <ComercioSidebar
           {...props}
           onLogoutClick={() => {}}

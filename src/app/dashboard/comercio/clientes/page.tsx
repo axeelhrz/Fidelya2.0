@@ -38,7 +38,7 @@ function ClientesPageContent() {
     return (
       <DashboardLayout
         activeSection="clientes"
-        sidebarComponent={(props) => (
+        sidebarComponent={(props: React.ComponentProps<typeof ComercioSidebar>) => (
           <ComercioSidebar
             {...props}
             onLogoutClick={handleLogout}
@@ -63,7 +63,7 @@ function ClientesPageContent() {
   return (
     <DashboardLayout
       activeSection="clientes"
-      sidebarComponent={(props) => (
+      sidebarComponent={(props: React.ComponentProps<typeof ComercioSidebar>) => (
         <ComercioSidebar
           {...props}
           onLogoutClick={handleLogout}
@@ -198,7 +198,7 @@ function ClientesPageLoading() {
   return (
     <DashboardLayout
       activeSection="clientes"
-      sidebarComponent={(props) => (
+      sidebarComponent={(props: React.ComponentProps<typeof ComercioSidebar>) => (
         <ComercioSidebar
           {...props}
           onLogoutClick={() => {}}

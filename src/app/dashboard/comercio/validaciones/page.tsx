@@ -152,7 +152,7 @@ function ComercioValidacionesContent() {
     return (
       <DashboardLayout
         activeSection="validaciones"
-        sidebarComponent={(props) => (
+        sidebarComponent={(props: React.ComponentProps<typeof ComercioSidebar>) => (
           <ComercioSidebar
             {...props}
             onLogoutClick={handleLogout}
@@ -201,7 +201,7 @@ function ComercioValidacionesContent() {
   return (
     <DashboardLayout
       activeSection="validaciones"
-      sidebarComponent={(props) => (
+      sidebarComponent={(props: React.ComponentProps<typeof ComercioSidebar>) => (
         <ComercioSidebar
           {...props}
           onLogoutClick={handleLogout}
@@ -813,7 +813,7 @@ function ComercioValidacionesLoading() {
   return (
     <DashboardLayout
       activeSection="validaciones"
-      sidebarComponent={(props) => (
+      sidebarComponent={(props: React.ComponentProps<typeof ComercioSidebar>) => (
         <ComercioSidebar
           {...props}
           onLogoutClick={() => {}}

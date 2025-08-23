@@ -101,13 +101,18 @@ interface FilterState {
 }
 
 // Sidebar personalizado que maneja el logout
-const SocioSidebarWithLogout: React.FC<{
+interface SidebarBaseProps {
   open: boolean;
   onToggle: () => void;
   onMenuClick: (section: string) => void;
   activeSection: string;
+}
+
+type SocioSidebarWithLogoutProps = SidebarBaseProps & {
   onLogoutClick: () => void;
-}> = (props) => {
+};
+
+const SocioSidebarWithLogout: React.FC<SocioSidebarWithLogoutProps> = (props) => {
   return (
     <SocioSidebar
       open={props.open}
@@ -641,7 +646,7 @@ function SocioAsociacionesContent() {
   const { user, signOut } = useAuth();
   const [asociaciones, setAsociaciones] = useState<Asociacion[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   
   const [filters, setFilters] = useState<FilterState>({
@@ -898,47 +903,10 @@ function SocioAsociacionesContent() {
     }
   }, [signOut]);
 
-  // Error state
-  if (error) {
-    return (
-      <DashboardLayout
-        activeSection="asociaciones"
-        sidebarComponent={(props) => (
-          <SocioSidebarWithLogout
-            {...props}
-            onLogoutClick={handleLogout}
-          />
-        )}
-      >
-        <div className="min-h-screen bg-gradient-to-br from-red-50 via-white to-rose-50 relative overflow-hidden">
-          <div className="absolute inset-0 bg-grid-pattern opacity-30" />
-          <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-bl from-red-100/30 to-transparent rounded-full blur-3xl" />
-          
-          <div className="relative z-10 flex items-center justify-center min-h-screen p-4">
-            <motion.div 
-              className="text-center max-w-md"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-            >
-              <div className="w-24 h-24 bg-gradient-to-r from-red-500 to-rose-600 rounded-3xl flex items-center justify-center mx-auto mb-8 shadow-2xl">
-                <AlertCircle size={40} className="text-white" />
-              </div>
-              <h3 className="text-3xl font-black text-gray-900 mb-4">Error al cargar asociaciones</h3>
-              <p className="text-gray-600 mb-8 text-lg">{error}</p>
-              <Button onClick={handleRefresh} leftIcon={<RefreshCw size={16} />}>
-                Reintentar
-              </Button>
-            </motion.div>
-          </div>
-        </div>
-      </DashboardLayout>
-    );
-  }
-
   return (
     <DashboardLayout
       activeSection="asociaciones"
-      sidebarComponent={(props) => (
+      sidebarComponent={(props: SidebarBaseProps) => (
         <SocioSidebarWithLogout
           {...props}
           onLogoutClick={handleLogout}
@@ -1103,42 +1071,9 @@ function SocioAsociacionesContent() {
     </DashboardLayout>
   );
 };
-
-// Main page component with Suspense boundary
-export default function SocioAsociacionesPage() {
+export default function Page() {
   return (
-    <Suspense fallback={
-      <DashboardLayout
-        activeSection="asociaciones"
-        sidebarComponent={(props) => (
-          <SocioSidebarWithLogout
-            {...props}
-            onLogoutClick={() => {}}
-          />
-        )}
-      >
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-100/20 relative overflow-hidden">
-          <div className="absolute inset-0 bg-grid-pattern opacity-10" />
-          <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-bl from-blue-100/30 to-transparent rounded-full blur-3xl animate-pulse" />
-          
-          <div className="relative z-10 flex items-center justify-center min-h-screen p-4">
-            <div className="text-center">
-              <div className="w-24 h-24 bg-gradient-to-r from-blue-500 to-purple-600 rounded-3xl flex items-center justify-center mx-auto mb-8 shadow-2xl">
-                <RefreshCw size={40} className="text-white animate-spin" />
-              </div>
-              <h3 className="text-3xl font-black text-gray-900 mb-4">Cargando asociaciones...</h3>
-              <p className="text-gray-600 text-lg">Preparando la información de tus asociaciones</p>
-              
-              <div className="mt-8 space-y-3">
-                <div className="h-4 bg-gray-200 rounded-full animate-pulse mx-auto w-3/4" />
-                <div className="h-4 bg-gray-200 rounded-full animate-pulse mx-auto w-1/2" />
-                <div className="h-4 bg-gray-200 rounded-full animate-pulse mx-auto w-2/3" />
-              </div>
-            </div>
-          </div>
-        </div>
-      </DashboardLayout>
-    }>
+    <Suspense>
       <SocioAsociacionesContent />
     </Suspense>
   );

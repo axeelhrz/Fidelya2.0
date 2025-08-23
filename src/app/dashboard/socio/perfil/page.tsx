@@ -823,7 +823,7 @@ export default function SocioPerfilPage() {
     return (
       <DashboardLayout
         activeSection="perfil"
-        sidebarComponent={(props) => (
+        sidebarComponent={(props: Omit<React.ComponentProps<typeof SocioSidebarWithLogout>, 'onLogoutClick'>) => (
           <SocioSidebarWithLogout
             {...props}
             onLogoutClick={handleLogoutClick}
@@ -857,7 +857,7 @@ export default function SocioPerfilPage() {
     <>
       <DashboardLayout
         activeSection="perfil"
-        sidebarComponent={(props) => (
+        sidebarComponent={(props: Omit<React.ComponentProps<typeof SocioSidebarWithLogout>, 'onLogoutClick'>) => (
           <SocioSidebarWithLogout
             {...props}
             onLogoutClick={handleLogoutClick}

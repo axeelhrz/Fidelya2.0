@@ -123,7 +123,7 @@ export default function SocioBeneficiosPage() {
     return (
       <DashboardLayout
         activeSection="beneficios"
-        sidebarComponent={(props) => (
+        sidebarComponent={(props: React.ComponentProps<typeof SocioSidebar>) => (
           <SocioSidebar
             {...props}
             onLogoutClick={handleLogout}
@@ -160,7 +160,7 @@ export default function SocioBeneficiosPage() {
   return (
     <DashboardLayout
       activeSection="beneficios"
-      sidebarComponent={(props) => (
+      sidebarComponent={(props: React.ComponentProps<typeof SocioSidebar>) => (
         <SocioSidebar
           {...props}
           onLogoutClick={handleLogout}

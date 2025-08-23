@@ -120,7 +120,7 @@ export default function AsociacionBeneficiosPage() {
       <DashboardLayout 
         activeSection="beneficios" 
         onSectionChange={() => {}}
-        sidebarComponent={(props) => (
+        sidebarComponent={(props: { open: boolean; onToggle: () => void; onMenuClick: (section: string) => void; activeSection: string }) => (
           <AsociacionSidebarWithLogout
             {...props}
             onLogoutClick={handleLogoutClick}

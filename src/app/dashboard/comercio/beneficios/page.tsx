@@ -450,7 +450,7 @@ function ComercioBeneficiosContent() {
     return (
       <DashboardLayout
         activeSection="beneficios"
-        sidebarComponent={(props) => (
+        sidebarComponent={(props: React.ComponentProps<typeof ComercioSidebar>) => (
           <ComercioSidebar
             {...props}
             onLogoutClick={() => {
@@ -484,7 +484,7 @@ function ComercioBeneficiosContent() {
   return (
     <DashboardLayout
       activeSection="beneficios"
-      sidebarComponent={(props) => (
+      sidebarComponent={(props: React.ComponentProps<typeof ComercioSidebar>) => (
         <ComercioSidebar
           {...props}
           onLogoutClick={() => {
@@ -644,7 +644,7 @@ function ComercioBeneficiosLoading() {
   return (
     <DashboardLayout
       activeSection="beneficios"
-      sidebarComponent={(props) => (
+      sidebarComponent={(props: React.ComponentProps<typeof ComercioSidebar>) => (
         <ComercioSidebar
           {...props}
           onLogoutClick={() => {}}

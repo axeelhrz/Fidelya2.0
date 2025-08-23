@@ -74,7 +74,7 @@ const ComercioPerfilContent: React.FC = () => {
     return (
       <DashboardLayout
         activeSection="perfil"
-        sidebarComponent={(props) => (
+        sidebarComponent={(props: React.ComponentProps<typeof ComercioSidebarWithLogout>) => (
           <ComercioSidebarWithLogout
             {...props}
             onLogoutClick={handleLogout}
@@ -89,7 +89,7 @@ const ComercioPerfilContent: React.FC = () => {
   return (
     <DashboardLayout
       activeSection="perfil"
-      sidebarComponent={(props) => (
+      sidebarComponent={(props: React.ComponentProps<typeof ComercioSidebarWithLogout>) => (
         <ComercioSidebarWithLogout
           {...props}
           onLogoutClick={handleLogout}

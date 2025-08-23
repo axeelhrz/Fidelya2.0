@@ -267,7 +267,7 @@ const SocioValidarContent: React.FC = () => {
     return (
       <DashboardLayout
         activeSection="validar"
-        sidebarComponent={(props) => (
+        sidebarComponent={(props: React.ComponentProps<typeof SocioSidebarWithLogout>) => (
           <SocioSidebarWithLogout
             {...props}
             onLogoutClick={handleLogoutClick}
@@ -283,7 +283,7 @@ const SocioValidarContent: React.FC = () => {
     <>
       <DashboardLayout
         activeSection="validar"
-        sidebarComponent={(props) => (
+        sidebarComponent={(props: React.ComponentProps<typeof SocioSidebarWithLogout>) => (
           <SocioSidebarWithLogout
             {...props}
             onLogoutClick={handleLogoutClick}
@@ -580,7 +580,7 @@ export default function SocioValidarPage() {
     <Suspense fallback={
       <DashboardLayout
         activeSection="validar"
-        sidebarComponent={(props) => (
+        sidebarComponent={(props: React.ComponentProps<typeof SocioSidebarWithLogout>) => (
           <SocioSidebarWithLogout
             {...props}
             onLogoutClick={() => {}}

@@ -363,12 +363,12 @@ export function ClienteAnalytics() {
   const [searchTerm, setSearchTerm] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [showFilters, setShowFilters] = useState(false);
-  const [selectedCliente, setSelectedCliente] = useState<Cliente | null>(null);
+  const [, setSelectedCliente] = useState<Cliente | null>(null);
   const [searchResults, setSearchResults] = useState<Cliente[]>([]);
   const [showSearchResults, setShowSearchResults] = useState(false);
 
   // Estados del formulario
-  const [formData, setFormData] = useState<ClienteFormData>({
+  const [, setFormData] = useState<ClienteFormData>({
     nombre: '',
     email: '',
     telefono: '',
