@@ -52,9 +52,9 @@ const SocioAnalytics = lazy(() =>
   }))
 );
 
-const ComercioNotifications = lazy(() => 
-  import('@/components/comercio/ComercioNotifications').then(module => ({ 
-    default: module.ComercioNotifications 
+const ComercioNotificationsCenter = lazy(() => 
+  import('@/components/comercio/ComercioNotificationsCenter').then(module => ({ 
+    default: module.default 
   }))
 );
 
@@ -283,9 +283,10 @@ export const OptimizedComercioTabSystem: React.FC<OptimizedComercioTabSystemProp
       id: 'notificaciones',
       label: 'Notificaciones',
       icon: Bell,
-      component: ComercioNotifications as React.LazyExoticComponent<React.ComponentType<Record<string, unknown>>>,
+      component: ComercioNotificationsCenter as React.LazyExoticComponent<React.ComponentType<Record<string, unknown>>>,
       gradient: 'from-amber-500 to-amber-600',
-      description: 'Centro de notificaciones'
+      description: 'Centro de notificaciones',
+      isNew: true // Mark as new feature
     }
   ], [stats]);
 

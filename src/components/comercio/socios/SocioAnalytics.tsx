@@ -21,45 +21,22 @@ import {
   Search,
   Filter,
   Download,
-  Edit3,
   Trash2,
   Phone,
   MapPin,
   Calendar,
-  MoreVertical,
   Tag,
   AlertCircle,
   CheckCircle,
   XCircle,
   Pause,
-  Play,
   List,
   Grid,
   User,
   Sparkles,
   Plus,
   TrendingUp,
-  Loader2,
-  Mail,
-  ShoppingBag,
-  Gift,
-  Camera,
-  Settings,
-  Bell,
-  MessageSquare,
-  Clock,
-  Star,
-  Award,
-  Calendar as CalendarIcon,
-  MapPin as LocationIcon,
-  Phone as PhoneIcon,
-  Mail as MailIcon,
-  FileText,
-  Bookmark,
-  Shield,
-  Zap,
-  BarChart,
-  X
+  Loader2
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -213,16 +190,10 @@ const EmptyState: React.FC<{ onCreateSocio: () => void }> = ({ onCreateSocio }) 
   </div>
 );
 
-// Componente de tarjeta de socio mejorado SIN las tarjetas de compras y total gastado
+// Componente de tarjeta de socio SIMPLIFICADO - SIN botones ni acciones
 const SocioCard: React.FC<{
   cliente: Cliente;
-  onSelect: (cliente: Cliente) => void;
-  onEdit: (cliente: Cliente) => void;
-  onDelete: (cliente: Cliente) => void;
-  onToggleEstado: (cliente: Cliente) => void;
-}> = ({ cliente, onSelect, onEdit, onDelete, onToggleEstado }) => {
-  const [showActions, setShowActions] = useState(false);
-
+}> = ({ cliente }) => {
   const getEstadoColor = (estado: string) => {
     switch (estado) {
       case 'activo': return 'text-emerald-600 bg-emerald-100 border-emerald-200';
@@ -245,74 +216,8 @@ const SocioCard: React.FC<{
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      whileHover={{ y: -2, boxShadow: '0 8px 30px rgba(0,0,0,0.1)' }}
-      className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm transition-all duration-200 relative"
+      className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm"
     >
-      {/* Menú de acciones mejorado */}
-      <div className="absolute top-4 right-4">
-        <div className="relative">
-          <button
-            onClick={() => setShowActions(!showActions)}
-            className="p-2 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition-colors"
-          >
-            <MoreVertical size={16} />
-          </button>
-
-          <AnimatePresence>
-            {showActions && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95, y: -10 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95, y: -10 }}
-                className="absolute top-full right-0 mt-2 w-48 bg-white rounded-xl shadow-lg border border-slate-200 py-2 z-[999999] overflow-hidden"
-              >
-                <button
-                  onClick={() => {
-                    onSelect(cliente);
-                    setShowActions(false);
-                  }}
-                  className="w-full px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2 transition-colors"
-                >
-                  <Eye size={14} />
-                  Ver detalles
-                </button>
-                <button
-                  onClick={() => {
-                    onEdit(cliente);
-                    setShowActions(false);
-                  }}
-                  className="w-full px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2 transition-colors"
-                >
-                  <Edit3 size={14} />
-                  Editar
-                </button>
-                <button
-                  onClick={() => {
-                    onToggleEstado(cliente);
-                    setShowActions(false);
-                  }}
-                  className="w-full px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2 transition-colors"
-                >
-                  {cliente.estado === 'activo' ? <Pause size={14} /> : <Play size={14} />}
-                  {cliente.estado === 'activo' ? 'Desactivar' : 'Activar'}
-                </button>
-                <hr className="my-2" />
-                <button
-                  onClick={() => {
-                    onDelete(cliente);
-                    setShowActions(false);
-                  }}
-                  className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2 transition-colors"
-                >
-                  <Trash2 size={14} />
-                  Eliminar
-                </button>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-      </div>
-
       {/* Avatar y información básica */}
       <div className="flex items-start gap-4 mb-4">
         <div className="relative">
@@ -388,45 +293,25 @@ const SocioCard: React.FC<{
           )}
         </div>
       )}
-
-      {/* Botón de acción principal */}
-      <div className="mt-4">
-        <Button
-          variant="outline"
-          fullWidth
-          onClick={() => onSelect(cliente)}
-          className="justify-center border-slate-300 text-slate-700 hover:bg-slate-50"
-        >
-          Ver Perfil Completo
-        </Button>
-      </div>
     </motion.div>
   );
 };
 
-// Componente principal mejorado con debugging
+// Componente principal mejorado
 export function SocioAnalytics() {
   const {
     clientes,
-    clienteSeleccionado,
-    activities,
     loading,
-    loadingActivities,
     error,
     hasMore,
     total,
     stats: clienteStats,
     loadClientes,
     loadMoreClientes,
-    selectCliente,
     createCliente,
     deleteCliente,
-    updateEstadoCliente,
-    uploadClienteImage,
     searchClientes,
     exportData,
-    updateClienteCompra,
-    loadClienteActivities,
     filtros,
     setFiltros,
     clearFiltros,
@@ -444,11 +329,8 @@ export function SocioAnalytics() {
   // Estados para gestión de socios
   const [searchTerm, setSearchTerm] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [showDetailModal, setShowDetailModal] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [showCompraModal, setShowCompraModal] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [selectedCliente, setSelectedCliente] = useState<Cliente | null>(null);
   const [searchResults, setSearchResults] = useState<Cliente[]>([]);
@@ -470,12 +352,6 @@ export function SocioAnalytics() {
       recibirEmail: true,
       recibirSMS: false,
     },
-  });
-
-  const [compraData, setCompraData] = useState({
-    monto: '',
-    beneficioUsado: false,
-    descripcion: '',
   });
 
   // Debug: Log de datos para identificar problemas
@@ -567,20 +443,6 @@ export function SocioAnalytics() {
     }
   };
 
-  const handleSelectCliente = async (cliente: Cliente) => {
-    console.log('🔍 Seleccionando cliente para ver perfil completo:', cliente.nombre);
-    setSelectedCliente(cliente);
-    await selectCliente(cliente.id);
-    
-    // Cargar actividades del cliente
-    await loadClienteActivities(cliente.id);
-    
-    setShowDetailModal(true);
-    setShowSearchResults(false);
-    
-    console.log('✅ Modal de detalle abierto para:', cliente.nombre);
-  };
-
   const handleCreateSocio = async () => {
     try {
       console.log('🚀 Creando nuevo socio con datos:', formData);
@@ -627,67 +489,6 @@ export function SocioAnalytics() {
     }
   };
 
-  const handleToggleEstado = async (cliente: Cliente) => {
-    const nuevoEstado = cliente.estado === 'activo' ? 'inactivo' : 'activo';
-    try {
-      console.log('🔄 Cambiando estado del socio:', cliente.id, 'a', nuevoEstado);
-      
-      await updateEstadoCliente(cliente.id, nuevoEstado);
-      toast.success(`Socio ${nuevoEstado === 'activo' ? 'activado' : 'desactivado'} exitosamente`);
-      
-      await loadClientes();
-      await updateDashboardStats();
-      
-      console.log('✅ Estado del socio actualizado');
-    } catch (error) {
-      console.error('❌ Error updating estado:', error);
-      toast.error('Error al cambiar el estado del socio. Inténtalo de nuevo.');
-    }
-  };
-
-  const openEditModal = (cliente: Cliente) => {
-    setSelectedCliente(cliente);
-    setFormData({
-      nombre: cliente.nombre,
-      email: cliente.email,
-      telefono: cliente.telefono || '',
-      dni: cliente.dni || '',
-      direccion: cliente.direccion || '',
-      fechaNacimiento: cliente.fechaNacimiento 
-        ? format(cliente.fechaNacimiento.toDate(), 'yyyy-MM-dd')
-        : '',
-      notas: cliente.notas || '',
-      tags: cliente.tags || [],
-      configuracion: cliente.configuracion,
-    });
-    setShowEditModal(true);
-  };
-
-  // Manejar registro de compra
-  const handleRegistrarCompra = async () => {
-    if (!selectedCliente || !compraData.monto) return;
-
-    try {
-      const success = await updateClienteCompra(
-        selectedCliente.id,
-        Number(compraData.monto),
-        compraData.beneficioUsado
-      );
-      
-      if (success) {
-        setShowCompraModal(false);
-        setCompraData({ monto: '', beneficioUsado: false, descripcion: '' });
-        toast.success('Compra registrada exitosamente');
-        
-        // Actualizar cliente seleccionado
-        await selectCliente(selectedCliente.id);
-        await loadClienteActivities(selectedCliente.id);
-      }
-    } catch (error) {
-      console.error('Error registering compra:', error);
-      toast.error('Error al registrar la compra');
-    }
-  };
 
   // Calcular métricas avanzadas basadas en datos reales
   const advancedMetrics = useMemo(() => {
@@ -862,7 +663,6 @@ export function SocioAnalytics() {
                       {searchResults.map((cliente) => (
                         <div
                           key={cliente.id}
-                          onClick={() => handleSelectCliente(cliente)}
                           className="p-4 hover:bg-slate-50 cursor-pointer border-b border-slate-100 last:border-b-0 transition-colors"
                         >
                           <div className="flex items-center gap-4">
@@ -1067,18 +867,11 @@ export function SocioAnalytics() {
                   viewMode === 'grid' 
                     ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'
                     : 'grid-cols-1'
-                                }`}>
+                }`}>
                   {clientes.map((cliente) => (
                     <SocioCard
                       key={cliente.id}
                       cliente={cliente}
-                      onSelect={handleSelectCliente}
-                      onEdit={openEditModal}
-                      onDelete={(cliente) => {
-                        setSelectedCliente(cliente);
-                        setShowDeleteModal(true);
-                      }}
-                      onToggleEstado={handleToggleEstado}
                     />
                   ))}
                 </div>
@@ -1441,728 +1234,6 @@ export function SocioAnalytics() {
         </DialogContent>
       </Dialog>
 
-      {/* MODAL DE PERFIL COMPLETO - VERSIÓN PROFESIONAL MEJORADA */}
-      <Dialog open={showDetailModal} onClose={() => setShowDetailModal(false)}>
-        <DialogContent className="max-w-[95vw] max-h-[95vh] w-full overflow-hidden p-0">
-          {/* Header del modal con gradiente */}
-          <div className="bg-gradient-to-r from-indigo-600 via-purple-600 to-violet-600 p-8 text-white relative overflow-hidden">
-            <div className="absolute inset-0 bg-black/10"></div>
-            <div className="relative z-10">
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-4">
-                  <div className="w-16 h-16 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center border border-white/30">
-                    <User size={28} className="text-white" />
-                  </div>
-                  <div>
-                    <h1 className="text-3xl font-bold mb-2">Perfil Completo del Socio</h1>
-                    <p className="text-white/80 text-lg">Información detallada y gestión avanzada</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    leftIcon={<RefreshCw size={16} />}
-                    onClick={() => clienteSeleccionado && loadClienteActivities(clienteSeleccionado.id)}
-                    loading={loadingActivities}
-                    className="bg-white/10 border-white/30 text-white hover:bg-white/20 backdrop-blur-sm"
-                  >
-                    Actualizar
-                  </Button>
-                  <button
-                    onClick={() => setShowDetailModal(false)}
-                    className="w-10 h-10 bg-white/10 hover:bg-white/20 rounded-xl flex items-center justify-center transition-colors backdrop-blur-sm border border-white/30"
-                  >
-                    <X size={20} className="text-white" />
-                  </button>
-                </div>
-              </div>
-            </div>
-            
-            {/* Decorative elements */}
-            <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-32 translate-x-32"></div>
-            <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/5 rounded-full translate-y-24 -translate-x-24"></div>
-          </div>
-
-          {clienteSeleccionado && (
-            <div className="flex-1 overflow-y-auto">
-              {/* Información principal del socio */}
-              <div className="p-8 bg-gradient-to-b from-slate-50 to-white">
-                <div className="max-w-7xl mx-auto">
-                  <div className="grid grid-cols-1 xl:grid-cols-4 gap-8">
-                    {/* Columna principal - Información del socio */}
-                    <div className="xl:col-span-3 space-y-8">
-                      {/* Card principal del socio */}
-                      <div className="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden">
-                        <div className="p-8">
-                          <div className="flex items-start gap-8">
-                            {/* Avatar grande con funcionalidad de cambio */}
-                            <div className="relative group">
-                              <div className="w-32 h-32 bg-gradient-to-br from-slate-100 to-slate-200 rounded-3xl shadow-2xl flex items-center justify-center overflow-hidden ring-4 ring-white">
-                                {clienteSeleccionado.avatar ? (
-                                  <Image
-                                    src={clienteSeleccionado.avatar}
-                                    alt={clienteSeleccionado.nombre}
-                                    className="w-full h-full object-cover"
-                                    width={128}
-                                    height={128}
-                                  />
-                                ) : (
-                                  <User size={48} className="text-slate-400" />
-                                )}
-                              </div>
-                              <button
-                                onClick={() => {
-                                  const input = document.createElement('input');
-                                  input.type = 'file';
-                                  input.accept = 'image/*';
-                                  input.onchange = async (e) => {
-                                    const file = (e.target as HTMLInputElement).files?.[0];
-                                    if (file) {
-                                      await uploadClienteImage(clienteSeleccionado.id, file);
-                                      await selectCliente(clienteSeleccionado.id);
-                                    }
-                                  };
-                                  input.click();
-                                }}
-                                className="absolute -bottom-3 -right-3 w-14 h-14 bg-gradient-to-r from-purple-600 to-violet-600 shadow-2xl rounded-2xl flex items-center justify-center text-white hover:from-purple-700 hover:to-violet-700 transition-all hover:scale-110 group-hover:shadow-purple-500/50"
-                              >
-                                <Camera size={20} />
-                              </button>
-                            </div>
-
-                            {/* Información principal */}
-                            <div className="flex-1">
-                              <div className="flex items-start justify-between mb-6">
-                                <div>
-                                  <h2 className="text-4xl font-bold text-slate-900 mb-3">
-                                    {clienteSeleccionado.nombre}
-                                  </h2>
-                                  <p className="text-xl text-slate-600 mb-4">{clienteSeleccionado.email}</p>
-                                  
-                                  <div className="flex items-center gap-4 mb-6">
-                                    <div className={`inline-flex items-center gap-3 px-6 py-3 rounded-2xl text-base font-semibold border-2 ${
-                                      clienteSeleccionado.estado === 'activo' 
-                                        ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                                        : clienteSeleccionado.estado === 'suspendido'
-                                        ? 'bg-red-50 text-red-800 border-red-200'
-                                        : 'bg-slate-50 text-slate-800 border-slate-200'
-                                    }`}>
-                                      {clienteSeleccionado.estado === 'activo' && <CheckCircle size={20} />}
-                                      {clienteSeleccionado.estado === 'suspendido' && <XCircle size={20} />}
-                                      {clienteSeleccionado.estado === 'inactivo' && <Pause size={20} />}
-                                      {clienteSeleccionado.estado.charAt(0).toUpperCase() + clienteSeleccionado.estado.slice(1)}
-                                    </div>
-                                    
-                                    <div className="flex items-center gap-2 text-base text-slate-600 bg-white px-4 py-2 rounded-xl border border-slate-200">
-                                      <Star size={16} className="text-yellow-500" />
-                                      Socio desde {format(clienteSeleccionado.creadoEn.toDate(), 'dd/MM/yyyy', { locale: es })}
-                                    </div>
-                                  </div>
-                                </div>
-
-                                <div className="flex items-center gap-3">
-                                  <Button
-                                    variant="outline"
-                                    leftIcon={<Edit3 size={16} />}
-                                    onClick={() => {
-                                      setShowDetailModal(false);
-                                      openEditModal(clienteSeleccionado);
-                                    }}
-                                    className="border-slate-300 text-slate-700 hover:bg-slate-50"
-                                  >
-                                    Editar Perfil
-                                  </Button>
-                                  <Button
-                                    leftIcon={<ShoppingBag size={16} />}
-                                    onClick={() => setShowCompraModal(true)}
-                                    className="bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 text-white shadow-lg shadow-emerald-500/30"
-                                  >
-                                    Registrar Compra
-                                  </Button>
-                                </div>
-                              </div>
-
-                              {/* Grid de información de contacto */}
-                              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                {clienteSeleccionado.telefono && (
-                                  <div className="flex items-center gap-4 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl border border-blue-100">
-                                    <div className="w-12 h-12 bg-blue-500 rounded-xl flex items-center justify-center shadow-lg">
-                                      <PhoneIcon size={20} className="text-white" />
-                                    </div>
-                                    <div>
-                                      <p className="text-xs text-blue-600 uppercase tracking-wide font-semibold">Teléfono</p>
-                                      <p className="font-bold text-slate-900 text-lg">{clienteSeleccionado.telefono}</p>
-                                    </div>
-                                  </div>
-                                )}
-                                
-                                {clienteSeleccionado.direccion && (
-                                  <div className="flex items-center gap-4 p-4 bg-gradient-to-r from-emerald-50 to-green-50 rounded-2xl border border-emerald-100">
-                                    <div className="w-12 h-12 bg-emerald-500 rounded-xl flex items-center justify-center shadow-lg">
-                                      <LocationIcon size={20} className="text-white" />
-                                    </div>
-                                    <div>
-                                      <p className="text-xs text-emerald-600 uppercase tracking-wide font-semibold">Dirección</p>
-                                      <p className="font-bold text-slate-900 text-sm truncate">{clienteSeleccionado.direccion}</p>
-                                    </div>
-                                  </div>
-                                )}
-                                
-                                {clienteSeleccionado.fechaNacimiento && (
-                                  <div className="flex items-center gap-4 p-4 bg-gradient-to-r from-purple-50 to-violet-50 rounded-2xl border border-purple-100">
-                                    <div className="w-12 h-12 bg-purple-500 rounded-xl flex items-center justify-center shadow-lg">
-                                      <CalendarIcon size={20} className="text-white" />
-                                    </div>
-                                    <div>
-                                      <p className="text-xs text-purple-600 uppercase tracking-wide font-semibold">Nacimiento</p>
-                                      <p className="font-bold text-slate-900 text-lg">
-                                        {format(clienteSeleccionado.fechaNacimiento.toDate(), 'dd/MM/yyyy', { locale: es })}
-                                      </p>
-                                    </div>
-                                  </div>
-                                )}
-                                
-                                {clienteSeleccionado.ultimoAcceso && (
-                                  <div className="flex items-center gap-4 p-4 bg-gradient-to-r from-orange-50 to-amber-50 rounded-2xl border border-orange-100">
-                                    <div className="w-12 h-12 bg-orange-500 rounded-xl flex items-center justify-center shadow-lg">
-                                      <Clock size={20} className="text-white" />
-                                    </div>
-                                    <div>
-                                      <p className="text-xs text-orange-600 uppercase tracking-wide font-semibold">Último acceso</p>
-                                      <p className="font-bold text-slate-900 text-sm">
-                                        {format(clienteSeleccionado.ultimoAcceso.toDate(), 'dd/MM/yyyy HH:mm', { locale: es })}
-                                      </p>
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Estadísticas del socio en cards grandes */}
-                      <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-                        <div className="bg-white rounded-3xl border border-slate-200 p-8 text-center hover:shadow-2xl transition-all duration-300 group">
-                          <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-2xl group-hover:scale-110 transition-transform">
-                            <ShoppingBag size={32} className="text-white" />
-                          </div>
-                          <div className="text-4xl font-bold text-slate-900 mb-3">
-                            {clienteSeleccionado.totalCompras || 0}
-                          </div>
-                          <div className="text-base text-slate-600 font-semibold">Total Compras</div>
-                        </div>
-
-                        <div className="bg-white rounded-3xl border border-slate-200 p-8 text-center hover:shadow-2xl transition-all duration-300 group">
-                          <div className="w-20 h-20 bg-gradient-to-br from-emerald-500 to-green-600 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-2xl group-hover:scale-110 transition-transform">
-                            <DollarSign size={32} className="text-white" />
-                          </div>
-                          <div className="text-4xl font-bold text-slate-900 mb-3">
-                            ${(clienteSeleccionado.montoTotalGastado || 0).toLocaleString()}
-                          </div>
-                          <div className="text-base text-slate-600 font-semibold">Total Gastado</div>
-                        </div>
-
-                        <div className="bg-white rounded-3xl border border-slate-200 p-8 text-center hover:shadow-2xl transition-all duration-300 group">
-                          <div className="w-20 h-20 bg-gradient-to-br from-purple-500 to-violet-600 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-2xl group-hover:scale-110 transition-transform">
-                            <Gift size={32} className="text-white" />
-                          </div>
-                          <div className="text-4xl font-bold text-slate-900 mb-3">
-                            {clienteSeleccionado.beneficiosUsados || 0}
-                          </div>
-                          <div className="text-base text-slate-600 font-semibold">Beneficios Usados</div>
-                        </div>
-
-                        <div className="bg-white rounded-3xl border border-slate-200 p-8 text-center hover:shadow-2xl transition-all duration-300 group">
-                          <div className="w-20 h-20 bg-gradient-to-br from-orange-500 to-red-500 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-2xl group-hover:scale-110 transition-transform">
-                            <TrendingUp size={32} className="text-white" />
-                          </div>
-                          <div className="text-4xl font-bold text-slate-900 mb-3">
-                            ${(clienteSeleccionado.promedioCompra || 0).toLocaleString()}
-                          </div>
-                          <div className="text-base text-slate-600 font-semibold">Promedio Compra</div>
-                        </div>
-                      </div>
-
-                      {/* Actividad reciente mejorada */}
-                      <div className="bg-white rounded-3xl border border-slate-200 shadow-xl overflow-hidden">
-                        <div className="p-8 border-b border-slate-200 bg-gradient-to-r from-slate-50 to-white">
-                          <div className="flex items-center justify-between">
-                            <h3 className="text-2xl font-bold text-slate-900 flex items-center gap-4">
-                              <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg">
-                                <Activity size={24} className="text-white" />
-                              </div>
-                              Actividad Reciente
-                            </h3>
-                            <Button
-                              variant="outline"
-                              leftIcon={<RefreshCw size={16} />}
-                              onClick={() => loadClienteActivities(clienteSeleccionado.id)}
-                              loading={loadingActivities}
-                              className="border-slate-300 text-slate-700 hover:bg-slate-50"
-                            >
-                              Actualizar
-                            </Button>
-                          </div>
-                        </div>
-
-                        <div className="p-8">
-                          {loadingActivities ? (
-                            <div className="space-y-6">
-                              {[...Array(4)].map((_, i) => (
-                                <div key={i} className="animate-pulse flex items-center gap-6 p-6 bg-slate-50 rounded-2xl">
-                                  <div className="w-16 h-16 bg-slate-200 rounded-2xl"></div>
-                                  <div className="flex-1">
-                                    <div className="h-5 bg-slate-200 rounded w-3/4 mb-3"></div>
-                                    <div className="h-4 bg-slate-200 rounded w-1/2"></div>
-                                  </div>
-                                  <div className="w-20 h-8 bg-slate-200 rounded"></div>
-                                </div>
-                              ))}
-                            </div>
-                          ) : activities.length > 0 ? (
-                            <div className="space-y-4 max-h-96 overflow-y-auto">
-                              {activities.map((activity) => (
-                                <div key={activity.id} className="flex items-start gap-6 p-6 bg-gradient-to-r from-slate-50 to-white rounded-2xl hover:from-slate-100 hover:to-slate-50 transition-all duration-200 border border-slate-100">
-                                  <div className={`w-16 h-16 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-lg ${
-                                    activity.tipo === 'compra' ? 'bg-gradient-to-r from-emerald-500 to-green-600 text-white' :
-                                    activity.tipo === 'beneficio' ? 'bg-gradient-to-r from-purple-500 to-violet-600 text-white' :
-                                    activity.tipo === 'visita' ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white' :
-                                    'bg-gradient-to-r from-slate-400 to-slate-600 text-white'
-                                  }`}>
-                                    {activity.tipo === 'compra' && <ShoppingBag size={24} />}
-                                    {activity.tipo === 'beneficio' && <Gift size={24} />}
-                                    {activity.tipo === 'visita' && <Eye size={24} />}
-                                    {activity.tipo === 'registro' && <UserPlus size={24} />}
-                                    {activity.tipo === 'actualizacion' && <Edit3 size={24} />}
-                                  </div>
-                                  <div className="flex-1 min-w-0">
-                                    <p className="font-bold text-slate-900 mb-2 text-lg">
-                                      {activity.descripcion}
-                                    </p>
-                                    <div className="flex items-center gap-4">
-                                      <span className="text-base text-slate-600 flex items-center gap-2">
-                                        <Clock size={16} />
-                                        {format(activity.fecha.toDate(), 'dd/MM/yyyy HH:mm', { locale: es })}
-                                      </span>
-                                      {activity.monto && (
-                                        <span className="text-base font-bold text-emerald-700 bg-emerald-100 px-4 py-2 rounded-xl border border-emerald-200">
-                                          ${activity.monto.toLocaleString()}
-                                        </span>
-                                      )}
-                                    </div>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          ) : (
-                            <div className="text-center py-16">
-                              <div className="w-24 h-24 bg-gradient-to-br from-slate-100 to-slate-200 rounded-3xl flex items-center justify-center mx-auto mb-6">
-                                <Activity size={32} className="text-slate-400" />
-                              </div>
-                              <h4 className="text-2xl font-bold text-slate-900 mb-3">No hay actividad reciente</h4>
-                              <p className="text-slate-600 text-lg">Las actividades del socio aparecerán aquí</p>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Columna lateral - Información adicional */}
-                    <div className="xl:col-span-1 space-y-8">
-                      {/* Configuración de comunicación */}
-                      <div className="bg-white rounded-3xl border border-slate-200 shadow-xl overflow-hidden">
-                        <div className="p-6 bg-gradient-to-r from-slate-50 to-white border-b border-slate-200">
-                          <h3 className="text-xl font-bold text-slate-900 flex items-center gap-3">
-                            <div className="w-10 h-10 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
-                              <Settings size={20} className="text-white" />
-                            </div>
-                            Configuración
-                          </h3>
-                        </div>
-                        
-                        <div className="p-6 space-y-4">
-                          {[
-                            { 
-                              key: 'recibirNotificaciones', 
-                              label: 'Notificaciones', 
-                              icon: <Bell size={18} />,
-                              enabled: clienteSeleccionado.configuracion?.recibirNotificaciones,
-                              color: 'blue'
-                            },
-                            { 
-                              key: 'recibirPromociones', 
-                              label: 'Promociones', 
-                              icon: <Gift size={18} />,
-                              enabled: clienteSeleccionado.configuracion?.recibirPromociones,
-                              color: 'purple'
-                            },
-                            { 
-                              key: 'recibirEmail', 
-                              label: 'Email', 
-                              icon: <MailIcon size={18} />,
-                              enabled: clienteSeleccionado.configuracion?.recibirEmail,
-                              color: 'emerald'
-                            },
-                            { 
-                              key: 'recibirSMS', 
-                              label: 'SMS', 
-                              icon: <MessageSquare size={18} />,
-                              enabled: clienteSeleccionado.configuracion?.recibirSMS,
-                              color: 'orange'
-                            },
-                          ].map((config) => (
-                            <div key={config.key} className="flex items-center justify-between p-4 bg-gradient-to-r from-slate-50 to-white rounded-2xl border border-slate-100">
-                              <div className="flex items-center gap-4">
-                                <div className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-lg ${
-                                  config.enabled 
-                                    ? `bg-gradient-to-r from-${config.color}-500 to-${config.color}-600 text-white` 
-                                    : 'bg-slate-100 text-slate-400'
-                                }`}>
-                                  {config.icon}
-                                </div>
-                                <span className="font-semibold text-slate-900 text-base">{config.label}</span>
-                              </div>
-                              <div className={`px-4 py-2 rounded-xl text-sm font-bold ${
-                                config.enabled 
-                                  ? 'bg-emerald-100 text-emerald-700 border border-emerald-200' 
-                                  : 'bg-slate-100 text-slate-500 border border-slate-200'
-                              }`}>
-                                {config.enabled ? 'Activo' : 'Inactivo'}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Notas y tags */}
-                      {(clienteSeleccionado.notas || (clienteSeleccionado.tags && clienteSeleccionado.tags.length > 0)) && (
-                        <div className="bg-white rounded-3xl border border-slate-200 shadow-xl overflow-hidden">
-                          <div className="p-6 bg-gradient-to-r from-slate-50 to-white border-b border-slate-200">
-                            <h3 className="text-xl font-bold text-slate-900 flex items-center gap-3">
-                              <div className="w-10 h-10 bg-gradient-to-r from-amber-500 to-orange-600 rounded-xl flex items-center justify-center shadow-lg">
-                                <FileText size={20} className="text-white" />
-                              </div>
-                              Información Adicional
-                            </h3>
-                          </div>
-                          
-                          <div className="p-6">
-                            {clienteSeleccionado.notas && (
-                              <div className="mb-6">
-                                <h4 className="text-base font-bold text-slate-700 mb-3 flex items-center gap-2">
-                                  <FileText size={16} />
-                                  Notas
-                                </h4>
-                                <div className="bg-gradient-to-r from-slate-50 to-white p-6 rounded-2xl border border-slate-200">
-                                  <p className="text-slate-700 leading-relaxed text-base">{clienteSeleccionado.notas}</p>
-                                </div>
-                              </div>
-                            )}
-
-                            {clienteSeleccionado.tags && clienteSeleccionado.tags.length > 0 && (
-                              <div>
-                                <h4 className="text-base font-bold text-slate-700 mb-4 flex items-center gap-2">
-                                  <Bookmark size={16} />
-                                  Tags
-                                </h4>
-                                <div className="flex flex-wrap gap-3">
-                                  {clienteSeleccionado.tags.map((tag, index) => (
-                                    <span
-                                      key={index}
-                                      className="inline-flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-700 text-base rounded-2xl border border-blue-200 font-semibold shadow-sm"
-                                    >
-                                      <Tag size={14} />
-                                      {tag}
-                                    </span>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Métricas adicionales */}
-                      <div className="bg-white rounded-3xl border border-slate-200 shadow-xl overflow-hidden">
-                        <div className="p-6 bg-gradient-to-r from-slate-50 to-white border-b border-slate-200">
-                          <h3 className="text-xl font-bold text-slate-900 flex items-center gap-3">
-                            <div className="w-10 h-10 bg-gradient-to-r from-violet-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
-                              <BarChart size={20} className="text-white" />
-                            </div>
-                            Métricas Avanzadas
-                          </h3>
-                        </div>
-                        
-                        <div className="p-6 space-y-6">
-                          <div className="flex items-center justify-between p-4 bg-gradient-to-r from-slate-50 to-white rounded-2xl border border-slate-100">
-                            <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
-                                <Activity size={18} className="text-white" />
-                              </div>
-                              <span className="text-base font-semibold text-slate-700">Frecuencia de visitas</span>
-                            </div>
-                            <span className="text-2xl font-bold text-slate-900">
-                              {clienteSeleccionado.frecuenciaVisitas || 0}
-                            </span>
-                          </div>
-                          
-                          <div className="flex items-center justify-between p-4 bg-gradient-to-r from-slate-50 to-white rounded-2xl border border-slate-100">
-                            <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 bg-gradient-to-r from-purple-500 to-violet-600 rounded-xl flex items-center justify-center shadow-lg">
-                                <Star size={18} className="text-white" />
-                              </div>
-                              <span className="text-base font-semibold text-slate-700">Puntos acumulados</span>
-                            </div>
-                            <span className="text-2xl font-bold text-purple-600">
-                              {((
-                                clienteSeleccionado as Cliente & { puntosAcumulados?: number }
-                              ).puntosAcumulados ?? 0)}
-                            </span>
-                          </div>
-                          
-                          <div className="flex items-center justify-between p-4 bg-gradient-to-r from-slate-50 to-white rounded-2xl border border-slate-100">
-                            <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 bg-gradient-to-r from-amber-500 to-orange-600 rounded-xl flex items-center justify-center shadow-lg">
-                                <Award size={18} className="text-white" />
-                              </div>
-                              <span className="text-base font-semibold text-slate-700">Nivel de socio</span>
-                            </div>
-                            <span className="text-base font-bold text-slate-900 bg-gradient-to-r from-yellow-100 to-orange-100 px-4 py-2 rounded-xl border border-yellow-200 shadow-sm">
-                              {((
-                                clienteSeleccionado as Cliente & { nivelSocio?: string }
-                              ).nivelSocio ?? 'Básico')}
-                            </span>
-                          </div>
-
-                          <div className="flex items-center justify-between p-4 bg-gradient-to-r from-slate-50 to-white rounded-2xl border border-slate-100">
-                            <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 bg-gradient-to-r from-emerald-500 to-green-600 rounded-xl flex items-center justify-center shadow-lg">
-                                <Shield size={18} className="text-white" />
-                              </div>
-                              <span className="text-base font-semibold text-slate-700">Estado de cuenta</span>
-                            </div>
-                            <span className="text-base font-bold text-emerald-700 bg-emerald-100 px-4 py-2 rounded-xl border border-emerald-200 shadow-sm">
-                              Verificado
-                            </span>
-                          </div>
-
-                          <div className="flex items-center justify-between p-4 bg-gradient-to-r from-slate-50 to-white rounded-2xl border border-slate-100">
-                            <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 bg-gradient-to-r from-red-500 to-pink-600 rounded-xl flex items-center justify-center shadow-lg">
-                                <Heart size={18} className="text-white" />
-                              </div>
-                              <span className="text-base font-semibold text-slate-700">Fidelidad</span>
-                            </div>
-                            <span className="text-2xl font-bold text-red-600">
-                              {clienteSeleccionado.totalCompras && clienteSeleccionado.totalCompras > 10 ? 'Alta' : 
-                               clienteSeleccionado.totalCompras && clienteSeleccionado.totalCompras > 5 ? 'Media' : 'Baja'}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Acciones rápidas */}
-                      <div className="bg-white rounded-3xl border border-slate-200 shadow-xl overflow-hidden">
-                        <div className="p-6 bg-gradient-to-r from-slate-50 to-white border-b border-slate-200">
-                          <h3 className="text-xl font-bold text-slate-900 flex items-center gap-3">
-                            <div className="w-10 h-10 bg-gradient-to-r from-indigo-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg">
-                              <Zap size={20} className="text-white" />
-                            </div>
-                            Acciones Rápidas
-                          </h3>
-                        </div>
-                        
-                        <div className="p-6 space-y-4">
-                          <Button
-                            fullWidth
-                            leftIcon={<ShoppingBag size={18} />}
-                            onClick={() => setShowCompraModal(true)}
-                            className="bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 text-white shadow-lg shadow-emerald-500/30 py-4 text-base font-semibold"
-                          >
-                            Registrar Nueva Compra
-                          </Button>
-                          
-                          <Button
-                            fullWidth
-                            variant="outline"
-                            leftIcon={<Gift size={18} />}
-                            className="border-purple-300 text-purple-700 hover:bg-purple-50 py-4 text-base font-semibold"
-                          >
-                            Asignar Beneficio
-                          </Button>
-                          
-                          <Button
-                            fullWidth
-                            variant="outline"
-                            leftIcon={<Mail size={18} />}
-                            className="border-blue-300 text-blue-700 hover:bg-blue-50 py-4 text-base font-semibold"
-                          >
-                            Enviar Mensaje
-                          </Button>
-                          
-                          <Button
-                            fullWidth
-                            variant="outline"
-                            leftIcon={<FileText size={18} />}
-                            className="border-slate-300 text-slate-700 hover:bg-slate-50 py-4 text-base font-semibold"
-                          >
-                            Ver Historial Completo
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Footer del modal */}
-          <div className="p-8 bg-gradient-to-r from-slate-50 to-white border-t border-slate-200">
-            <div className="flex items-center justify-between max-w-7xl mx-auto">
-              <div className="flex items-center gap-4">
-                <div className="flex items-center gap-2 text-slate-600">
-                  <Clock size={16} />
-                  <span className="text-sm">
-                    Última actualización: {new Date().toLocaleString('es-ES')}
-                  </span>
-                </div>
-              </div>
-              <div className="flex items-center gap-4">
-                <Button
-                  variant="outline"
-                  leftIcon={<Download size={16} />}
-                  className="border-slate-300 text-slate-700 hover:bg-slate-50"
-                >
-                  Exportar Datos
-                </Button>
-                <Button
-                  onClick={() => setShowDetailModal(false)}
-                  className="bg-gradient-to-r from-slate-600 to-slate-700 hover:from-slate-700 hover:to-slate-800 text-white px-8"
-                >
-                  Cerrar
-                </Button>
-              </div>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Modal de registrar compra */}
-      <Dialog open={showCompraModal} onClose={() => setShowCompraModal(false)}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-3 text-2xl">
-              <div className="w-12 h-12 bg-gradient-to-r from-emerald-500 to-green-600 rounded-2xl flex items-center justify-center shadow-lg">
-                <ShoppingBag size={24} className="text-white" />
-              </div>
-              Registrar Nueva Compra
-            </DialogTitle>
-          </DialogHeader>
-
-          <div className="space-y-6">
-            {selectedCliente && (
-              <div className="p-6 bg-gradient-to-r from-purple-50 to-violet-50 rounded-2xl border border-purple-200">
-                <div className="flex items-center gap-4">
-                  <div className="w-16 h-16 bg-gradient-to-r from-purple-500 to-violet-600 rounded-2xl flex items-center justify-center shadow-lg">
-                    <User size={24} className="text-white" />
-                  </div>
-                  <div>
-                    <p className="font-bold text-purple-900 text-lg">{selectedCliente.nombre}</p>
-                    <p className="text-purple-600">{selectedCliente.email}</p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            <div>
-              <label className="block text-base font-semibold text-slate-700 mb-3">
-                Monto de la compra *
-              </label>
-              <div className="relative">
-                <DollarSign className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400" size={20} />
-                <input
-                  type="number"
-                  value={compraData.monto}
-                  onChange={(e) => setCompraData(prev => ({ ...prev, monto: e.target.value }))}
-                  placeholder="0.00"
-                  className="w-full pl-12 pr-4 py-4 border border-slate-300 rounded-2xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-lg font-semibold"
-                  required
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-base font-semibold text-slate-700 mb-3">
-                Descripción (opcional)
-              </label>
-              <textarea
-                value={compraData.descripcion}
-                onChange={(e) => setCompraData(prev => ({ ...prev, descripcion: e.target.value }))}
-                placeholder="Descripción de la compra..."
-                rows={4}
-                className="w-full px-4 py-4 border border-slate-300 rounded-2xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-base"
-              />
-            </div>
-
-            <div className="flex items-center justify-between p-6 bg-gradient-to-r from-slate-50 to-white rounded-2xl border border-slate-200">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-violet-600 rounded-2xl flex items-center justify-center shadow-lg">
-                  <Gift size={20} className="text-white" />
-                </div>
-                <div>
-                  <span className="text-base font-semibold text-slate-700 block">
-                    ¿Se usó un beneficio?
-                  </span>
-                  <span className="text-sm text-slate-500">
-                    Marcar si el cliente utilizó algún descuento
-                  </span>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setCompraData(prev => ({ ...prev, beneficioUsado: !prev.beneficioUsado }))}
-                className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors shadow-lg ${
-                  compraData.beneficioUsado 
-                    ? 'bg-gradient-to-r from-purple-600 to-violet-600' 
-                    : 'bg-slate-300'
-                }`}
-              >
-                <span
-                  className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform shadow-lg ${
-                    compraData.beneficioUsado ? 'translate-x-7' : 'translate-x-1'
-                  }`}
-                />
-              </button>
-            </div>
-          </div>
-
-          <DialogFooter className="pt-6">
-            <Button
-              variant="outline"
-              onClick={() => {
-                setShowCompraModal(false);
-                setCompraData({ monto: '', beneficioUsado: false, descripcion: '' });
-              }}
-              className="border-slate-300 text-slate-700 hover:bg-slate-50 px-6 py-3"
-            >
-              Cancelar
-            </Button>
-            <Button
-              onClick={handleRegistrarCompra}
-              loading={loading}
-              disabled={!compraData.monto}
-              className="bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 text-white px-8 py-3 shadow-lg shadow-emerald-500/30"
-            >
-              <ShoppingBag size={16} className="mr-2" />
-              Registrar Compra
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
       {/* Componente de creación rápida flotante */}
       <QuickClienteCreator
         onCreateCliente={async (clienteData) => {
@@ -2182,4 +1253,3 @@ export function SocioAnalytics() {
 }
 
 export default SocioAnalytics;
-
