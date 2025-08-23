@@ -95,6 +95,7 @@ class ValidacionesService {
   private sociosCollection = COLLECTIONS.SOCIOS;
   private comerciosCollection = COLLECTIONS.COMERCIOS;
   private beneficiosCollection = COLLECTIONS.BENEFICIOS;
+  private clientesCollection = 'clientes'; // Nueva colección para validar estado en comercio
 
   /**
    * VALIDACIÓN ESTRICTA DE SOCIO ACTIVO - Reforzada para garantizar que solo socios activos puedan usar beneficios
@@ -126,8 +127,6 @@ class ValidacionesService {
     if (socioData.asociacionId) {
       console.log('🔍 Validando membresía de socio asociado...');
       
-      // CORRECCIÓN: Si el socio tiene asociación y estado activo, permitir el acceso
-      // Solo bloquear si el estado de membresía es explícitamente uno de los estados bloqueantes
       const estadosBloquantes = ['vencido', 'suspendido', 'inactivo'];
       
       if (socioData.estadoMembresia && estadosBloquantes.includes(socioData.estadoMembresia)) {
@@ -143,8 +142,6 @@ class ValidacionesService {
         throw new Error(message);
       }
 
-      // CORRECCIÓN: Si estadoMembresia es 'pendiente' pero el socio tiene estado 'activo' y asociación,
-      // permitir el acceso (esto indica que la asociación ya lo activó)
       if (socioData.estadoMembresia === 'pendiente') {
         console.log('⚠️ Estado de membresía pendiente pero socio activo con asociación - permitiendo acceso');
       }
@@ -161,7 +158,6 @@ class ValidacionesService {
           throw new Error('Tu membresía ha vencido. Renueva tu cuota para acceder a beneficios.');
         }
 
-        // Advertencia si vence pronto (dentro de 7 días)
         const diasParaVencer = Math.ceil((fechaVencimiento.getTime() - ahora.getTime()) / (1000 * 60 * 60 * 24));
         if (diasParaVencer <= 7 && diasParaVencer > 0) {
           console.warn(`⚠️ Membresía vence en ${diasParaVencer} días`);
@@ -171,13 +167,70 @@ class ValidacionesService {
       // 4. VALIDACIÓN PARA SOCIOS INDEPENDIENTES
       console.log('🔍 Validando socio independiente...');
       
-      // CORRECCIÓN: Para socios independientes, solo verificar que no tengan estados bloqueantes
       if (socioData.estadoMembresia && ['vencido', 'suspendido', 'inactivo'].includes(socioData.estadoMembresia)) {
         throw new Error('Tu estado de membresía no permite acceder a beneficios en este momento.');
       }
     }
 
     console.log('✅ Socio validado correctamente como activo');
+  }
+
+  /**
+   * NUEVA VALIDACIÓN: Verificar que el socio esté activo en la tabla del comercio específico
+   */
+  private async validateSocioInComercio(socioId: string, comercioId: string): Promise<void> {
+    console.log('🔍 Validando estado del socio en la tabla del comercio:', { socioId, comercioId });
+
+    try {
+      // Buscar el socio en la tabla de clientes del comercio
+      const clienteQuery = query(
+        collection(db, this.clientesCollection),
+        where('socioId', '==', socioId),
+        where('comercioId', '==', comercioId)
+      );
+
+      const clienteSnapshot = await getDocs(clienteQuery);
+
+      if (clienteSnapshot.empty) {
+        // El socio no está registrado en la tabla del comercio
+        console.log('❌ Socio no encontrado en la tabla del comercio');
+        throw new Error('No tienes acceso a este comercio. El comercio debe agregarte a su lista de socios primero.');
+      }
+
+      const clienteDoc = clienteSnapshot.docs[0];
+      const clienteData = clienteDoc.data();
+
+      console.log('🔍 Estado del socio en el comercio:', {
+        estado: clienteData.estado,
+        nombre: clienteData.nombre,
+        email: clienteData.email
+      });
+
+      // VALIDACIÓN CRÍTICA: El socio debe estar activo en la tabla del comercio
+      if (clienteData.estado !== 'activo') {
+        const estadoMessages: Record<string, string> = {
+          'inactivo': 'Tu acceso a este comercio está inactivo. Contacta al comercio para reactivar tu acceso.',
+          'suspendido': 'Tu acceso a este comercio está suspendido. Contacta al comercio para más información.',
+          'pendiente': 'Tu acceso a este comercio está pendiente de aprobación. Contacta al comercio.',
+          'vencido': 'Tu acceso a este comercio ha vencido. Contacta al comercio para renovar.'
+        };
+        
+        const message = estadoMessages[clienteData.estado] || 
+                       `Tu estado en este comercio es "${clienteData.estado}". Contacta al comercio para más información.`;
+        
+        console.log('❌ Socio no activo en el comercio:', clienteData.estado);
+        throw new Error(message);
+      }
+
+      console.log('✅ Socio validado correctamente como activo en el comercio');
+    } catch (error) {
+      if (error instanceof Error) {
+        throw error; // Re-lanzar errores conocidos
+      }
+      
+      console.error('❌ Error validating socio in comercio:', error);
+      throw new Error('Error al verificar tu estado en este comercio. Intenta de nuevo.');
+    }
   }
 
   /**
@@ -201,8 +254,12 @@ class ValidacionesService {
         if (!socioData.estado) {
           throw new Error('Datos de socio inválidos: estado no definido');
         }
-        // VALIDACIÓN ESTRICTA DE SOCIO ACTIVO - NUEVA FUNCIÓN
+
+        // VALIDACIÓN ESTRICTA DE SOCIO ACTIVO
         await this.validateActiveSocio(socioData as SocioValidationData);
+
+        // NUEVA VALIDACIÓN: Verificar que el socio esté activo en la tabla del comercio
+        await this.validateSocioInComercio(request.socioId, request.comercioId);
 
         // 2. Enhanced comercio validation
         const comercioRef = doc(db, this.comerciosCollection, request.comercioId);
@@ -223,7 +280,6 @@ class ValidacionesService {
           const now = new Date();
           const currentDay = now.getDay();
           
-          // Simple business hours check (can be enhanced)
           if (comercioData.horarios.cerrado && comercioData.horarios.cerrado.includes(currentDay)) {
             throw new Error('El comercio está cerrado en este momento');
           }
@@ -408,15 +464,14 @@ class ValidacionesService {
         const codigoValidacion = this.generateValidationCode();
         const montoDescuento = this.calculateDiscountAmount(beneficioData);
         
-        // FIXED: Add null checks and fallback values for socio data
         const validacionData = {
           // Basic info - with null checks and fallbacks
           socioId: request.socioId,
           socioNombre: socioData.nombre || 'Socio sin nombre',
-          socioNumero: socioData.numeroSocio || 'SIN-NUMERO', // FIXED: Fallback value
+          socioNumero: socioData.numeroSocio || 'SIN-NUMERO',
           socioEmail: socioData.email || '',
-          socioEstado: socioData.estado, // NUEVO: Guardar estado del socio en la validación
-          socioEstadoMembresia: socioData.estadoMembresia || 'independiente', // NUEVO: Guardar estado de membresía
+          socioEstado: socioData.estado,
+          socioEstadoMembresia: socioData.estadoMembresia || 'independiente',
           
           // Association info
           asociacionId: socioAsociacionId || null,
@@ -446,12 +501,13 @@ class ValidacionesService {
           metadata: {
             userAgent: typeof window !== 'undefined' ? window.navigator.userAgent : 'server',
             timestamp: Date.now(),
-            version: '2.2', // Incrementar versión por el fix de socioNumero
+            version: '2.3', // Incrementar versión por la nueva validación
             validacionesAdicionales: {
               socioActivo: true,
+              socioActivoEnComercio: true, // NUEVA VALIDACIÓN
               membresiaValida: socioAsociacionId ? true : 'no_aplica',
               fechaVencimientoChecked: socioData.fechaVencimiento ? true : false,
-              socioNumeroFallback: !socioData.numeroSocio // Track if we used fallback
+              socioNumeroFallback: !socioData.numeroSocio
             }
           },
           
@@ -474,15 +530,13 @@ class ValidacionesService {
           beneficiosUsados: (socioData.beneficiosUsados || 0) + 1,
           ultimaValidacion: serverTimestamp(),
           ahorroTotal: (socioData.ahorroTotal || 0) + montoDescuento,
-          ultimaActividad: serverTimestamp(), // NUEVO: Registrar última actividad
+          ultimaActividad: serverTimestamp(),
           actualizadoEn: serverTimestamp(),
         });
 
-        // CORREGIDO: Actualizar métricas del comercio correctamente
         transaction.update(comercioRef, {
           validacionesRealizadas: (comercioData.validacionesRealizadas || 0) + 1,
           clientesAtendidos: (comercioData.clientesAtendidos || 0) + 1,
-          // CORREGIDO: Usar ingresosMensuales en lugar de ingresosPorBeneficios para consistencia
           ingresosMensuales: (comercioData.ingresosMensuales || 0) + montoDescuento,
           ultimaValidacion: serverTimestamp(),
           actualizadoEn: serverTimestamp(),
@@ -522,7 +576,7 @@ class ValidacionesService {
           socio: {
             id: request.socioId,
             nombre: result.socioData.nombre ?? 'Socio sin nombre',
-            numeroSocio: result.socioData.numeroSocio ?? 'SIN-NUMERO', // FIXED: Fallback value
+            numeroSocio: result.socioData.numeroSocio ?? 'SIN-NUMERO',
             estadoMembresia: result.socioData.estadoMembresia || 'independiente',
           },
           validacion: {
@@ -554,6 +608,8 @@ class ValidacionesService {
     }
   }
 
+  // ... resto de métodos sin cambios ...
+  
   /**
    * Enhanced history retrieval with better data transformation
    */
@@ -571,7 +627,6 @@ class ValidacionesService {
       );
 
       if (lastDoc) {
-        // Add startAfter for pagination
         q = query(q, limit(maxResults + 1));
       }
 
@@ -580,7 +635,7 @@ class ValidacionesService {
       const hasMore = docs.length > maxResults;
 
       if (hasMore) {
-        docs.pop(); // Remove extra document
+        docs.pop();
       }
 
       const validaciones = docs.map(doc => {
@@ -616,14 +671,10 @@ class ValidacionesService {
     }
   }
 
-  /**
-   * Enhanced QR parsing with better format support
-   */
   parseQRData(qrData: string): { comercioId: string; beneficioId?: string } | null {
     try {
       console.log('🔍 Parsing QR data:', qrData);
 
-      // Handle URL format with better parsing
       if (qrData.includes('validar-beneficio') || qrData.includes('/validar')) {
         const url = new URL(qrData.startsWith('http') ? qrData : `https://fidelya.com${qrData}`);
         const comercioId = url.searchParams.get('comercio') || url.searchParams.get('c');
@@ -641,7 +692,6 @@ class ValidacionesService {
         };
       }
 
-      // Handle JSON format with validation
       if (qrData.startsWith('{') && qrData.endsWith('}')) {
         const data = JSON.parse(qrData);
         
@@ -659,7 +709,6 @@ class ValidacionesService {
         return result;
       }
 
-      // Handle base64 encoded data
       if (qrData.match(/^[A-Za-z0-9+/]+=*$/)) {
         try {
           const decoded = atob(qrData);
@@ -669,7 +718,6 @@ class ValidacionesService {
         }
       }
 
-      // Handle simple comercio ID (legacy format)
       if (qrData.length > 10 && qrData.length < 50 && !qrData.includes(' ')) {
         console.log('✅ Simple comercio ID detected:', qrData);
         return {
@@ -677,7 +725,6 @@ class ValidacionesService {
         };
       }
 
-      // Handle custom Fidelya format: FIDELYA:comercio:beneficio
       if (qrData.startsWith('FIDELYA:')) {
         const parts = qrData.split(':');
         if (parts.length >= 2) {
@@ -698,9 +745,6 @@ class ValidacionesService {
     }
   }
 
-  /**
-   * Enhanced statistics calculation
-   */
   async getEstadisticasSocio(socioId: string): Promise<{
     totalValidaciones: number;
     ahorroTotal: number;
@@ -724,22 +768,20 @@ class ValidacionesService {
         id: doc.id,
         ...doc.data(),
         fechaValidacion: doc.data().fechaValidacion?.toDate() || new Date(),
-        estado: doc.data().estado, // Ensure 'estado' is present
-        montoDescuento: doc.data().montoDescuento, // Ensure 'montoDescuento' is present
-        beneficioId: doc.data().beneficioId, // Ensure 'beneficioId' is present
-        beneficioTitulo: doc.data().beneficioTitulo, // Add beneficioTitulo if present
-        comercioId: doc.data().comercioId, // Ensure 'comercioId' is present
-        comercioNombre: doc.data().comercioNombre // Optionally add comercioNombre if used later
+        estado: doc.data().estado,
+        montoDescuento: doc.data().montoDescuento,
+        beneficioId: doc.data().beneficioId,
+        beneficioTitulo: doc.data().beneficioTitulo,
+        comercioId: doc.data().comercioId,
+        comercioNombre: doc.data().comercioNombre
       }));
 
       const validacionesExitosas = validaciones.filter(v => v.estado === 'exitosa');
       const totalValidaciones = validacionesExitosas.length;
       const ahorroTotal = validacionesExitosas.reduce((total, v) => total + (v.montoDescuento || 0), 0);
 
-      // Calculate streaks
       const { rachaActual, mejorRacha } = this.calculateStreaks(validacionesExitosas);
 
-      // Beneficios más usados
       const beneficiosCount: { [key: string]: { titulo: string; usos: number; ahorro: number } } = {};
       validacionesExitosas.forEach(v => {
         const key = v.beneficioId;
@@ -759,7 +801,6 @@ class ValidacionesService {
         .sort((a, b) => b.usos - a.usos)
         .slice(0, 5);
 
-      // Comercios favoritos
       const comerciosCount: { [key: string]: { nombre: string; visitas: number; ultimaVisita: Date } } = {};
       validacionesExitosas.forEach(v => {
         const key = v.comercioId;
@@ -781,10 +822,8 @@ class ValidacionesService {
         .sort((a, b) => b.visitas - a.visitas)
         .slice(0, 5);
 
-      // Validaciones por mes (últimos 12 meses)
       const validacionesPorMes = this.processValidacionesPorMes(validacionesExitosas, 12);
 
-      // Calculate trends
       const promedioAhorro = totalValidaciones > 0 ? ahorroTotal / totalValidaciones : 0;
       const tendenciaAhorro = this.calculateSavingsTrend(validacionesPorMes);
 
@@ -816,9 +855,6 @@ class ValidacionesService {
     }
   }
 
-  /**
-   * Private helper methods
-   */
   private generateValidationCode(): string {
     const timestamp = Date.now().toString(36).toUpperCase();
     const random = Math.random().toString(36).substr(2, 5).toUpperCase();
@@ -832,8 +868,6 @@ class ValidacionesService {
   }): number {
     switch (beneficio.tipo) {
       case 'porcentaje':
-        // For percentage discounts, return the percentage value
-        // The actual amount would be calculated at point of sale
         return beneficio.montoBase ? (beneficio.montoBase * beneficio.descuento / 100) : beneficio.descuento;
       case 'monto_fijo':
         return beneficio.descuento;
@@ -885,7 +919,6 @@ class ValidacionesService {
     const today = new Date();
     const dates = new Set<string>();
     
-    // Get unique dates
     sortedValidaciones.forEach(v => {
       const dateStr = v.fechaValidacion.toDateString();
       dates.add(dateStr);
@@ -893,7 +926,6 @@ class ValidacionesService {
     
     const uniqueDates = Array.from(dates).sort((a, b) => new Date(b as string).getTime() - new Date(a as string).getTime());
     
-    // Calculate current streak (consecutive days up to today)
     let currentDateRef = new Date(today);
     for (const dateStr of uniqueDates) {
       const validationDate = new Date(dateStr);
@@ -906,7 +938,6 @@ class ValidacionesService {
       }
     }
     
-    // Calculate best streak
     let tempStreak = 1;
     if (uniqueDates.length === 1) {
       mejorRacha = 1;
@@ -938,14 +969,12 @@ class ValidacionesService {
     const now = new Date();
     const meses: { [key: string]: { validaciones: number; ahorro: number } } = {};
 
-    // Initialize months
     for (let i = months - 1; i >= 0; i--) {
       const fecha = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const key = fecha.toISOString().substr(0, 7); // YYYY-MM format
+      const key = fecha.toISOString().substr(0, 7);
       meses[key] = { validaciones: 0, ahorro: 0 };
     }
 
-    // Process validaciones
     validaciones.forEach(v => {
       const key = v.fechaValidacion.toISOString().substr(0, 7);
       if (meses[key]) {
@@ -978,6 +1007,5 @@ class ValidacionesService {
   }
 }
 
-// Export singleton instance
 export const validacionesService = new ValidacionesService();
 export default validacionesService;
