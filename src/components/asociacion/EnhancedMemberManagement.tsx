@@ -15,8 +15,6 @@ import {
   User,
   Trash2,
   Unlink,
-  FileText,
-  FileSpreadsheet,
   Download,
   TrendingUp,
   Calendar,
@@ -81,7 +79,7 @@ export const EnhancedMemberManagement = ({
   });
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedSocio, setSelectedSocio] = useState<Socio | null>(null);
-  const [refreshing, setRefreshing] = useState(false);
+  const [, setRefreshing] = useState(false);
   
   // Estados para el diálogo de eliminación
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -434,115 +432,6 @@ export const EnhancedMemberManagement = ({
   };
 
   // Función optimizada para exportar datos a CSV (mantener como opción alternativa)
-  const handleExportCSV = async () => {
-    if (exporting) return;
-    
-    setExporting(true);
-    const loadingToast = toast.loading('Preparando exportación CSV...');
-    
-    try {
-      if (socios.length === 0) {
-        toast.dismiss(loadingToast);
-        toast.error('No hay socios para exportar');
-        return;
-      }
-
-      // Crear encabezados CSV con mejor formato
-      const headers = [
-        'Nombre Completo',
-        'Correo Electrónico',
-        'DNI/Documento',
-        'Teléfono',
-        'Número de Socio',
-        'Estado',
-        'Monto de Cuota',
-        'Beneficios Utilizados',
-        'Dirección',
-        'Fecha de Nacimiento'
-      ];
-
-      // Función para escapar valores CSV
-      const escapeCSV = (value: unknown): string => {
-        if (value === null || value === undefined) return '';
-        const str = String(value);
-        if (str.includes(',') || str.includes('"') || str.includes('\n') || str.includes('\r')) {
-          return `"${str.replace(/"/g, '""')}"`;
-        }
-        return str;
-      };
-
-      // Función para formatear fechas de manera segura
-      const formatDate = (date: Date | Timestamp | undefined): string => {
-        try {
-          if (!date) return '';
-          if (date instanceof Timestamp) {
-            return format(date.toDate(), 'dd/MM/yyyy', { locale: es });
-          }
-          if (date instanceof Date) {
-            return format(date, 'dd/MM/yyyy', { locale: es });
-          }
-          return '';
-        } catch {
-          return '';
-        }
-      };
-
-      // Convertir datos a formato CSV con mejor manejo de errores
-      const csvData = socios.map(socio => {
-        try {
-          return [
-            escapeCSV(socio.nombre || ''),
-            escapeCSV(socio.email || ''),
-            escapeCSV(socio.dni || ''),
-            escapeCSV(socio.telefono || ''),
-            escapeCSV(socio.numeroSocio || ''),
-            escapeCSV(socio.estado || ''),
-            escapeCSV(socio.montoCuota || 0),
-            escapeCSV(socio.beneficiosUsados || 0),
-            escapeCSV(socio.direccion || ''),
-            escapeCSV(formatDate(socio.fechaNacimiento))
-          ].join(',');
-        } catch (error) {
-          console.error('Error procesando socio:', socio.id, error);
-          return '';
-        }
-      }).filter(row => row !== '');
-
-      // Crear contenido CSV con BOM para mejor compatibilidad con Excel
-      const BOM = '\uFEFF';
-      const csvContent = BOM + [
-        headers.map(escapeCSV).join(','),
-        ...csvData
-      ].join('\n');
-
-      // Crear y descargar archivo con mejor nombre
-      const timestamp = new Date().toISOString().split('T')[0];
-      const filename = `socios_export_${timestamp}.csv`;
-      
-      const blob = new Blob([csvContent], { 
-        type: 'text/csv;charset=utf-8;' 
-      });
-      
-      const link = document.createElement('a');
-      const url = URL.createObjectURL(blob);
-      link.setAttribute('href', url);
-      link.setAttribute('download', filename);
-      link.style.visibility = 'hidden';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-      
-      toast.dismiss(loadingToast);
-      toast.success(`Datos exportados exitosamente (${socios.length} socios)`);
-    } catch (error) {
-      console.error('Error en exportación:', error);
-      toast.dismiss(loadingToast);
-      toast.error('Error al exportar los datos. Inténtalo de nuevo.');
-    } finally {
-      setExporting(false);
-    }
-  };
 
   // Función optimizada para importar datos desde Excel con mejor manejo de errores
   const handleImportExcel = async (file: File) => {
@@ -1029,109 +918,69 @@ export const EnhancedMemberManagement = ({
   };
 
   // Función para descargar plantilla Excel
-  const downloadExcelTemplate = () => {
-    const workbook = XLSX.utils.book_new();
-
-    // Crear datos de la plantilla
-    const templateData = [
-      ['PLANTILLA PARA IMPORTACIÓN DE SOCIOS', '', '', '', '', '', '', ''],
-      ['', '', '', '', '', '', '', ''],
-      ['Instrucciones:', '', '', '', '', '', '', ''],
-      ['1. Complete los datos en las filas siguientes', '', '', '', '', '', '', ''],
-      ['2. No modifique los encabezados de las columnas', '', '', '', '', '', '', ''],
-      ['3. Los campos marcados con * son obligatorios', '', '', '', '', '', '', ''],
-      ['4. Estados válidos: activo, inactivo, suspendido, pendiente', '', '', '', '', '', '', ''],
-      ['5. Guarde el archivo como Excel (.xlsx) antes de importar', '', '', '', '', '', '', ''],
-      ['', '', '', '', '', '', '', ''],
-      [
-        'Nombre Completo *',
-        'Correo Electrónico *',
-        'DNI/Documento',
-        'Teléfono',
-        'Número de Socio',
-        'Estado',
-        'Monto de Cuota',
-        'Dirección'
-      ],
-      [
-        'Juan Pérez',
-        'juan.perez@email.com',
-        '12345678',
-        '+54 9 11 1234-5678',
-        'SOC001',
-        'activo',
-        1500,
-        'Av. Corrientes 1234, CABA'
-      ],
-      [
-        'María García',
-        'maria.garcia@email.com',
-        '87654321',
-        '+54 9 11 8765-4321',
-        'SOC002',
-        'activo',
-        2000,
-        'Av. Santa Fe 5678, CABA'
-      ]
-    ];
-
-    const worksheet = XLSX.utils.aoa_to_sheet(templateData);
+  // const downloadExcelTemplate = () => {
+  //   const workbook = XLSX.utils.book_new();
+  
+  //   // Crear datos de la plantilla
+  //   const templateData = [
+  //     ['PLANTILLA PARA IMPORTACIÓN DE SOCIOS', '', '', '', '', '', '', ''],
+  //     ['', '', '', '', '', '', '', ''],
+  //     ['Instrucciones:', '', '', '', '', '', '', ''],
+  //     ['1. Complete los datos en las filas siguientes', '', '', '', '', '', '', ''],
+  //     ['2. No modifique los encabezados de las columnas', '', '', '', '', '', '', ''],
+  //     ['3. Los campos marcados con * son obligatorios', '', '', '', '', '', '', ''],
+  //     ['4. Estados válidos: activo, inactivo, suspendido, pendiente', '', '', '', '', '', '', ''],
+  //     ['5. Guarde el archivo como Excel (.xlsx) antes de importar', '', '', '', '', '', '', ''],
+  //     ['', '', '', '', '', '', '', ''],
+  //     [
+  //       'Nombre Completo *',
+  //       'Correo Electrónico *',
+  //       'DNI/Documento',
+  //       'Teléfono',
+  //       'Número de Socio',
+  //       'Estado',
+  //       'Monto de Cuota',
+  //       'Dirección'
+  //     ],
+  //     [
+  //       'Juan Pérez',
+  //       'juan.perez@email.com',
+  //       '12345678',
+  //       '+54 9 11 1234-5678',
+  //       'SOC001',
+  //       'activo',
+  //       1500,
+  //       'Av. Corrientes 1234, CABA'
+  //     ],
+  //     [
+  //       'María García',
+  //       'maria.garcia@email.com',
+  //       '87654321',
+  //       '+54 9 11 8765-4321',
+  //       'SOC002',
+  //       'activo',
+  //       2000,
+  //       'Av. Santa Fe 5678, CABA'
+  //     ]
+  //   ];
+  
+  //   const worksheet = XLSX.utils.aoa_to_sheet(templateData);
     
-    // Configurar anchos de columna
-    worksheet['!cols'] = [
-      { wch: 25 }, { wch: 30 }, { wch: 15 }, { wch: 18 },
-      { wch: 15 }, { wch: 12 }, { wch: 12 }, { wch: 30 }
-    ];
-
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Plantilla');
-
-    // Generar y descargar el archivo
-    XLSX.writeFile(workbook, 'Plantilla_Socios.xlsx');
-    toast.success('Plantilla Excel descargada exitosamente');
-  };
+  //   // Configurar anchos de columna
+  //   worksheet['!cols'] = [
+  //     { wch: 25 }, { wch: 30 }, { wch: 15 }, { wch: 18 },
+  //     { wch: 15 }, { wch: 12 }, { wch: 12 }, { wch: 30 }
+  //   ];
+  
+  //   XLSX.utils.book_append_sheet(workbook, worksheet, 'Plantilla');
+  
+  //   // Generar y descargar el archivo
+  //   XLSX.writeFile(workbook, 'Plantilla_Socios.xlsx');
+  //   toast.success('Plantilla Excel descargada exitosamente');
+  // };
 
   // Función para descargar plantilla CSV (mantener para compatibilidad)
-  const downloadCSVTemplate = () => {
-    const headers = [
-      'Nombre Completo',
-      'Correo Electrónico',
-      'DNI/Documento',
-      'Teléfono',
-      'Número de Socio',
-      'Estado',
-      'Monto de Cuota',
-      'Dirección'
-    ];
-
-    const exampleData = [
-      'Juan Pérez',
-      'juan.perez@email.com',
-      '12345678',
-      '+54 9 11 1234-5678',
-      'SOC001',
-      'activo',
-      '1500',
-      'Av. Corrientes 1234, CABA'
-    ];
-
-    const csvContent = '\uFEFF' + [
-      headers.join(','),
-      exampleData.map(field => `"${field}"`).join(',')
-    ].join('\n');
-
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    link.setAttribute('href', url);
-    link.setAttribute('download', 'plantilla_socios.csv');
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-    
-    toast.success('Plantilla CSV descargada exitosamente');
-  };
+  // Removed unused downloadCSVTemplate function to fix compile error.
 
   // Filtrar socios
   const filteredSocios = socios.filter(socio => {

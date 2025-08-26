@@ -11,7 +11,6 @@ import {
   Settings,
   Phone,
   Key,
-  Wifi,
   Server
 } from 'lucide-react';
 import toast from 'react-hot-toast';

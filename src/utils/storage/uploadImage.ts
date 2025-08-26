@@ -22,7 +22,7 @@ export const uploadImage = async (
 ): Promise<string> => {
   const {
     maxSize = 5 * 1024 * 1024, // 5MB default
-    allowedTypes = ['image/jpeg', 'image/png', 'image/webp'],
+    allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg'],
     quality = 0.8,
     retries = 3,
     onProgress
@@ -49,12 +49,12 @@ export const uploadImage = async (
     path: path
   });
 
-  // Enhanced upload strategy with server-side API as primary method
+  // Improved upload strategies - prioritizing server-side API
   const uploadStrategies = [
-    { name: 'Server-side API (Primary)', method: uploadViaAPI },
-    { name: 'CORS Workaround', method: uploadWithCorsWorkaround },
-    { name: 'Simple Upload', method: uploadWithSimple },
-    { name: 'Resumable Upload', method: uploadWithResumable }
+    { name: 'Server-side API', method: uploadViaAPI, priority: 1 },
+    { name: 'Client-side Direct', method: uploadClientDirect, priority: 2 },
+    { name: 'Client-side Resumable', method: uploadClientResumable, priority: 3 },
+    { name: 'CORS Workaround', method: uploadWithCorsWorkaround, priority: 4 }
   ];
 
   let lastError: Error | null = null;
@@ -86,14 +86,20 @@ export const uploadImage = async (
           continue; // Try next strategy immediately
         }
         
-        // For non-CORS errors, wait before retry
-        if (attempt < retries && strategy.name === 'Server-side API (Primary)') {
-          const delay = Math.min(Math.pow(2, attempt) * 500, 2000);
-          console.log(`⏳ Esperando ${delay}ms antes del siguiente intento...`);
+        // For non-CORS errors, add small delay before next strategy
+        if (strategy.priority < 4) {
+          const delay = 500;
+          console.log(`⏳ Esperando ${delay}ms antes de la siguiente estrategia...`);
           await new Promise(resolve => setTimeout(resolve, delay));
-          break; // Break strategy loop to retry with same strategy
         }
       }
+    }
+    
+    // Add exponential backoff between retry attempts
+    if (attempt < retries) {
+      const delay = Math.min(Math.pow(2, attempt) * 1000, 5000);
+      console.log(`⏳ Esperando ${delay}ms antes del siguiente intento completo...`);
+      await new Promise(resolve => setTimeout(resolve, delay));
     }
   }
 
@@ -126,16 +132,21 @@ const uploadViaAPI = async (
     
     console.log('📤 API: Enviando archivo al servidor...');
     
-    // Make request to our API route
+    // Make request to our API route with timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+    
     const response = await fetch('/api/upload/image', {
       method: 'POST',
       body: formData,
+      signal: controller.signal,
     });
     
+    clearTimeout(timeoutId);
     onProgress?.(60);
     
     if (!response.ok) {
-      const errorData = await response.json();
+      const errorData = await response.json().catch(() => ({ error: 'Error de respuesta del servidor' }));
       throw new Error(errorData.error || `Error del servidor: ${response.status}`);
     }
     
@@ -154,129 +165,33 @@ const uploadViaAPI = async (
     
   } catch (error) {
     console.error('❌ Error en upload vía API:', error);
-    throw error;
-  }
-};
-
-// Enhanced CORS workaround strategy (fallback)
-const uploadWithCorsWorkaround = async (
-  path: string,
-  file: File,
-  onProgress?: (progress: number) => void
-): Promise<string> => {
-  console.log('📤 Usando workaround para CORS (fallback)...');
-  
-  onProgress?.(5);
-  
-  try {
-    // Method 1: Convert to ArrayBuffer and create new blob
-    console.log('🔄 Convirtiendo archivo para evitar CORS...');
-    const arrayBuffer = await file.arrayBuffer();
-    onProgress?.(15);
     
-    // Create a new blob with minimal headers to avoid CORS preflight
-    const corsBlob = new Blob([arrayBuffer], { 
-      type: 'application/octet-stream' // Generic type to avoid CORS issues
-    });
-    
-    onProgress?.(25);
-    
-    const timestamp = Date.now();
-    const randomId = Math.random().toString(36).substring(2, 15);
-    const extension = file.name.split('.').pop() || 'jpg';
-    const finalPath = `${path}_${timestamp}_${randomId}.${extension}`;
-    
-    const storageRef = ref(storage, finalPath);
-    
-    // Use minimal metadata to avoid CORS preflight triggers
-    const metadata = {
-      contentType: file.type, // Set correct type in metadata
-      customMetadata: {
-        originalName: file.name,
-        originalType: file.type,
-        uploadedAt: new Date().toISOString(),
-        method: 'cors-workaround',
-        size: file.size.toString()
+    if (error instanceof Error) {
+      if (error.name === 'AbortError') {
+        throw new Error('Timeout: La subida tardó demasiado tiempo');
       }
-    };
-    
-    onProgress?.(40);
-    
-    console.log('📤 Subiendo con blob para CORS...');
-    const snapshot = await uploadBytes(storageRef, corsBlob, metadata);
-    
-    onProgress?.(80);
-    
-    const downloadURL = await getDownloadURL(snapshot.ref);
-    
-    onProgress?.(100);
-    
-    console.log('✅ Upload con workaround CORS exitoso:', downloadURL);
-    return downloadURL;
-    
-  } catch (error) {
-    console.error('❌ Error en workaround CORS:', error);
-    
-    // Method 2: Try with base64 conversion as fallback
-    try {
-      console.log('📤 Intentando método base64 como respaldo...');
-      onProgress?.(20);
-      
-      const base64Data = await fileToBase64(file);
-      onProgress?.(40);
-      
-      // Convert base64 back to blob but with different approach
-      const base64Response = await fetch(base64Data);
-      const base64Blob = await base64Response.blob();
-      onProgress?.(60);
-      
-      const timestamp = Date.now();
-      const randomId = Math.random().toString(36).substring(2, 15);
-      const extension = file.name.split('.').pop() || 'jpg';
-      const finalPath = `base64_${path}_${timestamp}_${randomId}.${extension}`;
-      
-      const storageRef = ref(storage, finalPath);
-      const snapshot = await uploadBytes(storageRef, base64Blob, {
-        contentType: file.type,
-        customMetadata: {
-          originalName: file.name,
-          uploadedAt: new Date().toISOString(),
-          method: 'base64-workaround',
-          size: file.size.toString()
-        }
-      });
-      
-      onProgress?.(90);
-      
-      const downloadURL = await getDownloadURL(snapshot.ref);
-      onProgress?.(100);
-      
-      console.log('✅ Upload base64 exitoso:', downloadURL);
-      return downloadURL;
-      
-    } catch (base64Error) {
-      console.error('❌ Error en método base64:', base64Error);
-      throw error; // Throw original error
+      throw error;
     }
+    
+    throw new Error('Error desconocido en la API');
   }
 };
 
-// Simple upload strategy (fallback)
-const uploadWithSimple = async (
+// Direct client-side upload (improved)
+const uploadClientDirect = async (
   path: string,
   file: File,
   onProgress?: (progress: number) => void
 ): Promise<string> => {
-  console.log('📤 Usando estrategia de upload simple...');
+  console.log('📤 Usando upload directo del cliente...');
   
   const timestamp = Date.now();
   const randomId = Math.random().toString(36).substring(2, 15);
-  const extension = file.name.split('.').pop() || 'jpg';
+  const extension = file.name.split('.').pop()?.toLowerCase() || 'jpg';
   const finalPath = `${path}_${timestamp}_${randomId}.${extension}`;
   
   const storageRef = ref(storage, finalPath);
   
-  // Simulate progress for better UX
   onProgress?.(10);
   
   const metadata = {
@@ -284,7 +199,7 @@ const uploadWithSimple = async (
     customMetadata: {
       originalName: file.name,
       uploadedAt: new Date().toISOString(),
-      method: 'simple',
+      method: 'client-direct',
       size: file.size.toString()
     }
   };
@@ -292,31 +207,32 @@ const uploadWithSimple = async (
   onProgress?.(30);
   
   try {
+    console.log('📤 Subiendo directamente a Firebase Storage...');
     const snapshot = await uploadBytes(storageRef, file, metadata);
     onProgress?.(80);
     
     const downloadURL = await getDownloadURL(snapshot.ref);
     onProgress?.(100);
     
-    console.log('✅ Upload simple exitoso:', downloadURL);
+    console.log('✅ Upload directo exitoso:', downloadURL);
     return downloadURL;
   } catch (error) {
-    console.error('❌ Error en upload simple:', error);
+    console.error('❌ Error en upload directo:', error);
     throw error;
   }
 };
 
-// Resumable upload strategy with real progress tracking
-const uploadWithResumable = async (
+// Resumable upload with progress tracking
+const uploadClientResumable = async (
   path: string,
   file: File,
   onProgress?: (progress: number) => void
 ): Promise<string> => {
-  console.log('📤 Usando estrategia de upload resumable...');
+  console.log('📤 Usando upload resumable del cliente...');
   
   const timestamp = Date.now();
   const randomId = Math.random().toString(36).substring(2, 15);
-  const extension = file.name.split('.').pop() || 'jpg';
+  const extension = file.name.split('.').pop()?.toLowerCase() || 'jpg';
   const finalPath = `${path}_${timestamp}_${randomId}.${extension}`;
   
   const storageRef = ref(storage, finalPath);
@@ -326,7 +242,7 @@ const uploadWithResumable = async (
     customMetadata: {
       originalName: file.name,
       uploadedAt: new Date().toISOString(),
-      method: 'resumable',
+      method: 'client-resumable',
       size: file.size.toString()
     }
   });
@@ -360,15 +276,69 @@ const uploadWithResumable = async (
   });
 };
 
-// Helper function to convert file to base64
-const fileToBase64 = (file: File): Promise<string> => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = error => reject(error);
-  });
+// Enhanced CORS workaround strategy (last resort)
+const uploadWithCorsWorkaround = async (
+  path: string,
+  file: File,
+  onProgress?: (progress: number) => void
+): Promise<string> => {
+  console.log('📤 Usando workaround para CORS (último recurso)...');
+  
+  onProgress?.(5);
+  
+  try {
+    // Convert to ArrayBuffer and create new blob with generic type
+    console.log('🔄 Convirtiendo archivo para evitar CORS...');
+    const arrayBuffer = await file.arrayBuffer();
+    onProgress?.(15);
+    
+    // Create a new blob with minimal headers to avoid CORS preflight
+    const corsBlob = new Blob([arrayBuffer], { 
+      type: 'application/octet-stream' // Generic type to avoid CORS issues
+    });
+    
+    onProgress?.(25);
+    
+    const timestamp = Date.now();
+    const randomId = Math.random().toString(36).substring(2, 15);
+    const extension = file.name.split('.').pop()?.toLowerCase() || 'jpg';
+    const finalPath = `cors_${path}_${timestamp}_${randomId}.${extension}`;
+    
+    const storageRef = ref(storage, finalPath);
+    
+    // Use minimal metadata to avoid CORS preflight triggers
+    const metadata = {
+      contentType: file.type, // Set correct type in metadata
+      customMetadata: {
+        originalName: file.name,
+        originalType: file.type,
+        uploadedAt: new Date().toISOString(),
+        method: 'cors-workaround',
+        size: file.size.toString()
+      }
+    };
+    
+    onProgress?.(40);
+    
+    console.log('📤 Subiendo con blob genérico para evitar CORS...');
+    const snapshot = await uploadBytes(storageRef, corsBlob, metadata);
+    
+    onProgress?.(80);
+    
+    const downloadURL = await getDownloadURL(snapshot.ref);
+    
+    onProgress?.(100);
+    
+    console.log('✅ Upload con workaround CORS exitoso:', downloadURL);
+    return downloadURL;
+    
+  } catch (error) {
+    console.error('❌ Error en workaround CORS:', error);
+    throw error;
+  }
 };
+
+// Helper function to convert file to base64
 
 export const deleteImage = async (url: string): Promise<void> => {
   if (!url) return;
@@ -376,10 +346,18 @@ export const deleteImage = async (url: string): Promise<void> => {
   try {
     // Extract path from URL if it's a full Firebase Storage URL
     let imagePath = url;
-    if (url.includes('firebasestorage.googleapis.com')) {
-      const urlParts = url.split('/o/')[1];
-      if (urlParts) {
-        imagePath = decodeURIComponent(urlParts.split('?')[0]);
+    if (url.includes('firebasestorage.googleapis.com') || url.includes('storage.googleapis.com')) {
+      if (url.includes('firebasestorage.googleapis.com')) {
+        const urlParts = url.split('/o/')[1];
+        if (urlParts) {
+          imagePath = decodeURIComponent(urlParts.split('?')[0]);
+        }
+      } else if (url.includes('storage.googleapis.com')) {
+        const urlParts = url.split('/');
+        const bucketIndex = urlParts.findIndex(part => part.includes('.appspot.com') || part.includes('.firebasestorage.app'));
+        if (bucketIndex !== -1 && bucketIndex < urlParts.length - 1) {
+          imagePath = urlParts.slice(bucketIndex + 1).join('/');
+        }
       }
     }
     
@@ -475,7 +453,7 @@ export const generateImagePath = (userId: string, type: 'profile' | 'logo' | 'po
 
 // Utility to validate image file
 export const validateImageFile = (file: File): { valid: boolean; error?: string } => {
-  const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+  const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg'];
   const maxSize = 5 * 1024 * 1024; // 5MB
 
   if (!allowedTypes.includes(file.type)) {
@@ -495,7 +473,7 @@ export const validateImageFile = (file: File): { valid: boolean; error?: string 
   return { valid: true };
 };
 
-// Enhanced connection check with API test
+// Enhanced connection check
 export const checkStorageConnection = async (): Promise<{
   connected: boolean;
   canUpload: boolean;
@@ -519,10 +497,16 @@ export const checkStorageConnection = async (): Promise<{
       formData.append('file', testFile);
       formData.append('path', `connection-tests/api-test-${Date.now()}`);
       
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+      
       const response = await fetch('/api/upload/image', {
         method: 'POST',
         body: formData,
+        signal: controller.signal,
       });
+      
+      clearTimeout(timeoutId);
       
       if (response.ok) {
         const result = await response.json();
@@ -543,22 +527,19 @@ export const checkStorageConnection = async (): Promise<{
     } catch (apiError) {
       console.error('❌ Error en API del servidor:', apiError);
       
-      // Test 2: Try direct Firebase Storage (will likely fail with CORS)
+      // Test 2: Try direct Firebase Storage
       try {
         console.log('🧪 Test 2: Probando conexión directa a Firebase Storage...');
         
-        const testContent = new Blob(['test-connection'], { type: 'text/plain' });
-        const testFile = new File([testContent], 'connection-test.txt', { type: 'text/plain' });
+        const testContent = new Blob(['test-connection'], { type: 'application/octet-stream' });
+        const testFile = new File([testContent], 'connection-test.txt', { type: 'application/octet-stream' });
         const testPath = `connection-tests/${Date.now()}_direct_test.txt`;
         const testRef = ref(storage, testPath);
         
-        const arrayBuffer = await testFile.arrayBuffer();
-        const corsBlob = new Blob([arrayBuffer], { type: 'application/octet-stream' });
-        
-        await uploadBytes(testRef, corsBlob, {
-          contentType: testFile.type,
+        await uploadBytes(testRef, testFile, {
+          contentType: 'text/plain',
           customMetadata: {
-            originalName: testFile.name,
+            originalName: 'connection-test.txt',
             method: 'direct-test'
           }
         });
@@ -566,13 +547,13 @@ export const checkStorageConnection = async (): Promise<{
         await getDownloadURL(testRef);
         await deleteObject(testRef);
         
-        console.log('✅ Conexión directa exitosa (workaround CORS funciona)');
+        console.log('✅ Conexión directa exitosa');
         return {
           connected: true,
           canUpload: true,
-          corsConfigured: false,
+          corsConfigured: true,
           apiWorking: false,
-          details: 'API del servidor no disponible, pero workaround CORS funciona.'
+          details: 'API del servidor no disponible, pero conexión directa funciona.'
         };
         
       } catch (directError) {
@@ -623,17 +604,17 @@ export const handleStorageError = (error: unknown): string => {
   console.error('🔍 Analizando error de storage:', errorMessage);
   
   // API errors
-  if (errorMessage.includes('API') || errorMessage.includes('servidor')) {
+  if (errorMessage.includes('API') || errorMessage.includes('servidor') || errorMessage.includes('Timeout')) {
     return 'Error en la API del servidor. El sistema intentará métodos alternativos de subida.';
   }
   
-  // CORS errors (less common now with API)
+  // CORS errors
   if (errorMessage.includes('CORS') || 
       errorMessage.includes('cors') || 
       errorMessage.includes('preflight') ||
       errorMessage.includes('ERR_FAILED') ||
       errorMessage.includes('Access-Control-Allow-Origin')) {
-    return 'Error de configuración CORS detectado. El sistema está usando la API del servidor para evitar este problema.';
+    return 'Error de configuración CORS detectado. El sistema está intentando métodos alternativos.';
   }
   
   // Network errors
