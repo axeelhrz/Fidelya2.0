@@ -239,7 +239,7 @@ export const StatsCards: React.FC = () => {
       size: "medium" as const,
       variant: "detailed" as const,
       showProgress: false,
-      badge: "Activo",
+      badge: "Avanzado",
     },
   ];
 

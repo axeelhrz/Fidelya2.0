@@ -11,7 +11,6 @@ import {
   BeneficioFilter 
 } from '@/types/beneficio';
 import { useAuth } from './useAuth';
-import { useDebounce } from './useDebounce';
 import { optimizedNotifications } from '@/lib/optimized-notifications';
 
 interface UseBeneficiosOptions {
@@ -39,53 +38,6 @@ export const useBeneficios = (options: UseBeneficiosOptions = {}) => {
   // Referencias para optimización
   const unsubscribeRef = useRef<Unsubscribe | null>(null);
   const mountedRef = useRef(true);
-  const lastDataRef = useRef<{
-    beneficios: Beneficio[];
-    beneficiosUsados: BeneficioUso[];
-    stats: BeneficioStats | null;
-  }>({
-    beneficios: [],
-    beneficiosUsados: [],
-    stats: null
-  });
-
-  // Debounced update functions para evitar actualizaciones muy frecuentes
-  const debouncedSetBeneficios = useDebounce((...args: unknown[]) => {
-    if (!mountedRef.current) return;
-    const newBeneficios = args[0] as Beneficio[];
-    // Solo actualizar si realmente cambió
-    const currentStr = JSON.stringify(lastDataRef.current.beneficios);
-    const newStr = JSON.stringify(newBeneficios);
-    
-    if (currentStr !== newStr) {
-      setBeneficios(newBeneficios);
-      lastDataRef.current.beneficios = newBeneficios;
-    }
-  }, 500);
-
-  const debouncedSetBeneficiosUsados = useDebounce((...args: unknown[]) => {
-    if (!mountedRef.current) return;
-    const newUsados = args[0] as BeneficioUso[];
-    const currentStr = JSON.stringify(lastDataRef.current.beneficiosUsados);
-    const newStr = JSON.stringify(newUsados);
-    
-    if (currentStr !== newStr) {
-      setBeneficiosUsados(newUsados);
-      lastDataRef.current.beneficiosUsados = newUsados;
-    }
-  }, 500);
-
-  const debouncedSetStats = useDebounce((...args: unknown[]) => {
-    if (!mountedRef.current) return;
-    const newStats = args[0] as BeneficioStats | null;
-    const currentStr = JSON.stringify(lastDataRef.current.stats);
-    const newStr = JSON.stringify(newStats);
-    
-    if (currentStr !== newStr) {
-      setStats(newStats);
-      lastDataRef.current.stats = newStats;
-    }
-  }, 1000);
 
   // Cleanup al desmontar
   useEffect(() => {
@@ -98,17 +50,32 @@ export const useBeneficios = (options: UseBeneficiosOptions = {}) => {
     };
   }, []);
 
-  // Cargar beneficios con cache y optimizaciones
+  // Cargar beneficios con cache y optimizaciones - CON LOGS DETALLADOS
   const cargarBeneficios = useCallback(async (filtros?: BeneficioFilter) => {
-    if (!user || loading) return;
+    console.log('🚀 INICIANDO cargarBeneficios', { 
+      user: user ? { uid: user.uid, role: user.role, asociacionId: user.asociacionId } : null, 
+      loading, 
+      filtros 
+    });
+
+    if (!user) {
+      console.log('❌ No hay usuario, no se pueden cargar beneficios');
+      return;
+    }
+
+    if (loading) {
+      console.log('⏳ Ya está cargando, saltando...');
+      return;
+    }
 
     try {
       setLoading(true);
       setError(null);
+      console.log('🔄 Estado de loading establecido a true');
 
       let beneficiosData: Beneficio[] = [];
 
-      console.log('🔍 Usuario actual:', {
+      console.log('👤 Usuario actual:', {
         uid: user.uid,
         role: user.role,
         asociacionId: user.asociacionId,
@@ -117,15 +84,16 @@ export const useBeneficios = (options: UseBeneficiosOptions = {}) => {
 
       switch (user.role) {
         case 'socio':
+          console.log('🏃‍♂️ Procesando como SOCIO');
           if (user.asociacionId) {
-            console.log('🔍 Cargando beneficios para socio con asociación:', user.uid, 'asociación:', user.asociacionId);
+            console.log('🏢 Socio CON asociación:', user.asociacionId);
             beneficiosData = await BeneficiosService.obtenerBeneficiosDisponibles(
               user.uid,
               user.asociacionId,
               filtros
             );
           } else {
-            console.log('🔍 Cargando beneficios para socio sin asociación:', user.uid);
+            console.log('👤 Socio SIN asociación');
             beneficiosData = await BeneficiosService.obtenerBeneficiosDisponibles(
               user.uid,
               undefined,
@@ -135,22 +103,41 @@ export const useBeneficios = (options: UseBeneficiosOptions = {}) => {
           break;
 
         case 'comercio':
+          console.log('🏪 Procesando como COMERCIO');
           beneficiosData = await BeneficiosService.obtenerBeneficiosPorComercio(user.uid);
           break;
 
         case 'asociacion':
+          console.log('🏛️ Procesando como ASOCIACION');
           beneficiosData = await BeneficiosService.obtenerBeneficiosPorAsociacion(user.uid);
           break;
 
         default:
-          console.warn('Rol de usuario no reconocido:', user.role);
+          console.warn('⚠️ Rol de usuario no reconocido:', user.role);
       }
 
-      // Usar debounced update
-      debouncedSetBeneficios(beneficiosData);
-      console.log(`✅ Se cargaron ${beneficiosData.length} beneficios para ${user.role}`);
+      console.log('📦 Beneficios RAW obtenidos del servicio:', {
+        cantidad: beneficiosData.length,
+        beneficios: beneficiosData.map(b => ({
+          id: b.id,
+          titulo: b.titulo,
+          estado: b.estado,
+          fechaInicio: b.fechaInicio?.toDate?.() || b.fechaInicio,
+          fechaFin: b.fechaFin?.toDate?.() || b.fechaFin,
+          comercioNombre: b.comercioNombre
+        }))
+      });
+      
+      // Actualización directa sin debounce
+      if (mountedRef.current) {
+        console.log('✅ Componente montado, estableciendo beneficios:', beneficiosData.length);
+        setBeneficios(beneficiosData);
+        console.log(`✅ Se cargaron ${beneficiosData.length} beneficios RAW para ${user.role}`);
+      } else {
+        console.log('❌ Componente desmontado, no se establecen beneficios');
+      }
     } catch (err) {
-      console.error('Error cargando beneficios:', err);
+      console.error('❌ ERROR cargando beneficios:', err);
       if (mountedRef.current) {
         const errorMessage = err instanceof Error ? err.message : 'Error al cargar beneficios';
         setError(errorMessage);
@@ -158,28 +145,55 @@ export const useBeneficios = (options: UseBeneficiosOptions = {}) => {
       }
     } finally {
       if (mountedRef.current) {
+        console.log('🏁 Finalizando carga, estableciendo loading a false');
         setLoading(false);
       }
     }
-  }, [user, loading, debouncedSetBeneficios]);
+  }, [user, loading]);
 
-  // Cargar historial de usos optimizado
+  // Cargar historial de usos optimizado - SIN DEBOUNCE
   const cargarHistorialUsos = useCallback(async () => {
     if (!user || user.role !== 'socio') return;
 
     try {
+      console.log('📚 Cargando historial de usos para socio:', user.uid);
       const usos = await BeneficiosService.obtenerHistorialUsos(user.uid);
-      debouncedSetBeneficiosUsados(usos);
-      console.log(`✅ Se cargaron ${usos.length} usos del historial`);
+      if (mountedRef.current) {
+        setBeneficiosUsados(usos);
+        console.log(`✅ Se cargaron ${usos.length} usos del historial`);
+      }
     } catch (err) {
       console.error('Error cargando historial de usos:', err);
       if (mountedRef.current) {
         optimizedNotifications.error('Error al cargar el historial de beneficios');
       }
     }
-  }, [user, debouncedSetBeneficiosUsados]);
+  }, [user]);
 
-  // Cargar estadísticas optimizado
+  // NUEVO: Función específica para refrescar el historial después de una validación
+  const refrescarHistorialDespuesValidacion = useCallback(async () => {
+    if (!user || user.role !== 'socio') return;
+
+    try {
+      console.log('🔄 Refrescando historial después de validación QR...');
+      
+      // Esperar un poco para que se procese la validación
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      const usos = await BeneficiosService.obtenerHistorialUsos(user.uid);
+      if (mountedRef.current) {
+        setBeneficiosUsados(usos);
+        console.log(`✅ Historial actualizado: ${usos.length} usos totales`);
+        
+        // También actualizar estadísticas
+        await cargarEstadisticas();
+      }
+    } catch (err) {
+      console.error('Error refrescando historial después de validación:', err);
+    }
+  }, [user]);
+
+  // Cargar estadísticas optimizado - SIN DEBOUNCE
   const cargarEstadisticas = useCallback(async () => {
     if (!user) return;
 
@@ -195,16 +209,18 @@ export const useBeneficios = (options: UseBeneficiosOptions = {}) => {
         filtros.asociacionId = user.asociacionId;
       }
 
-      console.log('🔍 Cargando estadísticas con filtros:', filtros);
+      console.log('📊 Cargando estadísticas con filtros:', filtros);
       const estadisticas = await BeneficiosService.obtenerEstadisticas(filtros);
-      debouncedSetStats(estadisticas);
-      console.log('✅ Estadísticas cargadas:', estadisticas);
+      if (mountedRef.current) {
+        setStats(estadisticas);
+        console.log('✅ Estadísticas cargadas:', estadisticas);
+      }
     } catch (err) {
       console.error('Error cargando estadísticas:', err);
     }
-  }, [user, debouncedSetStats]);
+  }, [user]);
 
-  // Configurar listener en tiempo real optimizado
+  // Configurar listener en tiempo real optimizado - SIN DEBOUNCE
   const configurarRealtime = useCallback(() => {
     if (!user || !useRealtime) return;
 
@@ -220,8 +236,10 @@ export const useBeneficios = (options: UseBeneficiosOptions = {}) => {
             user.uid,
             user.asociacionId,
             (beneficiosData) => {
-              debouncedSetBeneficios(beneficiosData);
-              console.log(`🔄 Beneficios actualizados en tiempo real: ${beneficiosData.length}`);
+              if (mountedRef.current) {
+                setBeneficios(beneficiosData);
+                console.log(`🔄 Beneficios actualizados en tiempo real: ${beneficiosData.length}`);
+              }
             }
           );
         }
@@ -231,54 +249,99 @@ export const useBeneficios = (options: UseBeneficiosOptions = {}) => {
         unsubscribeRef.current = BeneficiosService.suscribirBeneficiosComercio(
           user.uid,
           (beneficiosData) => {
-            debouncedSetBeneficios(beneficiosData);
+            if (mountedRef.current) {
+              setBeneficios(beneficiosData);
+            }
           }
         );
         break;
     }
-  }, [user, useRealtime, debouncedSetBeneficios]);
+  }, [user, useRealtime]);
 
   // Efecto principal optimizado
   useEffect(() => {
+    console.log('🎯 useEffect principal ejecutándose', { autoLoad, user: !!user, useRealtime });
+    
     if (autoLoad && user) {
       if (useRealtime) {
+        console.log('📡 Configurando tiempo real');
         configurarRealtime();
       } else {
+        console.log('📥 Cargando beneficios normalmente');
         cargarBeneficios();
       }
       
       if (user.role === 'socio') {
+        console.log('👤 Cargando historial para socio');
         cargarHistorialUsos();
       }
       
+      console.log('📊 Cargando estadísticas');
       cargarEstadisticas();
     }
   }, [user, autoLoad, useRealtime, cargarBeneficios, cargarHistorialUsos, cargarEstadisticas, configurarRealtime]);
 
-  // Datos derivados memoizados para evitar recálculos
-  const beneficiosActivos = useMemo(() => 
-    beneficios.filter(b => b.estado === 'activo'), 
-    [beneficios]
-  );
+  // Datos derivados memoizados para evitar recálculos - APLICAR FILTROS AQUÍ
+  const beneficiosActivos = useMemo(() => {
+    console.log('🔍 Calculando beneficiosActivos desde', beneficios.length, 'beneficios RAW');
+    console.log('📋 Beneficios RAW antes de filtrar:', beneficios.map(b => ({
+      id: b.id,
+      titulo: b.titulo,
+      estado: b.estado,
+      fechaInicio: b.fechaInicio?.toDate?.() || b.fechaInicio,
+      fechaFin: b.fechaFin?.toDate?.() || b.fechaFin
+    })));
+    
+    const beneficiosValidos = BeneficiosService.aplicarFiltrosBasicos(beneficios);
+    console.log('🔍 Resultado: ', beneficiosValidos.length, 'beneficios activos válidos');
+    console.log('✅ Beneficios válidos después de filtrar:', beneficiosValidos.map(b => ({
+      id: b.id,
+      titulo: b.titulo,
+      estado: b.estado
+    })));
+    
+    return beneficiosValidos;
+  }, [beneficios]);
 
   const beneficiosInactivos = useMemo(() => 
     beneficios.filter(b => b.estado === 'inactivo'), 
     [beneficios]
   );
 
-  const beneficiosVencidos = useMemo(() => 
-    beneficios.filter(b => b.estado === 'vencido'), 
-    [beneficios]
-  );
+  const beneficiosVencidos = useMemo(() => {
+    const now = new Date();
+    return beneficios.filter(b => {
+      if (b.estado === 'vencido') return true;
+      // También incluir beneficios que técnicamente están vencidos pero aún marcados como activos
+      try {
+        let fechaFin: Date | null = null;
+        if (b.fechaFin) {
+          if (typeof b.fechaFin === 'object' && typeof b.fechaFin.toDate === 'function') {
+            fechaFin = b.fechaFin.toDate();
+          } else if (typeof b.fechaFin === 'string' || typeof b.fechaFin === 'number') {
+            fechaFin = new Date(b.fechaFin);
+          } else if (b.fechaFin instanceof Date) {
+            fechaFin = b.fechaFin;
+          }
+        }
+        return fechaFin && fechaFin <= now;
+      } catch {
+        return false;
+      }
+    });
+  }, [beneficios]);
 
-  const beneficiosAgotados = useMemo(() => 
-    beneficios.filter(b => b.estado === 'agotado'), 
-    [beneficios]
-  );
+  const beneficiosAgotados = useMemo(() => {
+    return beneficios.filter(b => {
+      if (b.estado === 'agotado') return true;
+      // También incluir beneficios que técnicamente están agotados pero aún marcados como activos
+      return b.limiteTotal && b.usosActuales >= b.limiteTotal;
+    });
+  }, [beneficios]);
 
   const beneficiosDestacados = useMemo(() => 
-    beneficios.filter(b => b.destacado), 
-    [beneficios]
+    beneficiosActivos.filter(b => b.destacado), 
+    [beneficiosActivos]
   );
 
   // Estadísticas rápidas memoizadas y estables
@@ -289,8 +352,35 @@ export const useBeneficios = (options: UseBeneficiosOptions = {}) => {
 
     const ahorroEsteMes = beneficiosUsados
       .filter(uso => {
-        const fecha = uso.fechaUso.toDate();
-        return fecha.getMonth() === currentMonth && fecha.getFullYear() === currentYear;
+        try {
+          // Manejo más robusto de Timestamp
+          let fecha: Date;
+          
+          if (!uso.fechaUso) {
+            return false;
+          }
+          
+          // Verificar si es un Timestamp de Firebase
+          if (typeof uso.fechaUso === 'object' && uso.fechaUso !== null && 'toDate' in uso.fechaUso && typeof uso.fechaUso.toDate === 'function') {
+            fecha = uso.fechaUso.toDate();
+          } 
+          // Verificar si ya es un Date usando duck typing
+          else if (typeof uso.fechaUso === 'object' && uso.fechaUso !== null && 'getTime' in uso.fechaUso && typeof uso.fechaUso.getTime === 'function') {
+            fecha = uso.fechaUso as unknown as Date;
+          } 
+          // Es un string, número o algo que se puede convertir a Date
+          else {
+            fecha = new Date(uso.fechaUso as unknown as string | number);
+            // Verificar que la fecha sea válida
+            if (isNaN(fecha.getTime())) {
+              return false;
+            }
+          }
+          
+          return fecha.getMonth() === currentMonth && fecha.getFullYear() === currentYear;
+        } catch {
+          return false;
+        }
       })
       .reduce((total, uso) => total + (uso.montoDescuento || 0), 0);
 
@@ -498,6 +588,7 @@ export const useBeneficios = (options: UseBeneficiosOptions = {}) => {
     try {
       setRefreshing(true);
       setError(null);
+      console.log('🔄 REFRESCANDO datos...');
       
       await Promise.all([
         cargarBeneficios(),
@@ -520,7 +611,7 @@ export const useBeneficios = (options: UseBeneficiosOptions = {}) => {
 
   return {
     // Estados
-    beneficios,
+    beneficios: beneficiosActivos, // CAMBIO IMPORTANTE: Devolver beneficios ya filtrados
     beneficiosUsados,
     stats,
     loading,
@@ -548,7 +639,10 @@ export const useBeneficios = (options: UseBeneficiosOptions = {}) => {
     // Funciones de carga manual
     cargarBeneficios,
     cargarHistorialUsos,
-    cargarEstadisticas
+    cargarEstadisticas,
+    
+    // NUEVO: Función específica para refrescar después de validación QR
+    refrescarHistorialDespuesValidacion
   };
 };
 

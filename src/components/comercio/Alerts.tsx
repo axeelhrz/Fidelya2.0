@@ -145,7 +145,7 @@ export const Alerts: React.FC = () => {
             fontSize: '14px',
             color: '#64748b'
           }}>
-            Mantené tu comercio optimizado
+            Mantené tu comercio actualizado
           </p>
         </div>
       </div>

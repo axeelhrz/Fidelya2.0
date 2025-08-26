@@ -186,18 +186,18 @@ class SocioService {
         throw new Error('Se requiere una contraseña de al menos 6 caracteres para crear la cuenta del socio');
       }
 
-      // Check if DNI already exists
+      // Check if DNI already exists IN THIS ASSOCIATION
       if (data.dni) {
-        const existingDni = await this.checkDniExists(data.dni);
+        const existingDni = await this.checkDniExists(data.dni, asociacionId);
         if (existingDni) {
-          throw new Error('Ya existe un socio con este DNI');
+          throw new Error('Ya existe un socio con este DNI en esta asociación');
         }
       }
 
-      // Check if email already exists
-      const existingEmail = await this.checkEmailExists(data.email);
+      // Check if email already exists IN THIS ASSOCIATION
+      const existingEmail = await this.checkEmailExists(data.email, asociacionId);
       if (existingEmail) {
-        throw new Error('Ya existe un socio con este email');
+        throw new Error('Ya existe un socio con este email en esta asociación');
       }
 
       // Generate numero de socio if not provided
@@ -208,7 +208,7 @@ class SocioService {
         // Check if numero socio already exists
         const existingNumero = await this.checkNumeroSocioExists(asociacionId, numeroSocio);
         if (existingNumero) {
-          throw new Error('Ya existe un socio con este número');
+          throw new Error('Ya existe un socio con este número en esta asociación');
         }
       }
 
@@ -287,6 +287,36 @@ class SocioService {
    */
   async updateSocio(id: string, data: Partial<SocioFormData>): Promise<boolean> {
     try {
+      // Get current socio to get asociacionId
+      const currentSocio = await this.getSocioById(id);
+      if (!currentSocio) {
+        throw new Error('Socio no encontrado');
+      }
+
+      // Validate DNI if being updated
+      if (data.dni && data.dni !== currentSocio.dni) {
+        const existingDni = await this.checkDniExists(data.dni, currentSocio.asociacionId);
+        if (existingDni) {
+          throw new Error('Ya existe un socio con este DNI en esta asociación');
+        }
+      }
+
+      // Validate email if being updated
+      if (data.email && data.email.toLowerCase() !== currentSocio.email.toLowerCase()) {
+        const existingEmail = await this.checkEmailExists(data.email, currentSocio.asociacionId);
+        if (existingEmail) {
+          throw new Error('Ya existe un socio con este email en esta asociación');
+        }
+      }
+
+      // Validate numero socio if being updated
+      if (data.numeroSocio && data.numeroSocio !== currentSocio.numeroSocio) {
+        const existingNumero = await this.checkNumeroSocioExists(currentSocio.asociacionId, data.numeroSocio);
+        if (existingNumero) {
+          throw new Error('Ya existe un socio con este número en esta asociación');
+        }
+      }
+
       const updateData: Record<string, unknown> = {
         actualizadoEn: serverTimestamp(),
       };
@@ -540,17 +570,36 @@ class SocioService {
             continue;
           }
 
-          // Check for duplicates
-          const existingDni = await this.checkDniExists(String(row.dni));
-          const existingEmail = await this.checkEmailExists(String(row.email));
+          // Check for duplicates WITHIN THIS ASSOCIATION
+          const existingDni = await this.checkDniExists(String(row.dni), asociacionId);
+          const existingEmail = await this.checkEmailExists(String(row.email), asociacionId);
           
           if (existingDni || existingEmail) {
             result.duplicates++;
+            result.errors.push({
+              row: rowNumber,
+              error: `Socio duplicado en esta asociación: ${existingDni ? 'DNI' : ''} ${existingEmail ? 'Email' : ''}`,
+              data: row
+            });
             continue;
           }
 
           // Generate numero de socio
           const numeroSocio = row.numeroSocio || await this.generateNumeroSocio(asociacionId);
+
+          // Check if numero socio already exists
+          if (row.numeroSocio) {
+            const existingNumero = await this.checkNumeroSocioExists(asociacionId, String(row.numeroSocio));
+            if (existingNumero) {
+              result.duplicates++;
+              result.errors.push({
+                row: rowNumber,
+                error: 'Número de socio ya existe en esta asociación',
+                data: row
+              });
+              continue;
+            }
+          }
 
           // Prepare socio data - clean to avoid undefined values
           const socioId = doc(collection(db, this.collection)).id;
@@ -773,11 +822,17 @@ class SocioService {
   }
 
   /**
-   * Helper methods
+   * Helper methods - ACTUALIZADOS PARA VALIDACIÓN POR ASOCIACIÓN
    */
-  private async checkDniExists(dni: string): Promise<boolean> {
+  private async checkDniExists(dni: string, asociacionId?: string): Promise<boolean> {
     try {
-      const q = query(collection(db, this.collection), where('dni', '==', dni));
+      let q = query(collection(db, this.collection), where('dni', '==', dni));
+      
+      // Si se proporciona asociacionId, solo verificar en esa asociación
+      if (asociacionId) {
+        q = query(q, where('asociacionId', '==', asociacionId));
+      }
+      
       const snapshot = await getDocs(q);
       return !snapshot.empty;
     } catch {
@@ -785,9 +840,15 @@ class SocioService {
     }
   }
 
-  private async checkEmailExists(email: string): Promise<boolean> {
+  private async checkEmailExists(email: string, asociacionId?: string): Promise<boolean> {
     try {
-      const q = query(collection(db, this.collection), where('email', '==', email.toLowerCase()));
+      let q = query(collection(db, this.collection), where('email', '==', email.toLowerCase()));
+      
+      // Si se proporciona asociacionId, solo verificar en esa asociación
+      if (asociacionId) {
+        q = query(q, where('asociacionId', '==', asociacionId));
+      }
+      
       const snapshot = await getDocs(q);
       return !snapshot.empty;
     } catch {

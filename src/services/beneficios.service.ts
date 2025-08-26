@@ -186,16 +186,16 @@ export class BeneficiosService {
 
       if (asociacionId) {
         // Socio con asociación: obtener beneficios de la asociación + comercios afiliados
+        console.log('🏢 Socio tiene asociación, obteniendo beneficios con asociación...');
         beneficios = await this.obtenerBeneficiosConAsociacion(socioId, asociacionId, filtros, limite);
       } else {
         // Socio sin asociación: obtener beneficios públicos y directos
+        console.log('👤 Socio sin asociación, obteniendo beneficios sin asociación...');
         beneficios = await this.obtenerBeneficiosSinAsociacion(socioId, filtros, limite);
       }
 
-      // Aplicar filtros adicionales
-      beneficios = this.aplicarFiltros(beneficios, filtros);
-
-      // Ordenar y limitar
+      // IMPORTANTE: NO aplicar filtros adicionales aquí, ya que se aplicarán en el hook
+      // Solo ordenar y limitar
       beneficios = beneficios
         .sort((a, b) => {
           // Priorizar beneficios destacados
@@ -207,7 +207,7 @@ export class BeneficiosService {
         .slice(0, limite);
 
       this.setCache(cacheKey, beneficios);
-      console.log(`✅ Se encontraron ${beneficios.length} beneficios disponibles para el socio`);
+      console.log(`✅ Se encontraron ${beneficios.length} beneficios RAW para el socio (antes de filtros)`);
       
       return beneficios;
     } catch (error) {
@@ -317,6 +317,7 @@ export class BeneficiosService {
       let beneficios: Beneficio[] = [];
 
       // 1. Obtener beneficios públicos
+      console.log('🔍 Buscando beneficios públicos...');
       const qPublicos = query(
         collection(db, this.BENEFICIOS_COLLECTION),
         where('estado', '==', 'activo'),
@@ -326,6 +327,8 @@ export class BeneficiosService {
       );
 
       const snapshotPublicos = await getDocs(qPublicos);
+      console.log(`📦 Encontrados ${snapshotPublicos.size} beneficios públicos`);
+      
       const beneficiosPublicos = snapshotPublicos.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
@@ -335,6 +338,7 @@ export class BeneficiosService {
       beneficios = [...beneficiosPublicos];
 
       // 2. Obtener beneficios de acceso directo
+      console.log('🔍 Buscando beneficios de acceso directo...');
       const qDirectos = query(
         collection(db, this.BENEFICIOS_COLLECTION),
         where('estado', '==', 'activo'),
@@ -344,6 +348,8 @@ export class BeneficiosService {
       );
 
       const snapshotDirectos = await getDocs(qDirectos);
+      console.log(`📦 Encontrados ${snapshotDirectos.size} beneficios de acceso directo`);
+      
       const beneficiosDirectos = snapshotDirectos.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
@@ -354,6 +360,7 @@ export class BeneficiosService {
 
       // 3. Obtener comercios afiliados directamente al socio (si los hay)
       const comerciosAfiliados = await this.obtenerComerciosAfiliadosSocio(socioId);
+      console.log(`🏪 Comercios afiliados al socio: ${comerciosAfiliados.length}`);
       
       if (comerciosAfiliados.length > 0) {
         const lotes = [];
@@ -380,6 +387,28 @@ export class BeneficiosService {
         }
       }
 
+      // 4. Si no hay beneficios específicos, obtener TODOS los beneficios activos como fallback
+      if (beneficios.length === 0) {
+        console.log('⚠️ No se encontraron beneficios específicos, obteniendo todos los beneficios activos como fallback...');
+        const qTodos = query(
+          collection(db, this.BENEFICIOS_COLLECTION),
+          where('estado', '==', 'activo'),
+          orderBy('creadoEn', 'desc'),
+          limit(limite)
+        );
+
+        const snapshotTodos = await getDocs(qTodos);
+        console.log(`📦 Encontrados ${snapshotTodos.size} beneficios activos totales`);
+        
+        const beneficiosTodos = snapshotTodos.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+          origenBeneficio: 'fallback'
+        })) as unknown as Beneficio[];
+
+        beneficios = [...beneficiosTodos];
+      }
+
       // Eliminar duplicados
       const beneficiosUnicos = this.eliminarDuplicados(beneficios);
 
@@ -391,46 +420,26 @@ export class BeneficiosService {
     }
   }
 
-  // Aplicar filtros a los beneficios
+  // Aplicar filtros a los beneficios - SIMPLIFICADO
   private static aplicarFiltros(beneficios: Beneficio[], filtros?: BeneficioFilter): Beneficio[] {
-    if (!filtros) return beneficios;
-
     let beneficiosFiltrados = [...beneficios];
 
-    // Filtro por categoría
-    if (filtros.categoria) {
+    // Filtros específicos del usuario (si los hay)
+    if (filtros?.categoria) {
       beneficiosFiltrados = beneficiosFiltrados.filter(b => b.categoria === filtros.categoria);
     }
 
-    // Filtro por comercio
-    if (filtros.comercio) {
+    if (filtros?.comercio) {
       beneficiosFiltrados = beneficiosFiltrados.filter(b => b.comercioId === filtros.comercio);
     }
 
-    // Solo destacados
-    if (filtros.soloDestacados) {
+    if (filtros?.soloDestacados) {
       beneficiosFiltrados = beneficiosFiltrados.filter(b => b.destacado === true);
     }
 
-    // Filtros de fecha y límites
-    const now = new Date();
-    beneficiosFiltrados = beneficiosFiltrados.filter(beneficio => {
-      // Verificar fecha de vencimiento
-      const fechaFin = beneficio.fechaFin.toDate();
-      if (fechaFin <= now) return false;
-
-      // Verificar fecha de inicio
-      const fechaInicio = beneficio.fechaInicio.toDate();
-      if (fechaInicio > now) return false;
-
-      // Verificar límite total
-      if (beneficio.limiteTotal && beneficio.usosActuales >= beneficio.limiteTotal) {
-        return false;
-      }
-
-      // Filtro de búsqueda
-      if (filtros.busqueda) {
-        const busqueda = filtros.busqueda.toLowerCase();
+    if (filtros?.busqueda) {
+      const busqueda = filtros.busqueda.toLowerCase();
+      beneficiosFiltrados = beneficiosFiltrados.filter(beneficio => {
         const coincide = 
           beneficio.titulo.toLowerCase().includes(busqueda) ||
           beneficio.descripcion.toLowerCase().includes(busqueda) ||
@@ -438,25 +447,111 @@ export class BeneficiosService {
           beneficio.categoria.toLowerCase().includes(busqueda) ||
           beneficio.tags?.some(tag => tag.toLowerCase().includes(busqueda));
         
-        if (!coincide) return false;
+        return coincide;
+      });
+    }
+
+    if (filtros?.soloNuevos) {
+      const now = new Date();
+      const hace7Dias = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      beneficiosFiltrados = beneficiosFiltrados.filter(beneficio => 
+        beneficio.creadoEn.toDate() >= hace7Dias
+      );
+    }
+
+    if (filtros?.proximosAVencer) {
+      const now = new Date();
+      const en7Dias = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+      beneficiosFiltrados = beneficiosFiltrados.filter(beneficio => {
+        const fechaFin = beneficio.fechaFin.toDate();
+        return fechaFin <= en7Dias && fechaFin > now;
+      });
+    }
+
+    console.log(`🔍 Filtros aplicados: ${beneficios.length} → ${beneficiosFiltrados.length} beneficios`);
+    return beneficiosFiltrados;
+  }
+
+  // NUEVO: Aplicar filtros básicos de validez para beneficios - MEJORADO
+  static aplicarFiltrosBasicos(beneficios: Beneficio[]): Beneficio[] {
+    const now = new Date();
+    console.log('🔍 Aplicando filtros básicos a', beneficios.length, 'beneficios. Fecha actual:', now.toISOString());
+    
+    const beneficiosValidos = beneficios.filter(beneficio => {
+      console.log(`🔍 Evaluando beneficio: ${beneficio.titulo}`);
+      console.log(`   - Estado: ${beneficio.estado}`);
+      console.log(`   - Fecha inicio: ${beneficio.fechaInicio?.toDate ? beneficio.fechaInicio.toDate().toISOString() : beneficio.fechaInicio}`);
+      console.log(`   - Fecha fin: ${beneficio.fechaFin?.toDate ? beneficio.fechaFin.toDate().toISOString() : beneficio.fechaFin}`);
+      console.log(`   - Límite total: ${beneficio.limiteTotal}, Usos actuales: ${beneficio.usosActuales}`);
+
+      // 1. Solo beneficios activos
+      if (beneficio.estado !== 'activo') {
+        console.log(`❌ Beneficio ${beneficio.titulo} filtrado: estado ${beneficio.estado}`);
+        return false;
       }
 
-      // Filtro de nuevos (últimos 7 días)
-      if (filtros.soloNuevos) {
-        const hace7Dias = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-        if (beneficio.creadoEn.toDate() < hace7Dias) return false;
+      // 2. Verificar fecha de vencimiento - MEJORADO con manejo de errores
+      let fechaFin: Date;
+      try {
+        if (beneficio.fechaFin?.toDate) {
+          fechaFin = beneficio.fechaFin.toDate();
+        } else if (beneficio.fechaFin) {
+          if (beneficio.fechaFin instanceof Timestamp) {
+            fechaFin = beneficio.fechaFin.toDate();
+          } else {
+            fechaFin = new Date(beneficio.fechaFin as string | number | Date);
+          }
+        } else {
+          console.log(`⚠️ Beneficio ${beneficio.titulo}: sin fecha fin, se permite`);
+          fechaFin = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000); // 1 año en el futuro
+        }
+      } catch (error) {
+        console.log(`⚠️ Beneficio ${beneficio.titulo}: error en fecha fin, se permite`, error);
+        fechaFin = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000); // 1 año en el futuro
+      }
+      
+      if (fechaFin <= now) {
+        console.log(`❌ Beneficio ${beneficio.titulo} filtrado: vencido (${fechaFin.toLocaleDateString()})`);
+        return false;
       }
 
-      // Filtro de próximos a vencer (próximos 7 días)
-      if (filtros.proximosAVencer) {
-        const en7Dias = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-        if (fechaFin > en7Dias) return false;
+      // 3. Verificar fecha de inicio - MEJORADO con manejo de errores
+      let fechaInicio: Date;
+      try {
+        if (beneficio.fechaInicio?.toDate) {
+          fechaInicio = beneficio.fechaInicio.toDate();
+        } else if (beneficio.fechaInicio) {
+          if (beneficio.fechaInicio instanceof Timestamp) {
+            fechaInicio = beneficio.fechaInicio.toDate();
+          } else {
+            fechaInicio = new Date(beneficio.fechaInicio as string | number | Date);
+          }
+        } else {
+          console.log(`⚠️ Beneficio ${beneficio.titulo}: sin fecha inicio, se permite`);
+          fechaInicio = new Date(0); // Fecha muy antigua
+        }
+      } catch (error) {
+        console.log(`⚠️ Beneficio ${beneficio.titulo}: error en fecha inicio, se permite`, error);
+        fechaInicio = new Date(0); // Fecha muy antigua
+      }
+      
+      if (fechaInicio > now) {
+        console.log(`❌ Beneficio ${beneficio.titulo} filtrado: aún no disponible (inicia ${fechaInicio.toLocaleDateString()})`);
+        return false;
       }
 
+      // 4. Verificar límite total si existe - MEJORADO
+      if (beneficio.limiteTotal && typeof beneficio.usosActuales === 'number' && beneficio.usosActuales >= beneficio.limiteTotal) {
+        console.log(`❌ Beneficio ${beneficio.titulo} filtrado: límite agotado (${beneficio.usosActuales}/${beneficio.limiteTotal})`);
+        return false;
+      }
+
+      console.log(`✅ Beneficio ${beneficio.titulo} válido y disponible`);
       return true;
     });
 
-    return beneficiosFiltrados;
+    console.log(`🔍 Filtros básicos aplicados: ${beneficios.length} → ${beneficiosValidos.length} beneficios válidos`);
+    return beneficiosValidos;
   }
 
   // Eliminar beneficios duplicados
@@ -1552,4 +1647,3 @@ export class BeneficiosService {
 
 // Export singleton instance
 export default BeneficiosService;
-

@@ -22,7 +22,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Settings,
-  Sparkles
+  Sparkles,
+  Lock
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { ComercioFormData } from '@/services/comercio.service';
@@ -50,12 +51,17 @@ const comercioSchema = z.object({
   nombreComercio: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
   email: z.string().email('Email inválido'),
   categoria: z.string().min(1, 'La categoría es requerida'),
+  password: z.string().min(6, 'La contraseña debe tener al menos 6 caracteres'),
+  confirmPassword: z.string().min(6, 'Confirma la contraseña'),
   telefono: z.string().optional(),
   direccion: z.string().optional(),
   descripcion: z.string().optional(),
   sitioWeb: z.string().url('URL inválida').optional().or(z.literal('')),
   horario: z.string().optional(),
   cuit: z.string().optional(),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Las contraseñas no coinciden",
+  path: ["confirmPassword"],
 });
 
 type ComercioFormInputs = z.infer<typeof comercioSchema>;
@@ -71,11 +77,19 @@ const FORM_STEPS = [
     fields: ['nombreComercio', 'email', 'categoria', 'descripcion']
   },
   {
+    id: 'auth',
+    title: 'Credenciales de Acceso',
+    subtitle: 'Contraseña para el comercio',
+    icon: Lock,
+    color: 'from-blue-500 to-cyan-500',
+    fields: ['password', 'confirmPassword']
+  },
+  {
     id: 'contact',
     title: 'Contacto y Ubicación',
     subtitle: 'Información de contacto',
     icon: Phone,
-    color: 'from-blue-500 to-cyan-500',
+    color: 'from-purple-500 to-pink-500',
     fields: ['telefono', 'direccion', 'sitioWeb', 'horario', 'cuit']
   },
   {
@@ -83,7 +97,7 @@ const FORM_STEPS = [
     title: 'Configuración',
     subtitle: 'Configuración inicial',
     icon: Settings,
-    color: 'from-purple-500 to-pink-500',
+    color: 'from-orange-500 to-red-500',
     fields: ['configuracion']
   }
 ];
@@ -311,7 +325,7 @@ FormField.displayName = 'FormField';
 interface CreateComercioDialogProps {
   open: boolean;
   onClose: () => void;
-  onSubmit: (data: ComercioFormData) => Promise<boolean>;
+  onSubmit: (data: ComercioFormData & { password: string; confirmPassword: string }) => Promise<boolean>;
   loading?: boolean;
 }
 
@@ -449,9 +463,11 @@ export const CreateComercioDialog: React.FC<CreateComercioDialogProps> = ({
     try {
       setIsSubmitting(true);
       
-      const finalData: ComercioFormData = {
+      const finalData = {
         ...data,
-        configuracion: formData.configuracion
+        configuracion: formData.configuracion,
+        password: data.password,
+        confirmPassword: data.confirmPassword
       };
 
       const success = await onSubmit(finalData);
@@ -479,6 +495,8 @@ export const CreateComercioDialog: React.FC<CreateComercioDialogProps> = ({
         options: CATEGORIAS_COMERCIO.map(cat => ({ value: cat, label: cat }))
       },
       descripcion: { name: 'descripcion', label: 'Descripción', type: 'textarea', icon: FileText, placeholder: 'Describe brevemente el comercio y sus servicios...' },
+      password: { name: 'password', label: 'Contraseña', type: 'password', icon: Lock, placeholder: 'Mínimo 6 caracteres' },
+      confirmPassword: { name: 'confirmPassword', label: 'Confirmar Contraseña', type: 'password', icon: Lock, placeholder: 'Repite la contraseña' },
       telefono: { name: 'telefono', label: 'Teléfono', type: 'tel', icon: Phone, placeholder: '+54 11 1234-5678' },
       direccion: { name: 'direccion', label: 'Dirección', type: 'text', icon: MapPin, placeholder: 'Av. Corrientes 1234, CABA' },
       sitioWeb: { name: 'sitioWeb', label: 'Sitio Web', type: 'url', icon: Globe, placeholder: 'https://www.ejemplo.com' },
@@ -592,7 +610,7 @@ export const CreateComercioDialog: React.FC<CreateComercioDialogProps> = ({
               <div className="overflow-y-auto max-h-[calc(95vh-200px)]">
                 <form onSubmit={handleSubmit(onSubmitForm)} className="p-8">
                   <div key={currentStep} className="space-y-8">
-                    {currentStep === 2 ? (
+                    {currentStep === 3 ? (
                       // Paso de configuración - layout especial
                       <div className="space-y-8">
                         <div className="text-center">

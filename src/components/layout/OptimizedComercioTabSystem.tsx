@@ -11,7 +11,6 @@ import {
   UserCheck,
   Users,
   Bell,
-  Sparkles,
   Activity
 } from 'lucide-react';
 
@@ -103,7 +102,7 @@ const TabLoadingState = memo<{ tabId: string }>(({ tabId }) => {
         <h3 className={`text-xl font-bold text-${config.color}-700 mb-2`}>
           {config.text}
         </h3>
-        <p className="text-slate-600">Optimizando contenido...</p>
+        <p className="text-slate-600">Preparando contenido...</p>
       </motion.div>
     </div>
   );
@@ -394,15 +393,7 @@ export const OptimizedComercioTabSystem: React.FC<OptimizedComercioTabSystemProp
         </div>
 
         {/* Performance indicator - STATIC */}
-        {process.env.NODE_ENV === 'development' && (
-          <div className="absolute top-4 right-4 bg-black/80 backdrop-blur-sm text-white text-xs px-3 py-2 rounded-lg border border-white/20">
-            <div className="flex items-center gap-2">
-              <Sparkles className="w-3 h-3 text-yellow-400" />
-              <span>Optimizado</span>
-              <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
-            </div>
-          </div>
-        )}
+
       </div>
     </div>
   );

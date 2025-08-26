@@ -173,7 +173,7 @@ export const ComercioWelcomeCard = memo<ComercioWelcomeCardProps>(({
                 className="text-base lg:text-lg text-slate-600 flex items-center"
               >
                 <Zap className="w-4 h-4 mr-2 text-emerald-500" />
-                Panel de control optimizado para tu negocio
+                Panel de control para tu negocio
               </motion.p>
             </div>
           </div>

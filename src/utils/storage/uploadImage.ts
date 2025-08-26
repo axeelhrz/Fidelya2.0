@@ -202,7 +202,7 @@ const uploadWithCorsWorkaround = async (
     
     onProgress?.(40);
     
-    console.log('📤 Subiendo con blob optimizado para CORS...');
+    console.log('📤 Subiendo con blob para CORS...');
     const snapshot = await uploadBytes(storageRef, corsBlob, metadata);
     
     onProgress?.(80);

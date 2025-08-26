@@ -96,6 +96,8 @@ class ValidacionesService {
   private comerciosCollection = COLLECTIONS.COMERCIOS;
   private beneficiosCollection = COLLECTIONS.BENEFICIOS;
   private clientesCollection = 'clientes'; // Colección para validar estado en comercio (DESHABILITADA)
+  // NUEVO: Colección para el historial de usos de beneficios
+  private beneficioUsosCollection = 'beneficio_usos';
 
   /**
    * VALIDACIÓN SIMPLIFICADA DE SOCIO - Permite acceso sin restricciones estrictas
@@ -127,6 +129,87 @@ class ValidacionesService {
     console.log('🔍 Validación de estado en comercio DESHABILITADA - permitiendo acceso libre');
     // Esta validación está deshabilitada para permitir acceso sin restricciones
     return;
+  }
+
+  /**
+   * NUEVO: Crear registro en el historial de usos de beneficios
+   */
+  private async crearRegistroHistorialUso(
+    validacionData: {
+      beneficioId: string;
+      socioId: string;
+      asociacionId?: string;
+      codigoValidacion: string;
+      comercioId: string;
+    },
+    beneficioData: {
+      titulo?: string;
+      descripcion?: string;
+    },
+    comercioData: {
+      nombreComercio?: string;
+      logo?: string | null;
+    },
+    socioData: {
+      nombre?: string;
+      email?: string;
+      asociacionNombre?: string | null;
+    },
+    montoDescuento: number
+  ): Promise<void> {
+    try {
+      console.log('📝 Creando registro en historial de usos...');
+
+      const usoData = {
+        // Información del beneficio
+        beneficioId: validacionData.beneficioId,
+        beneficioTitulo: beneficioData.titulo || 'Beneficio',
+        beneficioDescripcion: beneficioData.descripcion || '',
+        
+        // Información del socio
+        socioId: validacionData.socioId,
+        socioNombre: socioData.nombre || 'Usuario',
+        socioEmail: socioData.email || '',
+        
+        // Información del comercio
+        comercioId: validacionData.comercioId,
+        comercioNombre: comercioData.nombreComercio || 'Comercio',
+        comercioLogo: comercioData.logo || null,
+        
+        // Información de la asociación
+        asociacionId: validacionData.asociacionId || null,
+        asociacionNombre: socioData.asociacionNombre || null,
+        
+        // Detalles del uso
+        fechaUso: serverTimestamp(),
+        montoDescuento: montoDescuento,
+        montoOriginal: null, // No tenemos esta información en la validación QR
+        montoFinal: null,
+        estado: 'usado' as const,
+        
+        // Información adicional
+        detalles: `Beneficio validado mediante código QR - ${beneficioData.titulo}`,
+        codigoValidacion: validacionData.codigoValidacion,
+        metodoPago: 'qr_validation',
+        
+        // Metadatos
+        origenValidacion: 'qr_scanner',
+        tipoValidacion: 'automatica',
+        
+        // Timestamps
+        creadoEn: serverTimestamp(),
+        actualizadoEn: serverTimestamp(),
+      };
+
+      // Crear el documento en la colección de usos
+      const usoRef = doc(collection(db, this.beneficioUsosCollection));
+      await setDoc(usoRef, usoData);
+
+      console.log('✅ Registro creado en historial de usos:', usoRef.id);
+    } catch (error) {
+      console.error('❌ Error creando registro en historial:', error);
+      // No lanzamos el error para no interrumpir la validación principal
+    }
   }
 
   /**
@@ -391,8 +474,29 @@ class ValidacionesService {
           comercioData,
           beneficioData: selectedBeneficio,
           montoDescuento,
+          validacionData, // NUEVO: Incluir datos de validación para el historial
         };
       });
+
+      // NUEVO: Crear registro en el historial de usos DESPUÉS de la transacción
+      try {
+        await this.crearRegistroHistorialUso(
+          {
+            beneficioId: result.validacionData.beneficioId,
+            socioId: result.validacionData.socioId,
+            asociacionId: result.validacionData.asociacionId ?? undefined,
+            codigoValidacion: result.validacionData.codigoValidacion,
+            comercioId: result.validacionData.comercioId,
+          },
+          result.beneficioData,
+          result.comercioData,
+          result.socioData,
+          result.montoDescuento
+        );
+      } catch (historialError) {
+        console.error('⚠️ Error creando registro en historial (no crítico):', historialError);
+        // No interrumpimos el flujo principal si falla el historial
+      }
 
       console.log('✅ Permissive validation successful:', result.validacionId);
 
@@ -708,7 +812,9 @@ class ValidacionesService {
   }): number {
     switch (beneficio.tipo) {
       case 'porcentaje':
-        return beneficio.montoBase ? (beneficio.montoBase * beneficio.descuento / 100) : beneficio.descuento;
+        // Si es un porcentaje pero no hay montoBase, devolver 0 en lugar del valor del descuento
+        // Esto evita que un descuento del 20% se interprete como $20 cuando no hay montoBase
+        return beneficio.montoBase ? (beneficio.montoBase * beneficio.descuento / 100) : 0;
       case 'monto_fijo':
         return beneficio.descuento;
       case 'producto_gratis':

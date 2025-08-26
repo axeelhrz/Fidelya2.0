@@ -1,7 +1,7 @@
 import { useCallback, useRef, useEffect } from 'react';
 
 /**
- * Hook optimizado para debounce que evita actualizaciones innecesarias
+ * Hook para debounce que evita actualizaciones innecesarias
  */
 export function useDebounce<T extends (...args: unknown[]) => unknown>(
   callback: T,

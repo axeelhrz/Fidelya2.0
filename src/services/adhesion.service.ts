@@ -464,10 +464,15 @@ class AdhesionService {
    */
   async getAdhesionStats(asociacionId: string): Promise<AdhesionStats> {
     try {
+      console.log('[Get Adhesion Stats] Iniciando cálculo de estadísticas para asociación:', asociacionId);
+      
       const [comerciosVinculados, solicitudesPendientes] = await Promise.all([
         this.getComerciossVinculados(asociacionId),
         this.getSolicitudesPendientes(asociacionId)
       ]);
+      
+      console.log('[Get Adhesion Stats] Comercios vinculados encontrados:', comerciosVinculados.length);
+      console.log('[Get Adhesion Stats] Solicitudes pendientes:', solicitudesPendientes.length);
       
       const stats: AdhesionStats = {
         totalComercios: comerciosVinculados.length,
@@ -482,10 +487,30 @@ class AdhesionService {
         validacionesHoy: 0
       };
 
-      // Contar por categorías
-      comerciosVinculados.forEach(comercio => {
-        stats.categorias[comercio.categoria] = (stats.categorias[comercio.categoria] || 0) + 1;
+      // Contar por categorías con validación mejorada
+      console.log('[Get Adhesion Stats] Procesando categorías...');
+      comerciosVinculados.forEach((comercio, index) => {
+        console.log(`[Get Adhesion Stats] Comercio ${index + 1}:`, {
+          id: comercio.id,
+          nombre: comercio.nombreComercio || comercio.nombre,
+          categoria: comercio.categoria,
+          categoriaType: typeof comercio.categoria
+        });
+        
+        // Validar que la categoría existe y es una cadena válida
+        if (comercio.categoria && typeof comercio.categoria === 'string' && comercio.categoria.trim() !== '') {
+          const categoria = comercio.categoria.trim();
+          stats.categorias[categoria] = (stats.categorias[categoria] || 0) + 1;
+          console.log(`[Get Adhesion Stats] Categoría "${categoria}" incrementada a:`, stats.categorias[categoria]);
+        } else {
+          // Categoría por defecto para comercios sin categoría válida
+          const categoriaDefault = 'Sin categoría';
+          stats.categorias[categoriaDefault] = (stats.categorias[categoriaDefault] || 0) + 1;
+          console.log(`[Get Adhesion Stats] Comercio sin categoría válida, asignado a "${categoriaDefault}"`);
+        }
       });
+
+      console.log('[Get Adhesion Stats] Categorías finales:', stats.categorias);
 
       // Calcular adhesiones este mes
       const inicioMes = new Date();
@@ -493,12 +518,17 @@ class AdhesionService {
       inicioMes.setHours(0, 0, 0, 0);
 
       stats.adhesionesEsteMes = comerciosVinculados.filter(comercio => {
-        const fechaCreacion = comercio.creadoEn.toDate();
-        return fechaCreacion >= inicioMes;
+        if (comercio.creadoEn && typeof comercio.creadoEn.toDate === 'function') {
+          const fechaCreacion = comercio.creadoEn.toDate();
+          return fechaCreacion >= inicioMes;
+        }
+        return false;
       }).length;
 
+      console.log('[Get Adhesion Stats] Estadísticas calculadas exitosamente:', stats);
       return stats;
     } catch (error) {
+      console.error('[Get Adhesion Stats] Error: ', error);
       handleError(error, 'Get Adhesion Stats');
       // Return default stats in case of error
       return {

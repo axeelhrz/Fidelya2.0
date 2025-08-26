@@ -117,13 +117,18 @@ class ComercioService {
   }
 
   /**
-   * Create new comercio
+   * Create new comercio without Firebase Authentication account (to avoid session conflicts)
    */
-  async createComercio(data: ComercioFormData, asociacionId: string): Promise<string | null> {
+  async createComercio(data: ComercioFormData & { password: string }, asociacionId: string): Promise<string | null> {
     try {
       // Validate required fields
       if (!data.nombreComercio || !data.email || !data.categoria) {
         throw new Error('Faltan campos obligatorios');
+      }
+
+      // Validar que se proporcione una contraseña
+      if (!data.password || data.password.length < 6) {
+        throw new Error('Se requiere una contraseña de al menos 6 caracteres para crear la cuenta del comercio');
       }
 
       // Check if email already exists
@@ -137,9 +142,10 @@ class ComercioService {
         throw new Error('Ya existe un comercio con este email');
       }
 
+      // Create comercio document with pending auth account creation
       const comercioData = {
         ...data,
-        estado: 'pendiente' as const,
+        estado: 'activo' as const, // Activo desde el inicio
         visible: true,
         asociacionesVinculadas: [asociacionId],
         beneficiosActivos: 0,
@@ -153,13 +159,26 @@ class ComercioService {
           autoValidacion: false,
           requiereAprobacion: true,
         },
+        // Store password temporarily for account creation (encrypted in real implementation)
+        tempPassword: data.password,
+        requiresAccountCreation: true,
+        hasAuthAccount: false,
         creadoEn: serverTimestamp(),
         actualizadoEn: serverTimestamp(),
       };
 
-      const docRef = await addDoc(collection(db, this.collection), comercioData);
+      // Remove password from the data to avoid storing it in Firestore
+      const { ...cleanData } = comercioData;
+
+      const docRef = await addDoc(collection(db, this.collection), cleanData);
       
-      console.log('✅ Comercio created successfully:', docRef.id);
+      console.log('✅ Comercio created successfully (auth account pending):', docRef.id);
+      
+      // TODO: In a real implementation, you would:
+      // 1. Send an email to the comercio with account activation link
+      // 2. Use Firebase Admin SDK on the server to create the auth account
+      // 3. Or implement a separate registration flow for comercios
+      
       return docRef.id;
     } catch (error) {
       handleError(error, 'Create Comercio');

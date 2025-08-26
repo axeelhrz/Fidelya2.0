@@ -27,6 +27,7 @@ import { LogoutModal } from '@/components/ui/LogoutModal';
 import { QRScannerButton } from '@/components/socio/QRScannerButton';
 import { ValidationResultModal } from '@/components/socio/ValidationResultModal';
 import { useAuth } from '@/hooks/useAuth';
+import { useBeneficios } from '@/hooks/useBeneficios';
 import { validacionesService } from '@/services/validaciones.service';
 import { ValidacionResponse } from '@/types/validacion';
 import { cn } from '@/lib/utils';
@@ -104,6 +105,9 @@ const SocioValidarContent: React.FC = () => {
   const searchParams = useSearchParams();
   const { user, signOut } = useAuth();
   
+  // NUEVO: Usar el hook de beneficios para refrescar el historial
+  const { refrescarHistorialDespuesValidacion } = useBeneficios();
+  
   // Estados para el modal de logout
   const [logoutModalOpen, setLogoutModalOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
@@ -171,6 +175,15 @@ const SocioValidarContent: React.FC = () => {
         
         if (result.success) {
           toast.success('¡Validación exitosa! Beneficio activado');
+          
+          // NUEVO: Refrescar el historial de usos después de una validación exitosa
+          console.log('🔄 Refrescando historial después de validación exitosa...');
+          try {
+            await refrescarHistorialDespuesValidacion();
+            console.log('✅ Historial actualizado correctamente');
+          } catch (historialError) {
+            console.error('⚠️ Error actualizando historial (no crítico):', historialError);
+          }
         } else {
           toast.error(`Validación fallida: ${result.message || 'Error desconocido'}`);
         }
@@ -197,7 +210,7 @@ const SocioValidarContent: React.FC = () => {
         setScannerLoading(false);
       }
     },
-    [user]
+    [user, refrescarHistorialDespuesValidacion]
   );
 
   // Handle QR from URL parameters

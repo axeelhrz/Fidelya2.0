@@ -993,7 +993,7 @@ export const ComercioManagement: React.FC<ComercioManagementProps> = ({
                           {comercio.estado}
                         </span>
                         <span className="inline-flex items-center px-2 lg:px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200">
-                                                      Categoría
+                          {comercio.categoria}
                         </span>
                       </div>
                       

@@ -71,7 +71,7 @@ export const useComercios = () => {
   }, [asociacionId]);
 
   // Create new comercio
-  const createComercio = useCallback(async (data: ComercioFormData): Promise<boolean> => {
+  const createComercio = useCallback(async (data: ComercioFormData & { password: string }): Promise<boolean> => {
     if (!asociacionId) {
       toast.error('No se pudo identificar la asociación');
       return false;
@@ -82,7 +82,7 @@ export const useComercios = () => {
       const comercioId = await comercioService.createComercio(data, asociacionId);
       
       if (comercioId) {
-        toast.success('Comercio creado exitosamente');
+        toast.success('Comercio creado exitosamente. Las credenciales de acceso se configurarán próximamente.');
         await loadComercios(); // Reload the list
         return true;
       } else {

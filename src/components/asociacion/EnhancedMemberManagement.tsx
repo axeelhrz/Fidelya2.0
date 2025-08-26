@@ -17,7 +17,7 @@ import {
   Unlink,
   FileText,
   FileSpreadsheet,
-  MoreVertical,
+  Download,
   TrendingUp,
   Calendar,
   Mail,
@@ -152,7 +152,7 @@ export const EnhancedMemberManagement = ({
     return undefined;
   };
 
-  // Función para crear/actualizar socio
+  // Función para crear/actualizar socio con mejor manejo de errores
   const handleSaveSocio = async (data: SocioFormData) => {
     try {
       // Convertir fechas al formato correcto
@@ -164,14 +164,37 @@ export const EnhancedMemberManagement = ({
 
       if (selectedSocio) {
         await updateSocio(selectedSocio.id, processedData);
-        toast.success('Socio actualizado exitosamente');
+        toast.success('✅ Socio actualizado exitosamente');
       } else {
         await createSocio(processedData);
-        toast.success('Socio creado exitosamente');
+        toast.success('✅ Socio creado exitosamente');
       }
+      
+      // Cerrar el diálogo después de guardar exitosamente
+      setDialogOpen(false);
+      setSelectedSocio(null);
+      
+      // Refrescar datos
       await handleRefresh();
-    } catch {
-      toast.error('Error al guardar el socio');
+    } catch (error) {
+      // Mejorar el manejo de errores específicos
+      const errorMessage = error instanceof Error ? error.message : 'Error al guardar el socio';
+      
+      if (errorMessage.includes('DNI') && errorMessage.includes('asociación')) {
+        toast.error('❌ El DNI ya está siendo usado por otro socio en esta asociación');
+      } else if (errorMessage.includes('email') && errorMessage.includes('asociación')) {
+        toast.error('❌ El email ya está siendo usado por otro socio en esta asociación');
+      } else if (errorMessage.includes('número') && errorMessage.includes('asociación')) {
+        toast.error('❌ El número de socio ya está siendo usado en esta asociación');
+      } else if (errorMessage.includes('DNI')) {
+        toast.error('❌ El DNI ya está registrado en el sistema');
+      } else if (errorMessage.includes('email')) {
+        toast.error('❌ El email ya está registrado en el sistema');
+      } else {
+        toast.error(errorMessage);
+      }
+      
+      console.error('Error saving socio:', error);
     }
   };
 
@@ -521,7 +544,7 @@ export const EnhancedMemberManagement = ({
     }
   };
 
-  // Función optimizada para importar datos desde Excel
+  // Función optimizada para importar datos desde Excel con mejor manejo de errores
   const handleImportExcel = async (file: File) => {
     if (importing) return;
     
@@ -720,13 +743,21 @@ export const EnhancedMemberManagement = ({
         return;
       }
 
-      // Mostrar resumen antes de importar
+      // Mostrar resumen mejorado antes de importar
       if (errors.length > 0) {
-        const proceed = window.confirm(
-          `Se encontraron ${errors.length} errores en el archivo.\n` +
-          `Se importarán ${sociosData.length} socios válidos.\n` +
-          `¿Deseas continuar?`
-        );
+        const duplicateErrors = errors.filter(e => e.includes('duplicado'));
+        const otherErrors = errors.filter(e => !e.includes('duplicado'));
+        
+        let message = `Se encontraron ${errors.length} problemas:\n`;
+        if (duplicateErrors.length > 0) {
+          message += `• ${duplicateErrors.length} socios duplicados en esta asociación\n`;
+        }
+        if (otherErrors.length > 0) {
+          message += `• ${otherErrors.length} otros errores\n`;
+        }
+        message += `\nSe importarán ${sociosData.length} socios válidos.\n¿Deseas continuar?`;
+        
+        const proceed = window.confirm(message);
         
         if (!proceed) {
           toast('Importación cancelada');
@@ -1326,13 +1357,33 @@ export const EnhancedMemberManagement = ({
                 )}
               </motion.button>
 
-              {/* Botón de Importación Directo - NUEVO */}
+              {/* Botón de Exportar - NUEVO BOTÓN DIRECTO */}
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={handleExportExcel}
+                disabled={exporting || socios.length === 0}
+                className="flex items-center gap-2 bg-gradient-to-r from-emerald-500 via-green-500 to-teal-500 text-white px-5 py-2.5 rounded-2xl hover:from-emerald-600 hover:via-green-600 hover:to-teal-600 transition-all duration-300 font-semibold shadow                lg hover:shadow-xl border border-white/20 relative overflow-hidden group disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Exportar socios a Excel"
+              >
+                <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                {exporting ? (
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin relative z-10" />
+                ) : (
+                  <Download className="w-4 h-4 relative z-10" />
+                )}
+                <span className="hidden sm:inline relative z-10">
+                  {exporting ? 'Exportando...' : 'Exportar'}
+                </span>
+              </motion.button>
+
+              {/* Botón de Importación Directo */}
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={() => document.getElementById('import-file')?.click()}
                 disabled={importing}
-                className="flex items-center gap-2 bg-gradient-to-r from-green-500 via-emerald-500 to-teal-500 text-white px-5 py-2.5 rounded-2xl hover:from-green-600 hover:via-emerald-600 hover:to-teal-600 transition-all duration-300 font-semibold shadow-lg hover:shadow-xl border border-white/20 relative overflow-hidden group disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex items-center gap-2 bg-gradient-to-r from-purple-500 via-violet-500 to-indigo-500 text-white px-5 py-2.5 rounded-2xl hover:from-purple-600 hover:via-violet-600 hover:to-indigo-600 transition-all duration-300 font-semibold shadow-lg hover:shadow-xl border border-white/20 relative overflow-hidden group disabled:opacity-50 disabled:cursor-not-allowed"
                 title="Importar socios desde Excel o CSV"
               >
                 <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
@@ -1366,107 +1417,6 @@ export const EnhancedMemberManagement = ({
                 <Plus className="w-4 h-4 relative z-10" />
                 <span className="hidden sm:inline relative z-10">Nuevo Socio</span>
               </motion.button>
-
-              {/* More Actions Dropdown */}
-              <div className="relative group">
-                <motion.button 
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  className="p-2.5 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-2xl transition-all duration-200 border border-slate-200 hover:border-slate-300 shadow-sm hover:shadow-md"
-                >
-                  <MoreVertical className="w-5 h-5" />
-                </motion.button>
-                <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-2xl shadow-2xl border border-slate-200 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-20">
-                  <div className="p-2">
-                    {/* Import Section - DESTACADO */}
-                    <div className="px-3 py-2 text-xs font-semibold text-blue-600 uppercase tracking-wider bg-blue-50 rounded-lg mb-2">
-                      🚀 Importar Socios
-                    </div>
-                    <motion.button
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                      onClick={() => document.getElementById('import-file')?.click()}
-                      disabled={importing}
-                      className="w-full text-left px-3 py-3 text-sm text-white bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 rounded-xl flex items-center gap-3 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed font-medium shadow-md hover:shadow-lg mb-2"
-                    >
-                      <Upload className="w-5 h-5 text-white" />
-                      <div className="flex-1">
-                        <div>Importar Datos</div>
-                        <div className="text-xs text-blue-100">Excel o CSV</div>
-                      </div>
-                      {importing && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />}
-                    </motion.button>
-
-                    <div className="h-px bg-slate-200 my-2" />
-
-                    {/* Templates Section */}
-                    <div className="px-3 py-2 text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                      Plantillas
-                    </div>
-                    <motion.button
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                      onClick={downloadExcelTemplate}
-                      className="w-full text-left px-3 py-2.5 text-sm text-slate-700 hover:bg-emerald-50 hover:text-emerald-700 rounded-xl flex items-center gap-3 transition-all duration-200"
-                    >
-                      <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
-                      <span>Descargar Excel</span>
-                    </motion.button>
-                    <motion.button
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                      onClick={downloadCSVTemplate}
-                      className="w-full text-left px-3 py-2.5 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-700 rounded-xl flex items-center gap-3 transition-all duration-200"
-                    >
-                      <FileText className="w-4 h-4 text-blue-600" />
-                      <span>Descargar CSV</span>
-                    </motion.button>
-
-                    <div className="h-px bg-slate-200 my-2" />
-
-                    {/* Export Section */}
-                    <div className="px-3 py-2 text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                      Exportar
-                    </div>
-                    <motion.button
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                      onClick={handleExportExcel}
-                      disabled={exporting || socios.length === 0}
-                      className="w-full text-left px-3 py-2.5 text-sm text-slate-700 hover:bg-emerald-50 hover:text-emerald-700 rounded-xl flex items-center gap-3 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
-                      <span>Exportar Excel</span>
-                      {exporting && <div className="w-3 h-3 border border-slate-300 border-t-emerald-600 rounded-full animate-spin ml-auto" />}
-                    </motion.button>
-                    <motion.button
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                      onClick={handleExportCSV}
-                      disabled={exporting || socios.length === 0}
-                      className="w-full text-left px-3 py-2.5 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-700 rounded-xl flex items-center gap-3 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <FileText className="w-4 h-4 text-blue-600" />
-                      <span>Exportar CSV</span>
-                      {exporting && <div className="w-3 h-3 border border-slate-300 border-t-blue-600 rounded-full animate-spin ml-auto" />}
-                    </motion.button>
-
-                    <div className="h-px bg-slate-200 my-2" />
-
-                    {/* Refresh */}
-                    <motion.button
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                      onClick={handleRefresh}
-                      disabled={refreshing}
-                      className="w-full text-left px-3 py-2.5 text-sm text-slate-700 hover:bg-slate-50 rounded-xl flex items-center gap-3 transition-all duration-200 disabled:opacity-50"
-                    >
-                      <RefreshCw className={`w-4 h-4 text-slate-600 ${refreshing ? 'animate-spin' : ''}`} />
-                      <span>Actualizar datos</span>
-                    </motion.button>
-                  </div>
-                </div>
-              </div>
             </div>
           </div>
 
@@ -1922,3 +1872,4 @@ export const EnhancedMemberManagement = ({
     </div>
   );
 };
+
