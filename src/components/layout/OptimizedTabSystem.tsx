@@ -174,6 +174,7 @@ export const OptimizedTabSystem = memo<OptimizedTabSystemProps>(({
   const [isTransitioning, setIsTransitioning] = useState(false);
 
   // Memoized tab configuration - SIN Beneficios y Analytics
+  // Usar stats básicas para los badges, las estadísticas detalladas se calculan en cada componente
   const tabs = useMemo<TabConfig[]>(() => [
     {
       id: 'dashboard',

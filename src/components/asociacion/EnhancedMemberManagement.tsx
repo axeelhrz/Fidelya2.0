@@ -32,6 +32,7 @@ import { SocioDialog } from './SocioDialog';
 import { AddRegisteredSocioButton } from './AddRegisteredSocioButton';
 import { DeleteConfirmDialog } from './DeleteConfirmDialog';
 import { UnlinkConfirmDialog } from './UnlinkConfirmDialog';
+import { EnhancedCsvImport } from './EnhancedCsvImport';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Timestamp } from 'firebase/firestore';
@@ -93,7 +94,10 @@ export const EnhancedMemberManagement = ({
 
   // Estados para importación/exportación
   const [exporting, setExporting] = useState(false);
-  const [importing, setImporting] = useState(false);
+  const [importing] = useState(false);
+  
+  // Estados para importación CSV mejorada
+  const [csvImportOpen, setCsvImportOpen] = useState(false);
 
   // Cargar datos iniciales
   useEffect(() => {
@@ -118,7 +122,15 @@ export const EnhancedMemberManagement = ({
   const handleRefresh = async () => {
     setRefreshing(true);
     try {
+      console.log('🔄 Refreshing member management data...');
       await Promise.all([forceReload(), loadVinculados()]);
+      
+      // Also trigger a stats refresh to ensure metrics are up to date
+      // This helps sync the dashboard metrics when membership statuses change
+      if (window.dispatchEvent) {
+        window.dispatchEvent(new CustomEvent('refreshSocioStats'));
+      }
+      
       toast.success('Datos actualizados');
     } catch {
       toast.error('Error al actualizar los datos');
@@ -258,6 +270,46 @@ export const EnhancedMemberManagement = ({
     setSocioToUnlink(null);
   };
 
+  // Función para manejar importación CSV con el componente mejorado
+  const handleCsvImport = async (csvData: Record<string, string>[]) => {
+    try {
+      // Convertir los datos del CSV al formato esperado por importSocios
+      const allowedEstados = ['activo', 'inactivo', 'pendiente', 'suspendido', 'vencido'] as const;
+      const sociosData = csvData.map(row => ({
+        nombre: row.nombre || '',
+        email: row.email || '',
+        dni: row.dni || '',
+        telefono: row.telefono || '',
+        numeroSocio: row.numeroSocio || '',
+        estado: allowedEstados.includes((row.estado || '').toLowerCase() as typeof allowedEstados[number])
+          ? ((row.estado || '').toLowerCase() as typeof allowedEstados[number])
+          : 'activo',
+        montoCuota: parseFloat(row.montoCuota) || 0,
+        direccion: row.direccion || '',
+        fechaNacimiento: row.fechaNacimiento ? new Date(row.fechaNacimiento) : undefined,
+        fechaVencimiento: undefined
+      }));
+
+      await importSocios(sociosData);
+      await handleRefresh();
+      
+      return {
+        success: true,
+        imported: sociosData.length,
+        duplicates: 0,
+        errors: []
+      };
+    } catch (error) {
+      console.error('Error en importación CSV:', error);
+      return {
+        success: false,
+        imported: 0,
+        duplicates: 0,
+        errors: [{ row: 0, error: 'Error general en la importación', data: {} }]
+      };
+    }
+  };
+
   // Función mejorada para exportar datos a Excel con diseño atractivo
   const handleExportExcel = async () => {
     if (exporting) return;
@@ -373,46 +425,6 @@ export const EnhancedMemberManagement = ({
       // Agregar la hoja de estadísticas
       XLSX.utils.book_append_sheet(workbook, statsSheet, 'Resumen');
 
-      // Crear hoja de plantilla para importación
-      const templateData = [
-        ['PLANTILLA PARA IMPORTACIÓN DE SOCIOS', '', '', '', '', '', '', ''],
-        ['', '', '', '', '', '', '', ''],
-        ['Instrucciones:', '', '', '', '', '', '', ''],
-        ['1. Complete los datos en las filas siguientes', '', '', '', '', '', '', ''],
-        ['2. No modifique los encabezados de las columnas', '', '', '', '', '', '', ''],
-        ['3. Los campos marcados con * son obligatorios', '', '', '', '', '', '', ''],
-        ['4. Estados válidos: activo, inactivo, suspendido, pendiente', '', '', '', '', '', '', ''],
-        ['', '', '', '', '', '', '', ''],
-        [
-          'Nombre Completo *',
-          'Correo Electrónico *',
-          'DNI/Documento',
-          'Teléfono',
-          'Número de Socio',
-          'Estado',
-          'Monto de Cuota',
-          'Dirección'
-        ],
-        [
-          'Juan Pérez',
-          'juan.perez@email.com',
-          '12345678',
-          '+54 9 11 1234-5678',
-          'SOC001',
-          'activo',
-          '1500',
-          'Av. Corrientes 1234, CABA'
-        ]
-      ];
-
-      const templateSheet = XLSX.utils.aoa_to_sheet(templateData);
-      templateSheet['!cols'] = [
-        { wch: 25 }, { wch: 30 }, { wch: 15 }, { wch: 18 },
-        { wch: 15 }, { wch: 12 }, { wch: 12 }, { wch: 30 }
-      ];
-
-      XLSX.utils.book_append_sheet(workbook, templateSheet, 'Plantilla');
-
       // Generar el archivo Excel
       const timestamp = format(new Date(), 'yyyy-MM-dd_HH-mm-ss');
       const filename = `Socios_Export_${timestamp}.xlsx`;
@@ -430,557 +442,6 @@ export const EnhancedMemberManagement = ({
       setExporting(false);
     }
   };
-
-  // Función optimizada para exportar datos a CSV (mantener como opción alternativa)
-
-  // Función optimizada para importar datos desde Excel con mejor manejo de errores
-  const handleImportExcel = async (file: File) => {
-    if (importing) return;
-    
-    setImporting(true);
-    const loadingToast = toast.loading('Procesando archivo Excel...');
-    
-    try {
-      // Validar tipo de archivo
-      const validExtensions = ['.xlsx', '.xls'];
-      const fileExtension = file.name.toLowerCase().substring(file.name.lastIndexOf('.'));
-      
-      if (!validExtensions.includes(fileExtension)) {
-        toast.dismiss(loadingToast);
-        toast.error('Por favor selecciona un archivo Excel válido (.xlsx o .xls)');
-        return;
-      }
-
-      // Validar tamaño del archivo (máximo 10MB para Excel)
-      if (file.size > 10 * 1024 * 1024) {
-        toast.dismiss(loadingToast);
-        toast.error('El archivo es demasiado grande. Máximo 10MB permitido.');
-        return;
-      }
-
-      // Leer el archivo Excel
-      const arrayBuffer = await file.arrayBuffer();
-      const workbook = XLSX.read(arrayBuffer, { type: 'array' });
-      
-      // Obtener la primera hoja
-      const firstSheetName = workbook.SheetNames[0];
-      const worksheet = workbook.Sheets[firstSheetName];
-      
-      // Convertir a JSON
-      const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as string[][];
-      
-      if (jsonData.length < 2) {
-        toast.dismiss(loadingToast);
-        toast.error('El archivo Excel debe tener al menos una fila de encabezados y una fila de datos');
-        return;
-      }
-
-      toast.dismiss(loadingToast);
-      const processingToast = toast.loading('Procesando datos...');
-
-      // Encontrar la fila de encabezados (buscar la primera fila que contenga "Nombre" o "Email")
-      let headerRowIndex = -1;
-      for (let i = 0; i < Math.min(10, jsonData.length); i++) {
-        const row = jsonData[i];
-        if (row && row.some((cell: string) => 
-          typeof cell === 'string' && 
-          (cell.toLowerCase().includes('nombre') || cell.toLowerCase().includes('email'))
-        )) {
-          headerRowIndex = i;
-          break;
-        }
-      }
-
-      if (headerRowIndex === -1) {
-        toast.dismiss(processingToast);
-        toast.error('No se encontraron encabezados válidos en el archivo');
-        return;
-      }
-
-      const headers = jsonData[headerRowIndex].map((h: string) => 
-        typeof h === 'string' ? h.toLowerCase().trim() : ''
-      );
-      
-      // Mapeo de encabezados posibles
-      const headerMap: Record<string, string> = {
-        'nombre': 'nombre',
-        'nombre completo': 'nombre',
-        'email': 'email',
-        'correo': 'email',
-        'correo electrónico': 'email',
-        'correo electronico': 'email',
-        'dni': 'dni',
-        'documento': 'dni',
-        'dni/documento': 'dni',
-        'telefono': 'telefono',
-        'teléfono': 'telefono',
-        'numero de socio': 'numeroSocio',
-        'número de socio': 'numeroSocio',
-        'numero socio': 'numeroSocio',
-        'estado': 'estado',
-        'monto cuota': 'montoCuota',
-        'monto de cuota': 'montoCuota',
-        'cuota': 'montoCuota',
-        'direccion': 'direccion',
-        'dirección': 'direccion'
-      };
-
-      // Validar que existan campos obligatorios
-      const requiredFields = ['nombre', 'email'];
-      const mappedHeaders = headers.map(h => headerMap[h] || h);
-      const missingFields = requiredFields.filter(field => 
-        !mappedHeaders.includes(field)
-      );
-
-      if (missingFields.length > 0) {
-        toast.dismiss(processingToast);
-        toast.error(`Faltan campos obligatorios: ${missingFields.join(', ')}`);
-        return;
-      }
-
-      // Procesar datos línea por línea
-      const sociosData: SocioFormData[] = [];
-      const errors: string[] = [];
-
-      for (let i = headerRowIndex + 1; i < jsonData.length; i++) {
-        try {
-          const values = jsonData[i];
-          
-          if (!values || values.length === 0 || values.every((v: string) => !v)) {
-            continue; // Saltar líneas vacías
-          }
-
-          const socio: Partial<SocioFormData> = {};
-          
-          headers.forEach((header, idx) => {
-            const mappedField = headerMap[header] || header;
-            const value = values[idx] ? String(values[idx]).trim() : '';
-            
-            if (!value) return;
-
-            switch (mappedField) {
-              case 'nombre':
-                socio.nombre = value;
-                break;
-              case 'email':
-                if (value.includes('@') && value.includes('.')) {
-                  socio.email = value.toLowerCase();
-                } else {
-                  errors.push(`Línea ${i + 1}: Email inválido "${value}"`);
-                }
-                break;
-              case 'dni':
-                socio.dni = value;
-                break;
-              case 'telefono':
-                socio.telefono = value;
-                break;
-              case 'numeroSocio':
-                socio.numeroSocio = value;
-                break;
-              case 'estado':
-                const validStates = ['activo', 'inactivo', 'suspendido', 'pendiente'];
-                const normalizedState = value.toLowerCase();
-                if (validStates.includes(normalizedState)) {
-                  socio.estado = normalizedState as SocioFormData['estado'];
-                } else {
-                  socio.estado = 'activo';
-                }
-                break;
-              case 'montoCuota':
-                const amount = parseFloat(value.replace(/[^\d.,]/g, '').replace(',', '.'));
-                if (!isNaN(amount) && amount >= 0) {
-                  socio.montoCuota = amount;
-                }
-                break;
-              case 'direccion':
-                socio.direccion = value;
-                break;
-            }
-          });
-
-          // Validar campos obligatorios
-          if (!socio.nombre || !socio.email) {
-            errors.push(`Línea ${i + 1}: Faltan campos obligatorios (nombre o email)`);
-            continue;
-          }
-
-          // Establecer valores por defecto
-          const completeSocio: SocioFormData = {
-            nombre: socio.nombre,
-            email: socio.email,
-            dni: socio.dni || '',
-            telefono: socio.telefono || '',
-            numeroSocio: socio.numeroSocio || '',
-            estado: socio.estado || 'activo',
-            montoCuota: socio.montoCuota || 0,
-            direccion: socio.direccion || '',
-            fechaNacimiento: undefined,
-            fechaVencimiento: undefined
-          };
-
-          sociosData.push(completeSocio);
-        } catch (error) {
-          errors.push(`Línea ${i + 1}: Error procesando datos - ${error}`);
-        }
-      }
-
-      toast.dismiss(processingToast);
-
-      if (sociosData.length === 0) {
-        toast.error('No se encontraron datos válidos para importar');
-        return;
-      }
-
-      // Mostrar resumen mejorado antes de importar
-      if (errors.length > 0) {
-        const duplicateErrors = errors.filter(e => e.includes('duplicado'));
-        const otherErrors = errors.filter(e => !e.includes('duplicado'));
-        
-        let message = `Se encontraron ${errors.length} problemas:\n`;
-        if (duplicateErrors.length > 0) {
-          message += `• ${duplicateErrors.length} socios duplicados en esta asociación\n`;
-        }
-        if (otherErrors.length > 0) {
-          message += `• ${otherErrors.length} otros errores\n`;
-        }
-        message += `\nSe importarán ${sociosData.length} socios válidos.\n¿Deseas continuar?`;
-        
-        const proceed = window.confirm(message);
-        
-        if (!proceed) {
-          toast('Importación cancelada');
-          return;
-        }
-      }
-
-      const importingToast = toast.loading(`Importando ${sociosData.length} socios...`);
-
-      try {
-        await importSocios(sociosData);
-        toast.dismiss(importingToast);
-        toast.success(
-          `Importación completada: ${sociosData.length} socios importados` +
-          (errors.length > 0 ? ` (${errors.length} errores omitidos)` : '')
-        );
-        await handleRefresh();
-      } catch (importError) {
-        toast.dismiss(importingToast);
-        toast.error('Error durante la importación. Algunos datos pueden no haberse guardado.');
-        console.error('Import error:', importError);
-      }
-
-    } catch (error) {
-      console.error('Error en importación Excel:', error);
-      toast.dismiss(loadingToast);
-      toast.error('Error al procesar el archivo Excel. Verifica que sea un archivo válido.');
-    } finally {
-      setImporting(false);
-      // Limpiar el input file
-      const fileInput = document.getElementById('import-file') as HTMLInputElement;
-      if (fileInput) {
-        fileInput.value = '';
-      }
-    }
-  };
-
-  // Función para manejar la importación (detecta automáticamente el tipo de archivo)
-  const handleImport = async (file: File) => {
-    const fileName = file.name.toLowerCase();
-    
-    if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) {
-      await handleImportExcel(file);
-    } else if (fileName.endsWith('.csv')) {
-      // Mantener la función CSV existente para compatibilidad
-      await handleImportCSV(file);
-    } else {
-      toast.error('Formato de archivo no soportado. Use Excel (.xlsx, .xls) o CSV (.csv)');
-    }
-  };
-
-  // Función CSV original (mantener para compatibilidad)
-  const handleImportCSV = async (file: File) => {
-    if (importing) return;
-    
-    setImporting(true);
-    const loadingToast = toast.loading('Procesando archivo CSV...');
-    
-    try {
-      const text = await file.text();
-      const cleanText = text.replace(/^\uFEFF/, '');
-      const lines = cleanText.split(/\r?\n/).filter(line => line.trim());
-      
-      if (lines.length < 2) {
-        toast.dismiss(loadingToast);
-        toast.error('El archivo CSV debe tener al menos una fila de encabezados y una fila de datos');
-        return;
-      }
-
-      toast.dismiss(loadingToast);
-      const processingToast = toast.loading('Procesando datos...');
-
-      // Función para parsear CSV de manera más robusta
-      const parseCSVLine = (line: string): string[] => {
-        const result: string[] = [];
-        let current = '';
-        let inQuotes = false;
-        
-        for (let i = 0; i < line.length; i++) {
-          const char = line[i];
-          
-          if (char === '"') {
-            if (inQuotes && line[i + 1] === '"') {
-              current += '"';
-              i++;
-            } else {
-              inQuotes = !inQuotes;
-            }
-          } else if (char === ',' && !inQuotes) {
-            result.push(current.trim());
-            current = '';
-          } else {
-            current += char;
-          }
-        }
-        
-        result.push(current.trim());
-        return result;
-      };
-
-      const headers = parseCSVLine(lines[0]).map(h => h.toLowerCase().trim());
-      
-      const headerMap: Record<string, string> = {
-        'nombre': 'nombre',
-        'nombre completo': 'nombre',
-        'email': 'email',
-        'correo': 'email',
-        'correo electrónico': 'email',
-        'correo electronico': 'email',
-        'dni': 'dni',
-        'documento': 'dni',
-        'dni/documento': 'dni',
-        'telefono': 'telefono',
-        'teléfono': 'telefono',
-        'numero de socio': 'numeroSocio',
-        'número de socio': 'numeroSocio',
-        'numero socio': 'numeroSocio',
-        'estado': 'estado',
-        'monto cuota': 'montoCuota',
-        'monto de cuota': 'montoCuota',
-        'cuota': 'montoCuota',
-        'direccion': 'direccion',
-        'dirección': 'direccion'
-      };
-
-      const requiredFields = ['nombre', 'email'];
-      const mappedHeaders = headers.map(h => headerMap[h] || h);
-      const missingFields = requiredFields.filter(field => 
-        !mappedHeaders.includes(field)
-      );
-
-      if (missingFields.length > 0) {
-        toast.dismiss(processingToast);
-        toast.error(`Faltan campos obligatorios: ${missingFields.join(', ')}`);
-        return;
-      }
-
-      const sociosData: SocioFormData[] = [];
-      const errors: string[] = [];
-
-      for (let i = 1; i < lines.length; i++) {
-        try {
-          const values = parseCSVLine(lines[i]);
-          
-          if (values.length === 0 || values.every(v => !v.trim())) {
-            continue;
-          }
-
-          const socio: Partial<SocioFormData> = {};
-          
-          headers.forEach((header, idx) => {
-            const mappedField = headerMap[header] || header;
-            const value = values[idx]?.trim() || '';
-            
-            if (!value) return;
-
-            switch (mappedField) {
-              case 'nombre':
-                socio.nombre = value;
-                break;
-              case 'email':
-                if (value.includes('@') && value.includes('.')) {
-                  socio.email = value.toLowerCase();
-                } else {
-                  errors.push(`Línea ${i + 1}: Email inválido "${value}"`);
-                }
-                break;
-              case 'dni':
-                socio.dni = value;
-                break;
-              case 'telefono':
-                socio.telefono = value;
-                break;
-              case 'numeroSocio':
-                socio.numeroSocio = value;
-                break;
-              case 'estado':
-                const validStates = ['activo', 'inactivo', 'suspendido', 'pendiente'];
-                const normalizedState = value.toLowerCase();
-                if (validStates.includes(normalizedState)) {
-                  socio.estado = normalizedState as SocioFormData['estado'];
-                } else {
-                  socio.estado = 'activo';
-                }
-                break;
-              case 'montoCuota':
-                const amount = parseFloat(value.replace(/[^\d.,]/g, '').replace(',', '.'));
-                if (!isNaN(amount) && amount >= 0) {
-                  socio.montoCuota = amount;
-                }
-                break;
-              case 'direccion':
-                socio.direccion = value;
-                break;
-            }
-          });
-
-          if (!socio.nombre || !socio.email) {
-            errors.push(`Línea ${i + 1}: Faltan campos obligatorios (nombre o email)`);
-            continue;
-          }
-
-          const completeSocio: SocioFormData = {
-            nombre: socio.nombre,
-            email: socio.email,
-            dni: socio.dni || '',
-            telefono: socio.telefono || '',
-            numeroSocio: socio.numeroSocio || '',
-            estado: socio.estado || 'activo',
-            montoCuota: socio.montoCuota || 0,
-            direccion: socio.direccion || '',
-            fechaNacimiento: undefined,
-            fechaVencimiento: undefined
-          };
-
-          sociosData.push(completeSocio);
-        } catch (error) {
-          errors.push(`Línea ${i + 1}: Error procesando datos - ${error}`);
-        }
-      }
-
-      toast.dismiss(processingToast);
-
-      if (sociosData.length === 0) {
-        toast.error('No se encontraron datos válidos para importar');
-        return;
-      }
-
-      if (errors.length > 0) {
-        const proceed = window.confirm(
-          `Se encontraron ${errors.length} errores en el archivo.\n` +
-          `Se importarán ${sociosData.length} socios válidos.\n` +
-          `¿Deseas continuar?`
-        );
-        
-        if (!proceed) {
-          toast('Importación cancelada');
-          return;
-        }
-      }
-
-      const importingToast = toast.loading(`Importando ${sociosData.length} socios...`);
-
-      try {
-        await importSocios(sociosData);
-        toast.dismiss(importingToast);
-        toast.success(
-          `Importación completada: ${sociosData.length} socios importados` +
-          (errors.length > 0 ? ` (${errors.length} errores omitidos)` : '')
-        );
-        await handleRefresh();
-      } catch (importError) {
-        toast.dismiss(importingToast);
-        toast.error('Error durante la importación. Algunos datos pueden no haberse guardado.');
-        console.error('Import error:', importError);
-      }
-
-    } catch (error) {
-      console.error('Error en importación CSV:', error);
-      toast.dismiss(loadingToast);
-      toast.error('Error al procesar el archivo CSV. Verifica que sea un CSV válido.');
-    } finally {
-      setImporting(false);
-      const fileInput = document.getElementById('import-file') as HTMLInputElement;
-      if (fileInput) {
-        fileInput.value = '';
-      }
-    }
-  };
-
-  // Función para descargar plantilla Excel
-  // const downloadExcelTemplate = () => {
-  //   const workbook = XLSX.utils.book_new();
-  
-  //   // Crear datos de la plantilla
-  //   const templateData = [
-  //     ['PLANTILLA PARA IMPORTACIÓN DE SOCIOS', '', '', '', '', '', '', ''],
-  //     ['', '', '', '', '', '', '', ''],
-  //     ['Instrucciones:', '', '', '', '', '', '', ''],
-  //     ['1. Complete los datos en las filas siguientes', '', '', '', '', '', '', ''],
-  //     ['2. No modifique los encabezados de las columnas', '', '', '', '', '', '', ''],
-  //     ['3. Los campos marcados con * son obligatorios', '', '', '', '', '', '', ''],
-  //     ['4. Estados válidos: activo, inactivo, suspendido, pendiente', '', '', '', '', '', '', ''],
-  //     ['5. Guarde el archivo como Excel (.xlsx) antes de importar', '', '', '', '', '', '', ''],
-  //     ['', '', '', '', '', '', '', ''],
-  //     [
-  //       'Nombre Completo *',
-  //       'Correo Electrónico *',
-  //       'DNI/Documento',
-  //       'Teléfono',
-  //       'Número de Socio',
-  //       'Estado',
-  //       'Monto de Cuota',
-  //       'Dirección'
-  //     ],
-  //     [
-  //       'Juan Pérez',
-  //       'juan.perez@email.com',
-  //       '12345678',
-  //       '+54 9 11 1234-5678',
-  //       'SOC001',
-  //       'activo',
-  //       1500,
-  //       'Av. Corrientes 1234, CABA'
-  //     ],
-  //     [
-  //       'María García',
-  //       'maria.garcia@email.com',
-  //       '87654321',
-  //       '+54 9 11 8765-4321',
-  //       'SOC002',
-  //       'activo',
-  //       2000,
-  //       'Av. Santa Fe 5678, CABA'
-  //     ]
-  //   ];
-  
-  //   const worksheet = XLSX.utils.aoa_to_sheet(templateData);
-    
-  //   // Configurar anchos de columna
-  //   worksheet['!cols'] = [
-  //     { wch: 25 }, { wch: 30 }, { wch: 15 }, { wch: 18 },
-  //     { wch: 15 }, { wch: 12 }, { wch: 12 }, { wch: 30 }
-  //   ];
-  
-  //   XLSX.utils.book_append_sheet(workbook, worksheet, 'Plantilla');
-  
-  //   // Generar y descargar el archivo
-  //   XLSX.writeFile(workbook, 'Plantilla_Socios.xlsx');
-  //   toast.success('Plantilla Excel descargada exitosamente');
-  // };
-
-  // Función para descargar plantilla CSV (mantener para compatibilidad)
-  // Removed unused downloadCSVTemplate function to fix compile error.
 
   // Filtrar socios
   const filteredSocios = socios.filter(socio => {
@@ -1206,13 +667,13 @@ export const EnhancedMemberManagement = ({
                 )}
               </motion.button>
 
-              {/* Botón de Exportar - NUEVO BOTÓN DIRECTO */}
+              {/* Botón de Exportar */}
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={handleExportExcel}
                 disabled={exporting || socios.length === 0}
-                className="flex items-center gap-2 bg-gradient-to-r from-emerald-500 via-green-500 to-teal-500 text-white px-5 py-2.5 rounded-2xl hover:from-emerald-600 hover:via-green-600 hover:to-teal-600 transition-all duration-300 font-semibold shadow                lg hover:shadow-xl border border-white/20 relative overflow-hidden group disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex items-center gap-2 bg-gradient-to-r from-emerald-500 via-green-500 to-teal-500 text-white px-5 py-2.5 rounded-2xl hover:from-emerald-600 hover:via-green-600 hover:to-teal-600 transition-all duration-300 font-semibold shadow-lg hover:shadow-xl border border-white/20 relative overflow-hidden group disabled:opacity-50 disabled:cursor-not-allowed"
                 title="Exportar socios a Excel"
               >
                 <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
@@ -1226,14 +687,14 @@ export const EnhancedMemberManagement = ({
                 </span>
               </motion.button>
 
-              {/* Botón de Importación Directo */}
+              {/* Botón de Importación CSV Mejorado */}
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                onClick={() => document.getElementById('import-file')?.click()}
+                onClick={() => setCsvImportOpen(true)}
                 disabled={importing}
                 className="flex items-center gap-2 bg-gradient-to-r from-purple-500 via-violet-500 to-indigo-500 text-white px-5 py-2.5 rounded-2xl hover:from-purple-600 hover:via-violet-600 hover:to-indigo-600 transition-all duration-300 font-semibold shadow-lg hover:shadow-xl border border-white/20 relative overflow-hidden group disabled:opacity-50 disabled:cursor-not-allowed"
-                title="Importar socios desde Excel o CSV"
+                title="Importar socios desde CSV con ejemplos"
               >
                 <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                 {importing ? (
@@ -1242,7 +703,7 @@ export const EnhancedMemberManagement = ({
                   <Upload className="w-4 h-4 relative z-10" />
                 )}
                 <span className="hidden sm:inline relative z-10">
-                  {importing ? 'Importando...' : 'Importar'}
+                  {importing ? 'Importando...' : 'Importar CSV'}
                 </span>
               </motion.button>
 
@@ -1349,19 +810,6 @@ export const EnhancedMemberManagement = ({
           </AnimatePresence>
         </div>
       </motion.div>
-
-      {/* Hidden file input */}
-      <input
-        id="import-file"
-        type="file"
-        accept=".xlsx,.xls,.csv"
-        className="hidden"
-        onChange={(e) => {
-          if (e.target.files?.[0]) {
-            handleImport(e.target.files[0]);
-          }
-        }}
-      />
 
       {/* Content Area */}
       <motion.div
@@ -1690,6 +1138,16 @@ export const EnhancedMemberManagement = ({
           />
         )}
 
+        {/* Enhanced CSV Import Dialog */}
+        {csvImportOpen && (
+          <EnhancedCsvImport
+            open={csvImportOpen}
+            onClose={() => setCsvImportOpen(false)}
+            onImport={handleCsvImport}
+            loading={importing}
+          />
+        )}
+
         {/* Delete Confirmation Dialog */}
         {deleteDialogOpen && (
           <DeleteConfirmDialog
@@ -1721,4 +1179,3 @@ export const EnhancedMemberManagement = ({
     </div>
   );
 };
-

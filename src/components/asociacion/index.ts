@@ -4,3 +4,4 @@ export { SociosTable } from './SociosTable';
 export { EnhancedSocioDialog } from './EnhancedSocioDialog';
 export { CsvImport } from './CsvImport';
 export { EnhancedCsvImport } from './EnhancedCsvImport';
+export { AsociacionWelcomeCard } from './AsociacionWelcomeCard';

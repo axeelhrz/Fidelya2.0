@@ -3,7 +3,6 @@ import {
   doc,
   getDoc,
   getDocs,
-  addDoc,
   updateDoc,
   deleteDoc,
   query,
@@ -117,7 +116,7 @@ class ComercioService {
   }
 
   /**
-   * Create new comercio without Firebase Authentication account (to avoid session conflicts)
+   * Create new comercio WITH Firebase Authentication account (FIXED VERSION)
    */
   async createComercio(data: ComercioFormData & { password: string }, asociacionId: string): Promise<string | null> {
     try {
@@ -142,44 +141,17 @@ class ComercioService {
         throw new Error('Ya existe un comercio con este email');
       }
 
-      // Create comercio document with pending auth account creation
-      const comercioData = {
-        ...data,
-        estado: 'activo' as const, // Activo desde el inicio
-        visible: true,
-        asociacionesVinculadas: [asociacionId],
-        beneficiosActivos: 0,
-        validacionesRealizadas: 0,
-        clientesAtendidos: 0,
-        ingresosMensuales: 0,
-        rating: 0,
-        configuracion: data.configuracion || {
-          notificacionesEmail: true,
-          notificacionesWhatsApp: false,
-          autoValidacion: false,
-          requiereAprobacion: true,
-        },
-        // Store password temporarily for account creation (encrypted in real implementation)
-        tempPassword: data.password,
-        requiresAccountCreation: true,
-        hasAuthAccount: false,
-        creadoEn: serverTimestamp(),
-        actualizadoEn: serverTimestamp(),
-      };
+      // NUEVO: Usar el servicio de autenticación para crear la cuenta completa
+      const { comercioAuthService } = await import('./comercio-auth.service');
+      const authResult = await comercioAuthService.createComercioAuthAccount(data, asociacionId);
+      
+      if (!authResult.success) {
+        throw new Error(authResult.error || 'Error al crear la cuenta de autenticación');
+      }
 
-      // Remove password from the data to avoid storing it in Firestore
-      const { ...cleanData } = comercioData;
-
-      const docRef = await addDoc(collection(db, this.collection), cleanData);
+      console.log('✅ Comercio created successfully with auth account:', authResult.uid);
       
-      console.log('✅ Comercio created successfully (auth account pending):', docRef.id);
-      
-      // TODO: In a real implementation, you would:
-      // 1. Send an email to the comercio with account activation link
-      // 2. Use Firebase Admin SDK on the server to create the auth account
-      // 3. Or implement a separate registration flow for comercios
-      
-      return docRef.id;
+      return authResult.uid || null;
     } catch (error) {
       handleError(error, 'Create Comercio');
       return null;

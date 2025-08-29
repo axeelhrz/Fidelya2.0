@@ -13,11 +13,14 @@ import { COLLECTIONS, USER_STATES } from '@/lib/constants';
 import { handleError } from '@/lib/error-handler';
 import { SocioFormData } from '@/types/socio';
 import { membershipSyncService } from './membership-sync.service';
+import { accountActivationEmailService } from './account-activation-email.service';
 
 export interface CreateSocioAuthAccountResult {
   success: boolean;
   uid?: string;
   error?: string;
+  emailSent?: boolean;
+  emailError?: string;
 }
 
 type SocioDocData = { [key: string]: unknown };
@@ -25,6 +28,7 @@ type SocioDocData = { [key: string]: unknown };
 class SocioAuthService {
   /**
    * Crea una cuenta de Firebase Auth para un socio con estado de membresía correcto
+   * y envía automáticamente el email de activación
    */
   async createSocioAuthAccount(
     socioData: SocioFormData,
@@ -136,11 +140,39 @@ class SocioAuthService {
         // No fallar la creación por errores de sincronización
       }
 
+      // NUEVO: Enviar email de activación automáticamente
+      console.log('📧 Enviando email de activación de cuenta...');
+      let emailSent = false;
+      let emailError: string | undefined;
+
+      try {
+        const emailResult = await accountActivationEmailService.sendAccountActivationEmailWithRetry(
+          socioData.nombre,
+          socioData.email.toLowerCase().trim(),
+          socioData.password, // Enviar la contraseña temporal
+          asociacionId,
+          socioData.numeroSocio
+        );
+
+        emailSent = emailResult.success;
+        if (!emailResult.success) {
+          emailError = emailResult.error;
+          console.warn('⚠️ Error enviando email de activación:', emailResult.error);
+        } else {
+          console.log('✅ Email de activación enviado exitosamente');
+        }
+      } catch (emailSendError) {
+        emailError = emailSendError instanceof Error ? emailSendError.message : 'Error desconocido enviando email';
+        console.error('❌ Error crítico enviando email de activación:', emailSendError);
+      }
+
       console.log('✅ Cuenta de socio creada exitosamente con estado correcto');
 
       return {
         success: true,
-        uid: newUser.uid
+        uid: newUser.uid,
+        emailSent,
+        emailError
       };
 
     } catch (error) {
@@ -158,7 +190,8 @@ class SocioAuthService {
 
       return {
         success: false,
-        error: handleError(error, 'Create Socio Auth Account', false).message
+        error: handleError(error, 'Create Socio Auth Account', false).message,
+        emailSent: false
       };
     }
   }

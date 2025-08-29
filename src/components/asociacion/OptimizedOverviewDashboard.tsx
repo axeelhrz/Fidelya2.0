@@ -22,7 +22,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/hooks/useAuth';
-import { useOptimizedSocioData } from '@/hooks/useOptimizedSocioData';
+import { useRealtimeSocioStats } from '@/hooks/useRealtimeSocioStats';
 import { useOptimizedComercioData } from '@/hooks/useOptimizedComercioData';
 import { useDebounce } from '@/hooks/useDebounce';
 import { format } from 'date-fns';
@@ -54,7 +54,8 @@ const OptimizedQuickStats = memo<{
   vencidosSocios: number;
   totalComercios: number;
   loading: boolean;
-}>(({ totalSocios, activosSocios, vencidosSocios, totalComercios, loading }) => {
+  lastUpdated?: Date | null;
+}>(({ totalSocios, activosSocios, vencidosSocios, totalComercios, loading, lastUpdated }) => {
   const stats = useMemo(() => {
     const baseStats = [
       {
@@ -83,51 +84,111 @@ const OptimizedQuickStats = memo<{
       }
     ];
 
-    // Only add vencidos if there are any
-    if (vencidosSocios > 0) {
-      baseStats.splice(2, 0, {
-        label: 'Socios Vencidos',
-        value: vencidosSocios,
-        icon: <UserX className="w-4 h-4 sm:w-5 sm:h-5" />,
-        gradient: 'from-red-500 to-pink-500',
-        bgGradient: 'from-red-50 to-pink-50',
-        borderColor: 'border-red-100'
-      });
-    }
+    // Always add vencidos card, but make it more prominent when there are expired members
+    baseStats.splice(2, 0, {
+      label: 'Socios Vencidos',
+      value: vencidosSocios,
+      icon: <UserX className="w-4 h-4 sm:w-5 sm:h-5" />,
+      gradient: 'from-red-500 to-pink-500',
+      bgGradient: 'from-red-50 to-pink-50',
+      borderColor: 'border-red-100'
+    });
 
     return baseStats;
   }, [totalSocios, activosSocios, vencidosSocios, totalComercios]);
 
-  const gridCols = vencidosSocios > 0 ? 'grid-cols-2 lg:grid-cols-4' : 'grid-cols-1 sm:grid-cols-3';
+  const gridCols = 'grid-cols-2 lg:grid-cols-4'; // Always show 4 columns
 
   return (
-    <div className={`grid ${gridCols} gap-3 sm:gap-4 lg:gap-6 mb-6 sm:mb-8`}>
-      {stats.map((stat, index) => (
-        <motion.div
-          key={stat.label}
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: index * 0.1 }}
-          whileHover={{ scale: 1.02, y: -2 }}
-          className={`bg-gradient-to-br ${stat.bgGradient} rounded-xl sm:rounded-2xl lg:rounded-3xl shadow-md sm:shadow-lg border ${stat.borderColor} p-3 sm:p-4 lg:p-6 transition-all duration-300 hover:shadow-lg sm:hover:shadow-xl`}
-        >
-          <div className="flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-3 lg:space-x-4">
-            <div className={`w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 xl:w-14 xl:h-14 rounded-xl sm:rounded-2xl flex items-center justify-center text-white bg-gradient-to-br ${stat.gradient} shadow-lg mx-auto sm:mx-0`}>
-              {stat.icon}
-            </div>
-            <div className="text-center sm:text-left">
-              <p className="text-xs sm:text-sm font-semibold text-slate-600 mb-1">{stat.label}</p>
-              <p className="text-lg sm:text-xl lg:text-2xl xl:text-3xl font-bold text-slate-900">
-                {loading ? (
-                  <div className="w-12 h-6 sm:w-16 sm:h-8 bg-slate-200 rounded animate-pulse mx-auto sm:mx-0" />
-                ) : (
-                  stat.value.toLocaleString()
-                )}
-              </p>
+    <div className="space-y-4">
+      {/* Last Updated Indicator */}
+      {lastUpdated && (
+        <div className="flex items-center justify-center">
+          <div className="bg-slate-100/80 backdrop-blur-sm rounded-full px-3 py-1.5 border border-slate-200/50">
+            <div className="flex items-center gap-2 text-xs text-slate-600">
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+              <span>Actualizado: {format(lastUpdated, 'HH:mm:ss')}</span>
+              <span className="text-slate-400">•</span>
+              <span className="text-green-600 font-medium">Datos de tabla</span>
             </div>
           </div>
-        </motion.div>
-      ))}
+        </div>
+      )}
+
+      <div className={`grid ${gridCols} gap-3 sm:gap-4 lg:gap-6`}>
+        {stats.map((stat, index) => (
+          <motion.div
+            key={stat.label}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: index * 0.1 }}
+            whileHover={{ scale: 1.02, y: -2 }}
+            className={`bg-gradient-to-br ${stat.bgGradient} rounded-xl sm:rounded-2xl lg:rounded-3xl shadow-md sm:shadow-lg border ${stat.borderColor} p-3 sm:p-4 lg:p-6 transition-all duration-300 hover:shadow-lg sm:hover:shadow-xl relative overflow-hidden ${
+              stat.label === 'Socios Vencidos' && stat.value > 0 ? 'ring-2 ring-red-200 ring-opacity-50' : ''
+            }`}
+          >
+            {/* Animated background for vencidos */}
+            {stat.label === 'Socios Vencidos' && stat.value > 0 && (
+              <motion.div
+                animate={{ opacity: [0.3, 0.6, 0.3] }}
+                transition={{ duration: 2, repeat: Infinity }}
+                className="absolute inset-0 bg-gradient-to-r from-red-400/10 to-pink-400/10"
+              />
+            )}
+            
+            {/* Pulse effect for vencidos when > 0 */}
+            {stat.label === 'Socios Vencidos' && stat.value > 0 && (
+              <motion.div
+                animate={{ scale: [1, 1.05, 1] }}
+                transition={{ duration: 2, repeat: Infinity }}
+                className="absolute inset-0 bg-red-500/5 rounded-xl sm:rounded-2xl lg:rounded-3xl"
+              />
+            )}
+            
+            <div className="flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-3 lg:space-x-4 relative z-10">
+              <div className={`w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 xl:w-14 xl:h-14 rounded-xl sm:rounded-2xl flex items-center justify-center text-white bg-gradient-to-br ${stat.gradient} shadow-lg mx-auto sm:mx-0 ${
+                stat.label === 'Socios Vencidos' && stat.value > 0 ? 'animate-pulse' : ''
+              }`}>
+                {stat.icon}
+              </div>
+              <div className="text-center sm:text-left">
+                <p className="text-xs sm:text-sm font-semibold text-slate-600 mb-1">{stat.label}</p>
+                <p className="text-lg sm:text-xl lg:text-2xl xl:text-3xl font-bold text-slate-900">
+                  {loading ? (
+                    <div className="w-12 h-6 sm:w-16 sm:h-8 bg-slate-200 rounded animate-pulse mx-auto sm:mx-0" />
+                  ) : (
+                    <motion.span
+                      key={stat.value}
+                      initial={{ scale: 1.2, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      transition={{ duration: 0.3 }}
+                      className={stat.label === 'Socios Vencidos' && stat.value > 0 ? 'text-red-700' : ''}
+                    >
+                      {stat.value.toLocaleString()}
+                    </motion.span>
+                  )}
+                </p>
+                {/* Show percentage for vencidos */}
+                {stat.label === 'Socios Vencidos' && totalSocios > 0 && (
+                  <p className={`text-xs font-medium mt-1 ${
+                    stat.value > 0 ? 'text-red-600' : 'text-slate-500'
+                  }`}>
+                    {Math.round((stat.value / totalSocios) * 100)}% del total
+                  </p>
+                )}
+                {/* Show status for vencidos */}
+                {stat.label === 'Socios Vencidos' && (
+                  <p className={`text-xs font-medium mt-1 ${
+                    stat.value > 0 ? 'text-red-600' : 'text-green-600'
+                  }`}>
+                    {stat.value > 0 ? 'Requieren atención' : 'Todo al día'}
+                  </p>
+                )}
+              </div>
+            </div>
+          </motion.div>
+        ))}
+      </div>
     </div>
   );
 });
@@ -155,8 +216,8 @@ const LoadingSkeleton = memo(() => (
     </div>
 
     {/* Quick Stats Skeleton */}
-    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 lg:gap-6">
-      {[1, 2, 3].map((i) => (
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
+      {[1, 2, 3, 4].map((i) => (
         <div key={i} className="bg-slate-50 rounded-xl sm:rounded-2xl lg:rounded-3xl shadow-md sm:shadow-lg p-3 sm:p-4 lg:p-6">
           <div className="flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-3 lg:space-x-4">
             <div className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 xl:w-14 xl:h-14 bg-slate-200 rounded-xl sm:rounded-2xl animate-pulse mx-auto sm:mx-0" />
@@ -186,12 +247,14 @@ const OptimizedOverviewDashboard: React.FC<OverviewDashboardProps> = ({
   onAddMember
 }) => {
   const { user } = useAuth();
+  
+  // Usar el nuevo hook que calcula estadísticas desde los datos de la tabla
   const { 
     stats: socioStats, 
     loading: sociosLoading, 
     refreshStats: refreshSocioStats,
     lastUpdated: socioLastUpdated 
-  } = useOptimizedSocioData();
+  } = useRealtimeSocioStats();
   
   const { 
     stats: comercioStats, 
@@ -214,6 +277,7 @@ const OptimizedOverviewDashboard: React.FC<OverviewDashboardProps> = ({
     
     setRefreshing(true);
     try {
+      console.log('🔄 Manual refresh triggered from dashboard');
       await Promise.all([
         refreshSocioStats(),
         refreshComercioStats()
@@ -327,13 +391,14 @@ const OptimizedOverviewDashboard: React.FC<OverviewDashboardProps> = ({
         </div>
       </motion.div>
 
-      {/* Quick Stats */}
+      {/* Quick Stats - Now using realtime data from table */}
       <OptimizedQuickStats
         totalSocios={socioStats.total}
         activosSocios={socioStats.activos}
         vencidosSocios={socioStats.vencidos}
         totalComercios={comercioStats.comerciosActivos}
         loading={sociosLoading || comerciosLoading}
+        lastUpdated={socioLastUpdated}
       />
 
       {/* Activity Timeline - Full Width */}

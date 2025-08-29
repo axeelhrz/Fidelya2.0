@@ -354,54 +354,25 @@ export function SocioAnalytics() {
     },
   });
 
-  // Debug: Log de datos para identificar problemas
-  useEffect(() => {
-    console.log('🔍 DEBUG - Estado actual de socios:');
-    console.log('- Total socios:', total);
-    console.log('- Socios cargados:', clientes.length);
-    console.log('- Loading:', loading);
-    console.log('- Error:', error);
-    console.log('- Stats:', clienteStats);
-    console.log('- Filtros activos:', filtros);
-    
-    if (clientes.length > 0) {
-      console.log('- Primer socio:', clientes[0]);
-    }
-  }, [clientes, total, loading, error, clienteStats, filtros]);
-
   // Función para actualizar las estadísticas del dashboard principal
   const updateDashboardStats = useCallback(async () => {
     try {
-      console.log('🔄 Actualizando estadísticas del dashboard...');
-      
       await refreshStats();
-      console.log('✅ Stats de socios actualizadas');
-      
       await loadComercioStats();
-      console.log('✅ Stats de comercio actualizadas');
-      
-      console.log('✅ Todas las estadísticas actualizadas correctamente');
     } catch (error) {
-      console.error('❌ Error updating dashboard stats:', error);
+      console.error('Error updating dashboard stats:', error);
     }
   }, [refreshStats, loadComercioStats]);
 
   // Función para forzar recarga completa
   const forceReload = useCallback(async () => {
     try {
-      console.log('🔄 Forzando recarga completa de datos...');
-      
-      // Limpiar filtros primero
       clearFiltros();
-      
-      // Recargar datos
       await loadClientes();
       await updateDashboardStats();
-      
-      console.log('✅ Recarga completa finalizada');
       toast.success('Datos actualizados correctamente');
     } catch (error) {
-      console.error('❌ Error en recarga completa:', error);
+      console.error('Error en recarga completa:', error);
       toast.error('Error al actualizar los datos');
     }
   }, [loadClientes, updateDashboardStats, clearFiltros]);
@@ -445,23 +416,18 @@ export function SocioAnalytics() {
 
   const handleCreateSocio = async () => {
     try {
-      console.log('🚀 Creando nuevo socio con datos:', formData);
-      
       const socioId = await createCliente(formData);
-      console.log('📝 Socio creado con ID:', socioId);
       
       if (socioId) {
         setShowCreateModal(false);
         resetForm();
         toast.success('Socio creado exitosamente');
         
-        console.log('🔄 Iniciando actualización completa...');
         await loadClientes();
         await updateDashboardStats();
-        console.log('✅ Proceso de creación completado');
       }
     } catch (error) {
-      console.error('❌ Error creating socio:', error);
+      console.error('Error creating socio:', error);
       toast.error('Error al crear el socio. Inténtalo de nuevo.');
     }
   };
@@ -470,8 +436,6 @@ export function SocioAnalytics() {
     if (!selectedCliente) return;
 
     try {
-      console.log('🗑️ Eliminando socio:', selectedCliente.id);
-      
       const success = await deleteCliente(selectedCliente.id);
       if (success) {
         setShowDeleteModal(false);
@@ -480,15 +444,12 @@ export function SocioAnalytics() {
         
         await loadClientes();
         await updateDashboardStats();
-        
-        console.log('✅ Socio eliminado correctamente');
       }
     } catch (error) {
-      console.error('❌ Error deleting socio:', error);
+      console.error('Error deleting socio:', error);
       toast.error('Error al eliminar el socio. Inténtalo de nuevo.');
     }
   };
-
 
   // Calcular métricas avanzadas basadas en datos reales
   const advancedMetrics = useMemo(() => {
@@ -535,7 +496,6 @@ export function SocioAnalytics() {
 
   // Cargar datos iniciales
   useEffect(() => {
-    console.log('🚀 Componente montado, cargando datos iniciales...');
     updateDashboardStats();
   }, [updateDashboardStats]);
 
@@ -561,16 +521,12 @@ export function SocioAnalytics() {
 
   return (
     <div className="space-y-8">
-      {/* Header mejorado con debugging */}
+      {/* Header mejorado */}
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
             <Users className="text-purple-600" size={28} />
             Gestión de Socios
-            {/* Debug badge */}
-            <span className="bg-blue-100 text-blue-800 text-sm px-2 py-1 rounded-full">
-              {total} total | {clientes.length} cargados
-            </span>
           </h2>
           <p className="text-gray-600 mt-1">
             Gestiona y analiza a tus socios de manera eficiente
@@ -604,7 +560,7 @@ export function SocioAnalytics() {
             </button>
           </div>
 
-          {/* Botón de recarga forzada para debugging */}
+          {/* Botón de recarga */}
           <Button
             variant="outline"
             leftIcon={loading ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
@@ -830,22 +786,8 @@ export function SocioAnalytics() {
             </AnimatePresence>
           </div>
 
-          {/* Lista de socios mejorada con debugging */}
+          {/* Lista de socios */}
           <div className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
-            {/* Debug info header */}
-            {process.env.NODE_ENV === 'development' && (
-              <div className="bg-blue-50 border-b border-blue-200 p-4">
-                <div className="flex items-center gap-4 text-sm">
-                  <span className="font-medium text-blue-800">Debug Info:</span>
-                  <span className="text-blue-600">Total: {total}</span>
-                  <span className="text-blue-600">Cargados: {clientes.length}</span>
-                  <span className="text-blue-600">Loading: {loading ? 'Sí' : 'No'}</span>
-                  <span className="text-blue-600">Error: {error || 'Ninguno'}</span>
-                  <span className="text-blue-600">HasMore: {hasMore ? 'Sí' : 'No'}</span>
-                </div>
-              </div>
-            )}
-
             {error && (
               <div className="p-6 bg-red-50 border-b border-red-200 flex items-center gap-3">
                 <AlertCircle className="text-red-500" size={20} />
@@ -1237,10 +1179,8 @@ export function SocioAnalytics() {
       {/* Componente de creación rápida flotante */}
       <QuickClienteCreator
         onCreateCliente={async (clienteData) => {
-          console.log('🚀 Creando socio desde QuickCreator...');
           const result = await createCliente(clienteData);
           if (result) {
-            console.log('✅ Socio creado desde QuickCreator, actualizando...');
             await loadClientes();
             await updateDashboardStats();
           }

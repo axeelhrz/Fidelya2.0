@@ -6,10 +6,6 @@ import {
   User, 
   TrendingUp, 
   Shield, 
-  Gift,
-  Building2,
-  Star,
-  Activity,
   QrCode,
   Eye,
   LogOut
@@ -41,7 +37,6 @@ interface SocioWelcomeCardProps {
 const SocioWelcomeCard = memo<SocioWelcomeCardProps>(({ 
   user, 
   socio, 
-  stats, 
   onQuickScan, 
   onViewProfile,
   onLogout
@@ -170,62 +165,6 @@ const SocioWelcomeCard = memo<SocioWelcomeCardProps>(({
           </div>
         </div>
       </div>
-
-      {/* Stats Section */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.3 }}
-        className="mt-6 sm:mt-8 grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6"
-      >
-        <div className="text-center bg-gradient-to-br from-blue-50 to-blue-100 p-4 sm:p-6 rounded-2xl border border-blue-200">
-          <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-r from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg">
-            <Gift className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
-          </div>
-          <div className="text-xl sm:text-2xl font-black text-blue-700 mb-1">
-            {stats.totalBeneficios || 0}
-          </div>
-          <div className="text-xs sm:text-sm text-blue-600 font-bold uppercase tracking-wide">
-            Beneficios
-          </div>
-        </div>
-        
-        <div className="text-center bg-gradient-to-br from-emerald-50 to-emerald-100 p-4 sm:p-6 rounded-2xl border border-emerald-200">
-          <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg">
-            <Star className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
-          </div>
-          <div className="text-xl sm:text-2xl font-black text-emerald-700 mb-1">
-            {stats.beneficiosUsados || 0}
-          </div>
-          <div className="text-xs sm:text-sm text-emerald-600 font-bold uppercase tracking-wide">
-            Utilizados
-          </div>
-        </div>
-        
-        <div className="text-center bg-gradient-to-br from-purple-50 to-purple-100 p-4 sm:p-6 rounded-2xl border border-emerald-200">
-          <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-r from-purple-500 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg">
-            <Building2 className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
-          </div>
-          <div className="text-xl sm:text-2xl font-black text-purple-700 mb-1">
-            {stats.asociacionesActivas || 0}
-          </div>
-          <div className="text-xs sm:text-sm text-purple-600 font-bold uppercase tracking-wide">
-            Asociaciones
-          </div>
-        </div>
-        
-        <div className="text-center bg-gradient-to-br from-amber-50 to-amber-100 p-4 sm:p-6 rounded-2xl border border-amber-200">
-          <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-r from-amber-500 to-amber-600 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg">
-            <Activity className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
-          </div>
-          <div className="text-xl sm:text-2xl font-black text-amber-700 mb-1">
-            {stats.beneficiosEstesMes || 0}
-          </div>
-          <div className="text-xs sm:text-sm text-amber-600 font-bold uppercase tracking-wide">
-            Este Mes
-          </div>
-        </div>
-      </motion.div>
     </motion.div>
   );
 });

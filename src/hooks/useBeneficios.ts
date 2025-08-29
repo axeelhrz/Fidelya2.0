@@ -344,16 +344,23 @@ export const useBeneficios = (options: UseBeneficiosOptions = {}) => {
     [beneficiosActivos]
   );
 
-  // Estadísticas rápidas memoizadas y estables
+  // Estadísticas rápidas memoizadas y estables - CORREGIDO CÁLCULO MENSUAL
   const estadisticasRapidas = useMemo(() => {
     const now = new Date();
     const currentMonth = now.getMonth();
     const currentYear = now.getFullYear();
 
+    console.log('🔍 Calculando estadísticas rápidas:', {
+      beneficiosUsados: beneficiosUsados.length,
+      fechaActual: now.toLocaleDateString(),
+      mesActual: currentMonth,
+      añoActual: currentYear
+    });
+
+    // Calcular ahorro del mes actual con manejo robusto de fechas
     const ahorroEsteMes = beneficiosUsados
       .filter(uso => {
         try {
-          // Manejo más robusto de Timestamp
           let fecha: Date;
           
           if (!uso.fechaUso) {
@@ -377,21 +384,63 @@ export const useBeneficios = (options: UseBeneficiosOptions = {}) => {
             }
           }
           
-          return fecha.getMonth() === currentMonth && fecha.getFullYear() === currentYear;
-        } catch {
+          const esDelMesActual = fecha.getMonth() === currentMonth && fecha.getFullYear() === currentYear;
+          
+          if (esDelMesActual) {
+            console.log('✅ Beneficio del mes actual:', {
+              fecha: fecha.toLocaleDateString(),
+              titulo: uso.beneficioTitulo,
+              monto: uso.montoDescuento
+            });
+          }
+          
+          return esDelMesActual;
+        } catch (error) {
+          console.error('Error procesando fecha de uso:', error, uso);
           return false;
         }
       })
       .reduce((total, uso) => total + (uso.montoDescuento || 0), 0);
 
-    return {
+    // Calcular beneficios usados este mes (cantidad, no monto)
+    const beneficiosUsadosEsteMes = beneficiosUsados.filter(uso => {
+      try {
+        let fecha: Date;
+        
+        if (!uso.fechaUso) {
+          return false;
+        }
+        
+        if (typeof uso.fechaUso === 'object' && uso.fechaUso !== null && 'toDate' in uso.fechaUso && typeof uso.fechaUso.toDate === 'function') {
+          fecha = uso.fechaUso.toDate();
+        } else if (typeof uso.fechaUso === 'object' && uso.fechaUso !== null && 'getTime' in uso.fechaUso && typeof uso.fechaUso.getTime === 'function') {
+          fecha = uso.fechaUso as unknown as Date;
+        } else {
+          fecha = new Date(uso.fechaUso as unknown as string | number);
+          if (isNaN(fecha.getTime())) {
+            return false;
+          }
+        }
+        
+        return fecha.getMonth() === currentMonth && fecha.getFullYear() === currentYear;
+      } catch {
+        return false;
+      }
+    }).length;
+
+    const estadisticas = {
       total: beneficiosActivos.length,
       disponibles: beneficiosActivos.length, // Beneficios disponibles para usar
       activos: beneficiosActivos.length,
       usados: beneficiosUsados.length, // Beneficios que ya ha usado el socio
+      usadosEsteMes: beneficiosUsadosEsteMes, // NUEVO: Cantidad de beneficios usados este mes
       ahorroTotal: beneficiosUsados.reduce((total, uso) => total + (uso.montoDescuento || 0), 0),
       ahorroEsteMes
     };
+
+    console.log('📊 Estadísticas calculadas:', estadisticas);
+
+    return estadisticas;
   }, [beneficiosActivos.length, beneficiosUsados]);
 
   // Funciones de acción optimizadas

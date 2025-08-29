@@ -33,6 +33,14 @@ export interface ImportResult {
   duplicates: number;
 }
 
+export interface CreateSocioResult {
+  success: boolean;
+  socioId?: string;
+  error?: string;
+  emailSent?: boolean;
+  emailError?: string;
+}
+
 class SocioService {
   private readonly collection = COLLECTIONS.SOCIOS;
 
@@ -177,9 +185,9 @@ class SocioService {
   }
 
   /**
-   * Create new socio with Firebase Authentication account
+   * Create new socio with Firebase Authentication account and automatic activation email
    */
-  async createSocio(asociacionId: string, data: SocioFormData): Promise<string | null> {
+  async createSocio(asociacionId: string, data: SocioFormData): Promise<CreateSocioResult> {
     try {
       // Validar que se proporcione una contraseña
       if (!data.password || data.password.length < 6) {
@@ -225,13 +233,30 @@ class SocioService {
       
       if (result.success && result.uid) {
         console.log('✅ Socio created successfully with auth account:', result.uid);
-        return result.uid;
+        
+        // Log del estado del email
+        if (result.emailSent) {
+          console.log('📧 Email de activación enviado exitosamente');
+        } else if (result.emailError) {
+          console.warn('⚠️ Socio creado pero falló el envío del email:', result.emailError);
+        }
+
+        return {
+          success: true,
+          socioId: result.uid,
+          emailSent: result.emailSent,
+          emailError: result.emailError
+        };
       } else {
         throw new Error(result.error || 'Error al crear la cuenta del socio');
       }
     } catch (error) {
       handleError(error, 'Create Socio');
-      return null;
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Error desconocido',
+        emailSent: false
+      };
     }
   }
 
@@ -678,9 +703,42 @@ class SocioService {
   }
 
   /**
-   * Get association statistics
+   * Get association statistics with real-time membership status checking
    */
   async getAsociacionStats(asociacionId: string): Promise<SocioStats> {
+    try {
+      console.log(`📊 Calculating association stats for: ${asociacionId}`);
+      
+      // First, update expired memberships for this association
+      const { membershipStatusUpdaterService } = await import('./membership-status-updater.service');
+      await membershipStatusUpdaterService.updateAssociationMemberships(asociacionId);
+      
+      // Then get the updated stats
+      const stats = await membershipStatusUpdaterService.getRealtimeMembershipStats(asociacionId);
+      
+      console.log('📊 Final association stats:', {
+        total: stats.total,
+        activos: stats.activos,
+        vencidos: stats.vencidos,
+        alDia: stats.alDia,
+        pendientes: stats.pendientes,
+        porcentajeVencidos: stats.total > 0 ? Math.round((stats.vencidos / stats.total) * 100) : 0
+      });
+
+      return stats;
+    } catch (error) {
+      console.error('❌ Error getting association stats:', error);
+      handleError(error, 'Get Asociacion Stats');
+      
+      // Fallback to basic calculation if the new service fails
+      return this.getBasicAsociacionStats(asociacionId);
+    }
+  }
+
+  /**
+   * Fallback method for basic association stats calculation
+   */
+  private async getBasicAsociacionStats(asociacionId: string): Promise<SocioStats> {
     try {
       const q = query(
         collection(db, this.collection),
@@ -689,18 +747,36 @@ class SocioService {
 
       const snapshot = await getDocs(q);
       const socios = snapshot.docs.map(doc => doc.data());
+      const now = new Date();
 
-      // Calcular estadísticas básicas
+      // Calcular estadísticas básicas con verificación en tiempo real
       const total = socios.length;
       const activos = socios.filter(s => s.estado === 'activo').length;
       const inactivos = socios.filter(s => s.estado === 'inactivo').length;
-      const alDia = socios.filter(s => s.estadoMembresia === 'al_dia').length;
-      const vencidos = socios.filter(s => s.estadoMembresia === 'vencido').length;
-      const pendientes = socios.filter(s => s.estadoMembresia === 'pendiente').length;
+      
+      // Calcular estados de membresía verificando fechas de vencimiento
+      let alDia = 0;
+      let vencidos = 0;
+      let pendientes = 0;
 
-      // Calcular ingresos mensuales
+      socios.forEach(socio => {
+        const fechaVencimiento = socio.fechaVencimiento?.toDate();
+        
+        if (!fechaVencimiento) {
+          pendientes++;
+        } else if (fechaVencimiento < now) {
+          vencidos++;
+        } else {
+          alDia++;
+        }
+      });
+
+      // Calcular ingresos mensuales solo de socios activos y al día
       const ingresosMensuales = socios
-        .filter(s => s.estado === 'activo' && s.estadoMembresia === 'al_dia')
+        .filter(s => {
+          const fechaVencimiento = s.fechaVencimiento?.toDate();
+          return s.estado === 'activo' && fechaVencimiento && fechaVencimiento >= now;
+        })
         .reduce((total, s) => total + (s.montoCuota || 0), 0);
 
       // Calcular beneficios usados
@@ -717,17 +793,18 @@ class SocioService {
         beneficiosUsados,
       };
 
-      console.log('📊 Estadísticas calculadas:', {
+      console.log('📊 Basic stats calculated (fallback):', {
         total,
         activos,
         vencidos,
-        porcentajeActivos: total > 0 ? Math.round((activos / total) * 100) : 0,
+        alDia,
+        pendientes,
         porcentajeVencidos: total > 0 ? Math.round((vencidos / total) * 100) : 0
       });
 
       return stats;
     } catch (error) {
-      handleError(error, 'Get Asociacion Stats');
+      handleError(error, 'Get Basic Asociacion Stats');
       return {
         total: 0,
         activos: 0,

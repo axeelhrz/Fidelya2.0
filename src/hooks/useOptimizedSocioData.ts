@@ -86,6 +86,7 @@ export function useOptimizedSocioData(): UseOptimizedSocioDataReturn {
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const asociacionId = user?.uid || '';
   const cacheKey = useMemo(() => `socio-stats-${asociacionId}`, [asociacionId]);
@@ -113,12 +114,21 @@ export function useOptimizedSocioData(): UseOptimizedSocioDataReturn {
       setLoading(true);
       setError(null);
 
+      console.log('🔄 Refreshing socio stats for association:', asociacionId);
       const newStats = await socioService.getAsociacionStats(asociacionId);
       
       // Update state and cache
       setStats(newStats);
       setLastUpdated(new Date());
-      dataCache.set(cacheKey, newStats, 3 * 60 * 1000); // 3 minutes cache
+      dataCache.set(cacheKey, newStats, 2 * 60 * 1000); // 2 minutes cache for more frequent updates
+      
+      console.log('✅ Socio stats updated:', {
+        total: newStats.total,
+        activos: newStats.activos,
+        vencidos: newStats.vencidos,
+        alDia: newStats.alDia,
+        pendientes: newStats.pendientes
+      });
     } catch (err) {
       if (err instanceof Error && err.name !== 'AbortError') {
         const errorMessage = err.message || 'Error al cargar estadísticas';
@@ -133,20 +143,66 @@ export function useOptimizedSocioData(): UseOptimizedSocioDataReturn {
   const invalidateCache = useCallback(() => {
     dataCache.invalidate('socio-stats');
     setLastUpdated(null);
+    console.log('🗑️ Socio stats cache invalidated');
   }, []);
 
-  // Load initial data
+  // Set up automatic refresh interval for real-time updates
   useEffect(() => {
-    if (asociacionId) {
-      refreshStats();
-    }
+    if (!asociacionId) return;
+
+    // Initial load
+    refreshStats();
+
+    // Set up periodic refresh every 2 minutes to catch membership status changes
+    refreshIntervalRef.current = setInterval(() => {
+      console.log('⏰ Auto-refreshing socio stats...');
+      refreshStats(true); // Force refresh to get latest data
+    }, 2 * 60 * 1000); // 2 minutes
 
     return () => {
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
       }
+      if (refreshIntervalRef.current) {
+        clearInterval(refreshIntervalRef.current);
+      }
     };
   }, [asociacionId, refreshStats]);
+
+  // Listen for window focus to refresh data when user returns to tab
+  useEffect(() => {
+    const handleFocus = () => {
+      console.log('👁️ Window focused, refreshing socio stats...');
+      refreshStats(true);
+    };
+
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [refreshStats]);
+
+  // Listen for visibility change to refresh when tab becomes visible
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        console.log('👁️ Tab visible, refreshing socio stats...');
+        refreshStats(true);
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [refreshStats]);
+
+  // Listen for custom refresh events from member management
+  useEffect(() => {
+    const handleCustomRefresh = () => {
+      console.log('🔄 Custom refresh event received, updating socio stats...');
+      refreshStats(true);
+    };
+
+    window.addEventListener('refreshSocioStats', handleCustomRefresh);
+    return () => window.removeEventListener('refreshSocioStats', handleCustomRefresh);
+  }, [refreshStats]);
 
   return {
     stats,

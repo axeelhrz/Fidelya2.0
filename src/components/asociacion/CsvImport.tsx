@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   X, 
   Upload, 
@@ -9,6 +9,8 @@ import {
   CheckCircle, 
   Loader2,
   Info,
+  Eye,
+  BookOpen,
 } from 'lucide-react';
 import { ImportResult } from '@/services/socio.service';
 import { toast } from 'react-hot-toast';
@@ -19,6 +21,60 @@ interface CsvImportProps {
   onImport: (csvData: Record<string, string>[]) => Promise<ImportResult>;
   loading?: boolean;
 }
+
+// Ejemplo de CSV mejorado con datos más realistas
+const CSV_EXAMPLE_DATA = [
+  {
+    nombre: 'Juan Carlos Pérez',
+    email: 'juan.perez@email.com',
+    dni: '12345678',
+    telefono: '+54 9 11 1234-5678',
+    fechaNacimiento: '1985-03-15',
+    direccion: 'Av. Corrientes 1234, CABA',
+    numeroSocio: '001',
+    montoCuota: '5000'
+  },
+  {
+    nombre: 'María Elena García',
+    email: 'maria.garcia@email.com',
+    dni: '87654321',
+    telefono: '+54 9 11 8765-4321',
+    fechaNacimiento: '1990-07-22',
+    direccion: 'Av. Santa Fe 5678, CABA',
+    numeroSocio: '002',
+    montoCuota: '5000'
+  },
+  {
+    nombre: 'Roberto Luis Martínez',
+    email: 'roberto.martinez@email.com',
+    dni: '11223344',
+    telefono: '+54 9 11 2233-4455',
+    fechaNacimiento: '1978-12-03',
+    direccion: 'Calle Rivadavia 9876, Buenos Aires',
+    numeroSocio: '003',
+    montoCuota: '7500'
+  },
+  {
+    nombre: 'Ana Sofía López',
+    email: 'ana.lopez@email.com',
+    dni: '55667788',
+    telefono: '+54 9 11 5566-7788',
+    fechaNacimiento: '1992-05-18',
+    direccion: 'Av. Belgrano 3456, CABA',
+    numeroSocio: '004',
+    montoCuota: '5000'
+  },
+  {
+    nombre: 'Carlos Eduardo Rodríguez',
+    email: 'carlos.rodriguez@email.com',
+    dni: '99887766',
+    telefono: '+54 9 11 9988-7766',
+    fechaNacimiento: '1983-09-10',
+    direccion: 'Calle San Martín 7890, Buenos Aires',
+    numeroSocio: '005',
+    montoCuota: '6000'
+  }
+];
 
 export const CsvImport: React.FC<CsvImportProps> = ({
   open,
@@ -32,6 +88,7 @@ export const CsvImport: React.FC<CsvImportProps> = ({
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [step, setStep] = useState<'upload' | 'preview' | 'result'>('upload');
+  const [showExample, setShowExample] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -111,37 +168,42 @@ export const CsvImport: React.FC<CsvImportProps> = ({
       setPreview([]);
       setImportResult(null);
       setStep('upload');
+      setShowExample(false);
       onClose();
     }
   };
 
   const downloadTemplate = () => {
-    const template = [
-      'nombre,email,dni,telefono,fechaNacimiento,direccion,numeroSocio,montoCuota',
-      'Juan Pérez,juan@email.com,12345678,+54911234567,1990-01-15,"Av. Corrientes 1234, CABA",001,5000',
-      'María García,maria@email.com,87654321,+54911234568,1985-05-20,"Av. Santa Fe 5678, CABA",002,5000'
+    const headers = ['nombre', 'email', 'dni', 'telefono', 'fechaNacimiento', 'direccion', 'numeroSocio', 'montoCuota'];
+    const csvContent = [
+      headers.join(','),
+      ...CSV_EXAMPLE_DATA.map(row => 
+        headers.map(header => `"${row[header as keyof typeof row] || ''}"`).join(',')
+      )
     ].join('\n');
 
-    const blob = new Blob([template], { type: 'text/csv' });
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'plantilla_socios.csv';
+    a.download = 'plantilla_socios_ejemplo.csv';
     a.click();
     URL.revokeObjectURL(url);
+    
+    toast.success('Plantilla con ejemplos descargada');
   };
 
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
+    <div className="fixed inset-0 z-[9999] overflow-y-auto">
       <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
         {/* Backdrop */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
+          className="fixed inset-0 bg-gray-900 bg-opacity-75 transition-opacity"
           onClick={handleClose}
         />
 
@@ -150,7 +212,7 @@ export const CsvImport: React.FC<CsvImportProps> = ({
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 20 }}
-          className="inline-block align-bottom bg-white rounded-2xl text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full"
+          className="inline-block align-bottom bg-white rounded-2xl text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full relative z-[10000]"
         >
           {/* Header */}
           <div className="bg-white px-6 pt-6 pb-4 border-b border-gray-200">
@@ -204,25 +266,87 @@ export const CsvImport: React.FC<CsvImportProps> = ({
                 </div>
 
                 {/* Template Download */}
-                <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                  <div className="flex items-center">
-                    <FileText className="w-5 h-5 text-gray-600 mr-3" />
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">
-                        Plantilla de ejemplo
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        Descarga una plantilla con el formato correcto
-                      </p>
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center">
+                      <FileText className="w-5 h-5 text-gray-600 mr-3" />
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">
+                          Plantilla con Ejemplos
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          Descarga una plantilla CSV con 5 ejemplos de socios reales
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setShowExample(!showExample)}
+                        className="inline-flex items-center px-3 py-2 text-sm font-medium text-blue-700 bg-blue-100 hover:bg-blue-200 rounded-lg transition-colors"
+                      >
+                        <Eye className="w-4 h-4 mr-1" />
+                        {showExample ? 'Ocultar' : 'Ver'} Ejemplo
+                      </button>
+                      <button
+                        onClick={downloadTemplate}
+                        className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50"
+                      >
+                        <Download className="w-4 h-4 mr-2" />
+                        Descargar
+                      </button>
                     </div>
                   </div>
-                  <button
-                    onClick={downloadTemplate}
-                    className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50"
-                  >
-                    <Download className="w-4 h-4 mr-2" />
-                    Descargar
-                  </button>
+
+                  {/* CSV Example Preview */}
+                  <AnimatePresence>
+                    {showExample && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        className="overflow-hidden"
+                      >
+                        <div className="bg-white rounded-lg border border-gray-200 overflow-x-auto">
+                          <div className="px-4 py-3 bg-gray-50 border-b border-gray-200 flex items-center">
+                            <BookOpen className="w-4 h-4 text-gray-600 mr-2" />
+                            <span className="text-sm font-medium text-gray-700">
+                              Ejemplo de datos CSV (5 socios de muestra)
+                            </span>
+                          </div>
+                          <div className="p-4">
+                            <table className="min-w-full text-sm">
+                              <thead>
+                                <tr className="border-b border-gray-200">
+                                  <th className="text-left py-2 px-3 font-medium text-gray-700">Nombre</th>
+                                  <th className="text-left py-2 px-3 font-medium text-gray-700">Email</th>
+                                  <th className="text-left py-2 px-3 font-medium text-gray-700">DNI</th>
+                                  <th className="text-left py-2 px-3 font-medium text-gray-700">Teléfono</th>
+                                  <th className="text-left py-2 px-3 font-medium text-gray-700">Fecha Nac.</th>
+                                  <th className="text-left py-2 px-3 font-medium text-gray-700">Cuota</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {CSV_EXAMPLE_DATA.map((row, index) => (
+                                  <tr key={index} className="border-b border-gray-100 hover:bg-gray-50">
+                                    <td className="py-2 px-3 text-gray-900">{row.nombre}</td>
+                                    <td className="py-2 px-3 text-gray-600">{row.email}</td>
+                                    <td className="py-2 px-3 text-gray-600">{row.dni}</td>
+                                    <td className="py-2 px-3 text-gray-600">{row.telefono}</td>
+                                    <td className="py-2 px-3 text-gray-600">{row.fechaNacimiento}</td>
+                                    <td className="py-2 px-3 text-gray-600">${row.montoCuota}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                        <div className="mt-3 text-xs text-gray-500 bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                          <strong>💡 Tip:</strong> Puedes usar estos datos como referencia para el formato correcto. 
+                          La plantilla descargable incluye estos ejemplos que puedes modificar con tus propios datos.
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
 
                 {/* File Upload */}
@@ -449,6 +573,7 @@ export const CsvImport: React.FC<CsvImportProps> = ({
                     setCsvData([]);
                     setPreview([]);
                     setImportResult(null);
+                    setShowExample(false);
                   }}
                   className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50"
                 >

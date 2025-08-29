@@ -13,7 +13,6 @@ import {
   Target,
   Award,
   Zap,
-  RotateCcw,
   Percent,
   Package
 } from 'lucide-react';
@@ -53,20 +52,6 @@ export const BeneficiosSimple: React.FC = () => {
     await usarBeneficio(beneficioId, comercioId);
   };
 
-  const handleReuseBefit = async (uso: BeneficioUsado) => {
-    if (!uso.beneficioId || !uso.comercioId) {
-      return;
-    }
-
-    // Verificar si el beneficio aún está disponible
-    const beneficioDisponible = beneficios.find(b => b.id === uso.beneficioId);
-    if (!beneficioDisponible) {
-      return;
-    }
-
-    await usarBeneficio(uso.beneficioId, uso.comercioId);
-  };
-
   if (error) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -104,7 +89,7 @@ export const BeneficiosSimple: React.FC = () => {
         </div>
 
         {/* Estadísticas */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="bg-emerald-50 rounded-xl p-4 border border-emerald-200">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-emerald-500 rounded-lg flex items-center justify-center">
@@ -125,18 +110,6 @@ export const BeneficiosSimple: React.FC = () => {
               <div>
                 <div className="text-2xl font-bold text-indigo-700">{estadisticas.usados}</div>
                 <div className="text-sm text-indigo-600">Usados</div>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-amber-50 rounded-xl p-4 border border-amber-200">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-amber-500 rounded-lg flex items-center justify-center">
-                <DollarSign size={20} className="text-white" />
-              </div>
-              <div>
-                <div className="text-xl font-bold text-amber-700">${estadisticas.ahorroTotal.toLocaleString()}</div>
-                <div className="text-sm text-amber-600">Ahorro Total</div>
               </div>
             </div>
           </div>
@@ -324,85 +297,63 @@ export const BeneficiosSimple: React.FC = () => {
           >
             {beneficiosUsados.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {beneficiosUsados.map((uso: BeneficioUsado, index) => {
-                  const beneficioDisponible = beneficios.find(b => b.id === uso.beneficioId);
-                  const puedeReutilizar = beneficioDisponible && uso.beneficioId && uso.comercioId;
-
-                  return (
-                    <motion.div
-                      key={uso.id}
-                      className="bg-white rounded-xl p-6 shadow-sm border"
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.2, delay: index * 0.05 }}
-                    >
-                      <div className="flex gap-2 mb-4 flex-wrap">
-                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">
-                          <Award size={10} className="mr-1" />
-                          Usado
+                {beneficiosUsados.map((uso: BeneficioUsado, index) => (
+                  <motion.div
+                    key={uso.id}
+                    className="bg-white rounded-xl p-6 shadow-sm border"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.2, delay: index * 0.05 }}
+                  >
+                    <div className="flex gap-2 mb-4 flex-wrap">
+                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">
+                        <Award size={10} className="mr-1" />
+                        Usado
+                      </span>
+                      {uso.montoDescuento && uso.montoDescuento > 0 && (
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-500 text-white">
+                          <DollarSign size={10} className="mr-1" />
+                          ${uso.montoDescuento} ahorrado
                         </span>
-                        {uso.montoDescuento && uso.montoDescuento > 0 && (
-                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-500 text-white">
-                            <DollarSign size={10} className="mr-1" />
-                            ${uso.montoDescuento} ahorrado
-                          </span>
-                        )}
-                        {puedeReutilizar && (
-                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                            <RotateCcw size={10} className="mr-1" />
-                            Disponible
-                          </span>
-                        )}
-                      </div>
-                  
-                      <h3 className="text-lg font-bold text-gray-900 mb-2">
-                        {uso.beneficioTitulo || 'Beneficio Usado'}
-                      </h3>
-                      
-                      <p className="text-gray-600 mb-4 flex items-center gap-2 text-sm">
-                        <Building2 size={14} />
-                        Usado en {uso.comercioNombre}
-                      </p>
-                  
-                      <div className="space-y-2 text-sm mb-4">
-                        <div className="flex items-center justify-between p-2 bg-gray-50 rounded">
-                          <span className="text-gray-600 flex items-center gap-1">
-                            <Calendar size={12} />
-                            Fecha:
-                          </span>
-                          <span className="font-medium text-gray-900">
-                            {format(uso.fechaUso.toDate(), 'dd/MM/yyyy', { locale: es })}
-                          </span>
-                        </div>
-                        
-                        {uso.montoOriginal && (
-                          <div className="flex items-center justify-between p-2 bg-gray-50 rounded">
-                            <span className="text-gray-600">Monto original:</span>
-                            <span className="font-medium text-gray-900">${uso.montoOriginal}</span>
-                          </div>
-                        )}
-                        
-                        {uso.montoFinal && (
-                          <div className="flex items-center justify-between p-2 bg-emerald-50 rounded">
-                            <span className="text-gray-600">Monto final:</span>
-                            <span className="font-medium text-emerald-600">${uso.montoFinal}</span>
-                          </div>
-                        )}
-                      </div>
-
-                      {puedeReutilizar && (
-                        <Button
-                          onClick={() => handleReuseBefit(uso)}
-                          disabled={loading}
-                          className="w-full bg-green-500 hover:bg-green-600 text-white"
-                          leftIcon={<RotateCcw size={16} />}
-                        >
-                          Volver a usar
-                        </Button>
                       )}
-                    </motion.div>
-                  );
-                })}
+                    </div>
+                
+                    <h3 className="text-lg font-bold text-gray-900 mb-2">
+                      {uso.beneficioTitulo || 'Beneficio Usado'}
+                    </h3>
+                    
+                    <p className="text-gray-600 mb-4 flex items-center gap-2 text-sm">
+                      <Building2 size={14} />
+                      Usado en {uso.comercioNombre}
+                    </p>
+                
+                    <div className="space-y-2 text-sm">
+                      <div className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                        <span className="text-gray-600 flex items-center gap-1">
+                          <Calendar size={12} />
+                          Fecha:
+                        </span>
+                        <span className="font-medium text-gray-900">
+                          {format(uso.fechaUso.toDate(), 'dd/MM/yyyy', { locale: es })}
+                        </span>
+                      </div>
+                      
+                      {uso.montoOriginal && (
+                        <div className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                          <span className="text-gray-600">Monto original:</span>
+                          <span className="font-medium text-gray-900">${uso.montoOriginal}</span>
+                        </div>
+                      )}
+                      
+                      {uso.montoFinal && (
+                        <div className="flex items-center justify-between p-2 bg-emerald-50 rounded">
+                          <span className="text-gray-600">Monto final:</span>
+                          <span className="font-medium text-emerald-600">${uso.montoFinal}</span>
+                        </div>
+                      )}
+                    </div>
+                  </motion.div>
+                ))}
               </div>
             ) : (
               <div className="text-center py-12">

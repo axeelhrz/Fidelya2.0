@@ -82,7 +82,7 @@ export const useComercios = () => {
       const comercioId = await comercioService.createComercio(data, asociacionId);
       
       if (comercioId) {
-        toast.success('Comercio creado exitosamente. Las credenciales de acceso se configurarán próximamente.');
+        toast.success('¡Comercio creado exitosamente! Ya puede acceder con sus credenciales.');
         await loadComercios(); // Reload the list
         return true;
       } else {

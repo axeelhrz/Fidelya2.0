@@ -35,26 +35,92 @@ const SocioOverviewDashboard = memo<SocioOverviewDashboardProps>(({
   onQuickScan, 
 }) => {
   const { estadisticas } = useSocioProfile();
-  const { beneficios, estadisticasRapidas } = useBeneficios();
+  const { beneficios, estadisticasRapidas, beneficiosUsados } = useBeneficios();
 
-  // Memoizar estadísticas consolidadas
+  // Memoizar estadísticas consolidadas con cálculo correcto del mes actual
   const consolidatedStats = useMemo(() => {
     const now = new Date();
     const currentMonth = now.getMonth();
     const currentYear = now.getFullYear();
 
-    // Calcular beneficios del mes actual
-    const beneficiosEstesMes = estadisticas?.validacionesPorMes?.find(mes => {
-      const [year, month] = mes.mes.split('-').map(Number);
-      return year === currentYear && month === currentMonth + 1;
+    console.log('🔍 Calculando estadísticas consolidadas:', {
+      beneficiosUsados: beneficiosUsados.length,
+      estadisticasRapidas,
+      estadisticas: estadisticas?.validacionesPorMes
+    });
+
+    // MÉTODO 1: Calcular desde beneficiosUsados (más preciso)
+    const beneficiosEstesMesFromUsos = beneficiosUsados.filter(uso => {
+      try {
+        let fecha: Date;
+        
+        if (!uso.fechaUso) {
+          return false;
+        }
+        
+        // Manejo robusto de diferentes tipos de fecha
+        if (typeof uso.fechaUso === 'object' && uso.fechaUso !== null && 'toDate' in uso.fechaUso && typeof uso.fechaUso.toDate === 'function') {
+          fecha = uso.fechaUso.toDate();
+        } else if (typeof uso.fechaUso === 'object' && uso.fechaUso !== null && 'getTime' in uso.fechaUso && typeof uso.fechaUso.getTime === 'function') {
+          fecha = uso.fechaUso as unknown as Date;
+        } else {
+          fecha = new Date(uso.fechaUso as unknown as string | number);
+          if (isNaN(fecha.getTime())) {
+            return false;
+          }
+        }
+        
+        const esDelMesActual = fecha.getMonth() === currentMonth && fecha.getFullYear() === currentYear;
+        
+        if (esDelMesActual) {
+          console.log('✅ Beneficio del mes actual encontrado:', {
+            fecha: fecha.toLocaleDateString(),
+            titulo: uso.beneficioTitulo,
+            comercio: uso.comercioNombre
+          });
+        }
+        
+        return esDelMesActual;
+      } catch (error) {
+        console.error('Error procesando fecha de uso:', error, uso);
+        return false;
+      }
+    }).length;
+
+    // MÉTODO 2: Calcular desde estadísticas (fallback)
+    const beneficiosEstesMesFromStats = estadisticas?.validacionesPorMes?.find(mes => {
+      try {
+        // Intentar diferentes formatos de mes
+        if (mes.mes.includes('-')) {
+          const [year, month] = mes.mes.split('-').map(Number);
+          return year === currentYear && month === currentMonth + 1;
+        } else {
+          // Formato "ene 2024", "feb 2024", etc.
+          const mesActualTexto = now.toLocaleDateString('es-ES', { month: 'short', year: 'numeric' });
+          return mes.mes.toLowerCase() === mesActualTexto.toLowerCase();
+        }
+      } catch {
+        return false;
+      }
     })?.validaciones || 0;
+
+    // Usar el método más preciso (beneficiosUsados) como principal
+    const beneficiosEstesMes = beneficiosEstesMesFromUsos;
+
+    console.log('📊 Resultados del cálculo mensual:', {
+      metodo1_beneficiosUsados: beneficiosEstesMesFromUsos,
+      metodo2_estadisticas: beneficiosEstesMesFromStats,
+      seleccionado: beneficiosEstesMes,
+      totalBeneficiosUsados: beneficiosUsados.length,
+      beneficiosDisponibles: estadisticasRapidas.disponibles
+    });
 
     return {
       totalBeneficios: estadisticasRapidas.disponibles || 0,
-      beneficiosUsados: estadisticasRapidas.usados || 0,
-      beneficiosEstesMes,
+      beneficiosUsados: estadisticasRapidas.usados || beneficiosUsados.length,
+      beneficiosEstesMes, // Usar el cálculo corregido
       asociacionesActivas: 1, // Por ahora asumimos 1 asociación
-      ahorroTotal: estadisticas?.ahorroTotal || 0,
+      ahorroTotal: estadisticas?.ahorroTotal || estadisticasRapidas.ahorroTotal || 0,
       beneficiosVencenProximamente: beneficios.filter(b => {
         if (!b.fechaFin) return false;
         let fechaFin: Date;
@@ -63,13 +129,13 @@ const SocioOverviewDashboard = memo<SocioOverviewDashboardProps>(({
         } else if (typeof b.fechaFin === 'string' || typeof b.fechaFin === 'number') {
           fechaFin = new Date(b.fechaFin);
         } else {
-          return false; // Si no se puede convertir, no incluir en el filtro
+          return false;
         }
         const diasRestantes = Math.ceil((fechaFin.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
         return diasRestantes <= 7 && diasRestantes > 0;
       }).length
     };
-  }, [estadisticasRapidas, estadisticas, beneficios]);
+  }, [estadisticasRapidas, estadisticas, beneficios, beneficiosUsados]);
 
   // Beneficios destacados - filtrar y ordenar correctamente
   const beneficiosDestacados = useMemo(() => {
@@ -223,6 +289,10 @@ const SocioOverviewDashboard = memo<SocioOverviewDashboardProps>(({
           </div>
           <div className="text-sm text-purple-600 font-medium">
             Usados Este Mes
+          </div>
+          {/* Indicador visual adicional para debugging */}
+          <div className="mt-2 text-xs text-purple-500 opacity-75">
+            {new Date().toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })}
           </div>
         </div>
 

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { socioService, SocioFilters, ImportResult } from '@/services/socio.service';
 import { Socio, SocioStats, SocioFormData } from '@/types/socio';
 import { useAuth } from './useAuth';
@@ -29,16 +29,6 @@ interface UseSociosReturn {
 export function useSocios(): UseSociosReturn {
   const { user } = useAuth();
   const [socios, setSocios] = useState<Socio[]>([]);
-  const [stats, setStats] = useState<SocioStats>({
-    total: 0,
-    activos: 0,
-    inactivos: 0,
-    alDia: 0,
-    vencidos: 0,
-    pendientes: 0,
-    ingresosMensuales: 0,
-    beneficiosUsados: 0,
-  });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(false);
@@ -46,6 +36,118 @@ export function useSocios(): UseSociosReturn {
   const [filters, setFilters] = useState<SocioFilters>({});
 
   const asociacionId = user?.uid || '';
+
+  // Calcular estadísticas localmente basándose EXACTAMENTE en lo que muestra la tabla
+  const stats = useMemo((): SocioStats => {
+    if (!socios || socios.length === 0) {
+      return {
+        total: 0,
+        activos: 0,
+        vencidos: 0,
+        inactivos: 0,
+        beneficiosUsados: 0,
+        ahorroTotal: 0,
+        comerciosVisitados: 0,
+        ingresosMensuales: 0,
+        alDia: 0,
+        pendientes: 0,
+        porcentajeVencidos: 0,
+        sociosAnalizados: 0,
+        sociosConEstadoMembresia: 0
+      };
+    }
+
+    let activos = 0;
+    let inactivos = 0;
+    let vencidos = 0;
+    let pendientes = 0;
+    let alDia = 0;
+    let beneficiosUsados = 0;
+    let ingresosMensuales = 0;
+
+    console.log(`🔍 [useSocios] Calculando estadísticas para ${socios.length} socios...`);
+
+    socios.forEach(socio => {
+      // Contar por estado (EXACTAMENTE como se muestra en la tabla)
+      if (socio.estado === 'activo') {
+        activos++;
+      } else if (socio.estado === 'inactivo') {
+        inactivos++;
+      } else if (socio.estado === 'vencido') {
+        vencidos++;
+        console.log(`⚠️ [useSocios] Socio vencido detectado: ${socio.nombre} - estado: ${socio.estado}`);
+      } else if (socio.estado === 'pendiente') {
+        pendientes++;
+      } else if (socio.estado === 'suspendido') {
+        inactivos++; // Contar suspendidos como inactivos para las métricas
+      }
+
+      // Para estadoMembresia (si existe), pero esto es secundario
+      const estadoMembresia = socio.estadoMembresia;
+      if (estadoMembresia === 'al_dia') {
+        alDia++;
+        // Solo contar ingresos de socios activos y al día
+        if (socio.estado === 'activo') {
+          ingresosMensuales += socio.montoCuota || 0;
+        }
+      } else if (estadoMembresia === 'vencido') {
+        // Ya contado arriba por estado
+      } else if (estadoMembresia === 'pendiente') {
+        // Ya contado arriba por estado
+      } else {
+        // Si no tiene estadoMembresia definido, usar el estado principal
+        if (socio.estado === 'activo') {
+          alDia++;
+          ingresosMensuales += socio.montoCuota || 0;
+        }
+      }
+
+      // Sumar beneficios usados
+      beneficiosUsados += socio.beneficiosUsados || 0;
+    });
+
+    const total = socios.length;
+    const porcentajeVencidos = total > 0 ? Math.round((vencidos / total) * 100) : 0;
+
+    const calculatedStats = {
+      total,
+      activos,
+      vencidos, // ESTE ES EL CAMPO CLAVE - basado en socio.estado === 'vencido'
+      inactivos,
+      beneficiosUsados,
+      ahorroTotal: 0, // Se calcula desde validaciones
+      comerciosVisitados: 0, // Se calcula desde validaciones
+      ingresosMensuales,
+      alDia,
+      pendientes,
+      porcentajeVencidos,
+      sociosAnalizados: socios.length,
+      sociosConEstadoMembresia: socios.filter(s => s.estadoMembresia).length
+    };
+
+    console.log('📊 [useSocios] Estadísticas calculadas (basadas en tabla):', {
+      total: calculatedStats.total,
+      activos: calculatedStats.activos,
+      vencidos: calculatedStats.vencidos,
+      inactivos: calculatedStats.inactivos,
+      porcentajeVencidos: calculatedStats.porcentajeVencidos
+    });
+
+    // Log detallado de socios vencidos
+    if (vencidos > 0) {
+      const sociosVencidos = socios.filter(s => s.estado === 'vencido');
+      console.log('🔍 [useSocios] Socios vencidos encontrados (por estado):', sociosVencidos.map(s => ({
+        nombre: s.nombre,
+        estado: s.estado,
+        estadoMembresia: s.estadoMembresia,
+        fechaVencimiento: s.fechaVencimiento?.toDate()
+      })));
+    } else {
+      console.log('✅ [useSocios] No hay socios con estado "vencido" detectados');
+    }
+
+    return calculatedStats;
+  }, [socios]);
 
   // Load socios with filters
   const loadSocios = useCallback(async () => {
@@ -87,9 +189,7 @@ export function useSocios(): UseSociosReturn {
       setHasMore(result.hasMore);
       setLastDoc(result.lastDoc);
       
-      // También actualizar estadísticas
-      const newStats = await socioService.getAsociacionStats(asociacionId);
-      setStats(newStats);
+      console.log('🔄 [useSocios] Datos recargados, estadísticas se calcularán automáticamente');
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Error al recargar socios';
       setError(errorMessage);
@@ -118,17 +218,12 @@ export function useSocios(): UseSociosReturn {
     }
   }, [asociacionId, filters, hasMore, loading, lastDoc]);
 
-  // Refresh stats
+  // Refresh stats (ahora se calculan automáticamente)
   const refreshStats = useCallback(async () => {
-    if (!asociacionId) return;
-
-    try {
-      const newStats = await socioService.getAsociacionStats(asociacionId);
-      setStats(newStats);
-    } catch (error) {
-      console.error('Error refreshing stats:', error);
-    }
-  }, [asociacionId]);
+    console.log('🔄 [useSocios] refreshStats llamado - las estadísticas se calculan automáticamente desde los datos locales');
+    // Las estadísticas se calculan automáticamente en el useMemo
+    // No necesitamos hacer nada aquí, pero mantenemos la función para compatibilidad
+  }, []);
 
   // Create new socio
   const createSocio = useCallback(async (data: SocioFormData): Promise<boolean> => {
@@ -142,8 +237,7 @@ export function useSocios(): UseSociosReturn {
       
       if (socioId) {
         toast.success('Socio creado exitosamente');
-        await loadSocios(); // Refresh list
-        await refreshStats(); // Refresh stats
+        await loadSocios(); // Refresh list (las estadísticas se actualizarán automáticamente)
         return true;
       } else {
         throw new Error('Error al crear socio');
@@ -156,7 +250,7 @@ export function useSocios(): UseSociosReturn {
     } finally {
       setLoading(false);
     }
-  }, [asociacionId, loadSocios, refreshStats]);
+  }, [asociacionId, loadSocios]);
 
   // Update socio
   const updateSocio = useCallback(async (id: string, data: Partial<SocioFormData>): Promise<boolean> => {
@@ -168,8 +262,7 @@ export function useSocios(): UseSociosReturn {
       
       if (success) {
         toast.success('Socio actualizado exitosamente');
-        await loadSocios(); // Refresh list
-        await refreshStats(); // Refresh stats
+        await loadSocios(); // Refresh list (las estadísticas se actualizarán automáticamente)
         return true;
       } else {
         throw new Error('Error al actualizar socio');
@@ -182,7 +275,7 @@ export function useSocios(): UseSociosReturn {
     } finally {
       setLoading(false);
     }
-  }, [loadSocios, refreshStats]);
+  }, [loadSocios]);
 
   // Delete socio completely (hard delete)
   const deleteSocio = useCallback(async (id: string): Promise<boolean> => {
@@ -194,8 +287,7 @@ export function useSocios(): UseSociosReturn {
       
       if (success) {
         toast.success('Socio eliminado completamente');
-        await loadSocios(); // Refresh list
-        await refreshStats(); // Refresh stats
+        await loadSocios(); // Refresh list (las estadísticas se actualizarán automáticamente)
         return true;
       } else {
         throw new Error('Error al eliminar socio');
@@ -208,7 +300,7 @@ export function useSocios(): UseSociosReturn {
     } finally {
       setLoading(false);
     }
-  }, [loadSocios, refreshStats]);
+  }, [loadSocios]);
 
   // Toggle socio status (activate/deactivate)
   const toggleSocioStatus = useCallback(async (id: string, currentStatus: string): Promise<boolean> => {
@@ -221,8 +313,7 @@ export function useSocios(): UseSociosReturn {
       
       if (success) {
         toast.success(`Socio ${newStatus === 'activo' ? 'activado' : 'desactivado'} exitosamente`);
-        await loadSocios(); // Refresh list
-        await refreshStats(); // Refresh stats
+        await loadSocios(); // Refresh list (las estadísticas se actualizarán automáticamente)
         return true;
       } else {
         throw new Error('Error al cambiar estado del socio');
@@ -235,7 +326,7 @@ export function useSocios(): UseSociosReturn {
     } finally {
       setLoading(false);
     }
-  }, [loadSocios, refreshStats]);
+  }, [loadSocios]);
 
   // Import socios from CSV
   const importSocios = useCallback(async (csvData: SocioFormData[]): Promise<ImportResult> => {
@@ -263,8 +354,7 @@ export function useSocios(): UseSociosReturn {
           toast(`${result.errors.length} errores encontrados`, { icon: '⚠️' });
         }
         
-        await loadSocios(); // Refresh list
-        await refreshStats(); // Refresh stats
+        await loadSocios(); // Refresh list (las estadísticas se actualizarán automáticamente)
       } else {
         toast.error('Error en la importación');
       }
@@ -284,7 +374,7 @@ export function useSocios(): UseSociosReturn {
     } finally {
       setLoading(false);
     }
-  }, [asociacionId, loadSocios, refreshStats]);
+  }, [asociacionId, loadSocios]);
 
   // Register payment
   const registerPayment = useCallback(async (socioId: string, amount: number, months = 1): Promise<boolean> => {
@@ -296,8 +386,7 @@ export function useSocios(): UseSociosReturn {
       
       if (success) {
         toast.success('Pago registrado exitosamente');
-        await loadSocios(); // Refresh list
-        await refreshStats(); // Refresh stats
+        await loadSocios(); // Refresh list (las estadísticas se actualizarán automáticamente)
         return true;
       } else {
         throw new Error('Error al registrar pago');
@@ -310,7 +399,7 @@ export function useSocios(): UseSociosReturn {
     } finally {
       setLoading(false);
     }
-  }, [loadSocios, refreshStats]);
+  }, [loadSocios]);
 
   // Update membership status
   const updateMembershipStatus = useCallback(async (): Promise<number> => {
@@ -324,8 +413,7 @@ export function useSocios(): UseSociosReturn {
       
       if (updatedCount > 0) {
         toast.success(`${updatedCount} membresías actualizadas`);
-        await loadSocios(); // Refresh list
-        await refreshStats(); // Refresh stats
+        await loadSocios(); // Refresh list (las estadísticas se actualizarán automáticamente)
       } else {
         toast('No hay membresías que actualizar', { icon: 'ℹ️' });
       }
@@ -338,7 +426,7 @@ export function useSocios(): UseSociosReturn {
     } finally {
       setLoading(false);
     }
-  }, [asociacionId, loadSocios, refreshStats]);
+  }, [asociacionId, loadSocios]);
 
   // Clear error
   const clearError = useCallback(() => {
@@ -349,9 +437,8 @@ export function useSocios(): UseSociosReturn {
   useEffect(() => {
     if (asociacionId) {
       loadSocios();
-      refreshStats();
     }
-  }, [asociacionId, loadSocios, refreshStats]);
+  }, [asociacionId, loadSocios]);
 
   // Reload when filters change
   useEffect(() => {
@@ -359,6 +446,15 @@ export function useSocios(): UseSociosReturn {
       loadSocios();
     }
   }, [asociacionId, filters, loadSocios]);
+
+  // Log cuando cambien las estadísticas de vencidos
+  useEffect(() => {
+    if (stats.vencidos > 0) {
+      console.log(`⚠️ [useSocios] ${stats.vencidos} socios vencidos detectados en la pestaña Socios`);
+    } else {
+      console.log('✅ [useSocios] No hay socios vencidos detectados en la pestaña Socios');
+    }
+  }, [stats.vencidos]);
 
   return {
     socios,

@@ -122,10 +122,47 @@ export function useRealtimeSocioData(): UseRealtimeSocioDataReturn {
     const currentMonth = now.getMonth();
     const currentYear = now.getFullYear();
 
-    // Filter validaciones for current month
+    console.log('📊 Calculando estadísticas en tiempo real:', {
+      totalValidaciones: validaciones.length,
+      fechaActual: now.toLocaleDateString(),
+      mesActual: currentMonth,
+      añoActual: currentYear
+    });
+
+    // Filter validaciones for current month with robust date handling
     const validacionesEsteMes = validaciones.filter(v => {
-      const fecha = v.fechaValidacion.toDate();
-      return fecha.getMonth() === currentMonth && fecha.getFullYear() === currentYear;
+      try {
+        let fecha: Date;
+        
+        // Handle Firebase Timestamp
+        if (v.fechaValidacion && typeof v.fechaValidacion === 'object' && 'toDate' in v.fechaValidacion && typeof v.fechaValidacion.toDate === 'function') {
+          fecha = v.fechaValidacion.toDate();
+        } else if (v.fechaValidacion instanceof Date) {
+          fecha = v.fechaValidacion;
+        } else {
+          // Fallback for other date formats
+          fecha = new Date(v.fechaValidacion as unknown as string | number);
+          if (isNaN(fecha.getTime())) {
+            return false;
+          }
+        }
+        
+        const esDelMesActual = fecha.getMonth() === currentMonth && fecha.getFullYear() === currentYear;
+        
+        if (esDelMesActual) {
+          console.log('✅ Validación del mes actual:', {
+            fecha: fecha.toLocaleDateString(),
+            beneficio: v.beneficioTitulo,
+            comercio: v.comercioNombre,
+            monto: v.montoDescuento
+          });
+        }
+        
+        return esDelMesActual;
+      } catch (error) {
+        console.error('Error procesando fecha de validación:', error, v);
+        return false;
+      }
     });
 
     // Calculate total stats
@@ -171,7 +208,7 @@ export function useRealtimeSocioData(): UseRealtimeSocioDataReturn {
     // Calculate validaciones por mes (last 6 months)
     const validacionesPorMes = calculateValidacionesPorMes(validaciones);
 
-    return {
+    const estadisticas = {
       totalValidaciones,
       ahorroTotal,
       beneficiosEsteMes,
@@ -181,6 +218,10 @@ export function useRealtimeSocioData(): UseRealtimeSocioDataReturn {
       comerciosFavoritos,
       validacionesPorMes
     };
+
+    console.log('📊 Estadísticas calculadas en tiempo real:', estadisticas);
+
+    return estadisticas;
   }, [validaciones, calculateValidacionesPorMes]);
 
   // Set up real-time listener for validaciones

@@ -1,169 +1,154 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { membershipStatusUpdaterService } from '@/services/membership-status-updater.service';
 import { useAuth } from './useAuth';
-import { membershipSyncService, MembershipStatus } from '@/services/membership-sync.service';
 import { toast } from 'react-hot-toast';
 
 interface UseMembershipStatusReturn {
-  membershipStatus: MembershipStatus | null;
-  loading: boolean;
+  isUpdating: boolean;
+  lastUpdateTime: Date | null;
+  updateCount: number;
   error: string | null;
-  isConsistent: boolean;
-  needsSync: boolean;
-  checkStatus: () => Promise<void>;
-  syncStatus: () => Promise<boolean>;
-  fixPendingStatus: () => Promise<boolean>;
-  validateAssociationMembership: () => Promise<boolean>;
-  clearError: () => void;
+  updateMembershipStatus: () => Promise<void>;
+  startPeriodicUpdates: (intervalMinutes?: number) => void;
+  stopPeriodicUpdates: () => void;
+  isPeriodicUpdatesActive: boolean;
 }
 
 export function useMembershipStatus(): UseMembershipStatusReturn {
   const { user } = useAuth();
-  const [membershipStatus, setMembershipStatus] = useState<MembershipStatus | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [lastUpdateTime, setLastUpdateTime] = useState<Date | null>(null);
+  const [updateCount, setUpdateCount] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [isPeriodicUpdatesActive, setIsPeriodicUpdatesActive] = useState(false);
+  
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const asociacionId = user?.uid;
 
-  const userId = user?.uid;
-
-  // Check membership status
-  const checkStatus = useCallback(async () => {
-    if (!userId) return;
-
-    try {
-      setLoading(true);
-      setError(null);
-
-      const status = await membershipSyncService.checkMembershipStatus(userId);
-      setMembershipStatus(status);
-
-      if (status && !status.isConsistent) {
-        console.warn('⚠️ Membership status inconsistency detected:', status);
-      }
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Error checking membership status';
-      setError(errorMessage);
-      console.error('❌ Error checking membership status:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, [userId]);
-
-  // Synchronize membership status
-  const syncStatus = useCallback(async (): Promise<boolean> => {
-    if (!userId) return false;
+  // Manual update function
+  const updateMembershipStatus = useCallback(async () => {
+    if (!asociacionId || isUpdating) return;
 
     try {
-      setLoading(true);
+      setIsUpdating(true);
       setError(null);
 
-      const success = await membershipSyncService.syncMembershipStatus(userId);
-      
-      if (success) {
-        toast.success('Estado de membresía sincronizado correctamente');
-        await checkStatus(); // Refresh status after sync
+      console.log('🔄 Manually updating membership statuses...');
+      const result = await membershipStatusUpdaterService.updateAssociationMemberships(asociacionId);
+
+      if (result.success) {
+        setUpdateCount(result.updatedCount);
+        setLastUpdateTime(new Date());
+        
+        if (result.updatedCount > 0) {
+          toast.success(`${result.updatedCount} membresías actualizadas`);
+          console.log(`✅ Manual update completed: ${result.updatedCount} memberships updated`);
+        } else {
+          console.log('ℹ️ Manual update completed: No memberships needed updating');
+        }
+
+        if (result.errors.length > 0) {
+          console.warn('⚠️ Some errors occurred during update:', result.errors);
+          toast(`${result.errors.length} errores encontrados`, { icon: '⚠️' });
+        }
       } else {
-        toast.error('Error al sincronizar el estado de membresía');
+        throw new Error('Failed to update membership statuses');
       }
-
-      return success;
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Error synchronizing membership status';
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Error al actualizar membresías';
       setError(errorMessage);
       toast.error(errorMessage);
-      return false;
+      console.error('❌ Manual membership update failed:', err);
     } finally {
-      setLoading(false);
+      setIsUpdating(false);
     }
-  }, [userId, checkStatus]);
+  }, [asociacionId, isUpdating]);
 
-  // Fix pending membership status
-  const fixPendingStatus = useCallback(async (): Promise<boolean> => {
-    if (!userId) return false;
+  // Start periodic updates
+  const startPeriodicUpdates = useCallback((intervalMinutes: number = 60) => {
+    if (!asociacionId || isPeriodicUpdatesActive) return;
 
-    try {
-      setLoading(true);
-      setError(null);
+    console.log(`🕐 Starting periodic membership updates every ${intervalMinutes} minutes`);
+    
+    const interval = setInterval(async () => {
+      try {
+        console.log('🔄 Running scheduled membership status update...');
+        const result = await membershipStatusUpdaterService.updateAssociationMemberships(asociacionId);
+        
+        if (result.success) {
+          setUpdateCount(result.updatedCount);
+          setLastUpdateTime(new Date());
+          
+          if (result.updatedCount > 0) {
+            console.log(`✅ Scheduled update completed: ${result.updatedCount} memberships updated`);
+            // Only show toast for significant updates to avoid spam
+            if (result.updatedCount > 5) {
+              toast(`${result.updatedCount} membresías actualizadas automáticamente`, { 
+                icon: '🔄',
+                duration: 3000 
+              });
+            }
+          }
 
-      const success = await membershipSyncService.fixPendingMembershipStatus(userId);
-      
-      if (success) {
-        toast.success('Estado de membresía corregido exitosamente');
-        await checkStatus(); // Refresh status after fix
-      } else {
-        toast.error('Error al corregir el estado de membresía');
+          if (result.errors.length > 0) {
+            console.error('❌ Scheduled update had errors:', result.errors);
+          }
+        }
+      } catch (err) {
+        console.error('❌ Scheduled membership update failed:', err);
+        setError(err instanceof Error ? err.message : 'Error en actualización automática');
       }
+    }, intervalMinutes * 60 * 1000);
 
-      return success;
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Error fixing pending status';
-      setError(errorMessage);
-      toast.error(errorMessage);
-      return false;
-    } finally {
-      setLoading(false);
+    intervalRef.current = interval;
+    setIsPeriodicUpdatesActive(true);
+  }, [asociacionId, isPeriodicUpdatesActive]);
+
+  // Stop periodic updates
+  const stopPeriodicUpdates = useCallback(() => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+      setIsPeriodicUpdatesActive(false);
+      console.log('🛑 Stopped periodic membership updates');
     }
-  }, [userId, checkStatus]);
-
-  // Validate association membership
-  const validateAssociationMembership = useCallback(async (): Promise<boolean> => {
-    if (!userId) return false;
-
-    try {
-      setLoading(true);
-      setError(null);
-
-      const success = await membershipSyncService.validateAssociationMembership(userId);
-      
-      if (success) {
-        await checkStatus(); // Refresh status after validation
-      }
-
-      return success;
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Error validating association membership';
-      setError(errorMessage);
-      return false;
-    } finally {
-      setLoading(false);
-    }
-  }, [userId, checkStatus]);
-
-  // Clear error
-  const clearError = useCallback(() => {
-    setError(null);
   }, []);
 
-  // Auto-check status when user changes
+  // Auto-start periodic updates when component mounts and user is available
   useEffect(() => {
-    if (userId) {
-      checkStatus();
-    }
-  }, [userId, checkStatus]);
+    if (asociacionId && user?.role === 'asociacion') {
+      // Start with a 30-minute interval for associations
+      startPeriodicUpdates(30);
+      
+      // Also run an initial update after a short delay
+      const initialUpdateTimeout = setTimeout(() => {
+        updateMembershipStatus();
+      }, 5000); // 5 seconds delay to avoid overwhelming on page load
 
-  // Auto-fix pending status if detected
-  useEffect(() => {
-    if (membershipStatus && 
-        membershipStatus.needsSync && 
-        membershipStatus.membershipStatus === 'pendiente' &&
-        membershipStatus.asociacionId) {
-      console.log('🔧 Auto-fixing pending membership status...');
-      fixPendingStatus();
+      return () => {
+        clearTimeout(initialUpdateTimeout);
+        stopPeriodicUpdates();
+      };
     }
-  }, [membershipStatus, fixPendingStatus]);
+  }, [asociacionId, user?.role, startPeriodicUpdates, stopPeriodicUpdates, updateMembershipStatus]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      stopPeriodicUpdates();
+    };
+  }, [stopPeriodicUpdates]);
 
   return {
-    membershipStatus,
-    loading,
+    isUpdating,
+    lastUpdateTime,
+    updateCount,
     error,
-    isConsistent: membershipStatus?.isConsistent ?? true,
-    needsSync: membershipStatus?.needsSync ?? false,
-    checkStatus,
-    syncStatus,
-    fixPendingStatus,
-    validateAssociationMembership,
-    clearError,
+    updateMembershipStatus,
+    startPeriodicUpdates,
+    stopPeriodicUpdates,
+    isPeriodicUpdatesActive,
   };
 }
-
-export default useMembershipStatus;
