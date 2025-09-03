@@ -74,9 +74,6 @@ export default function SimplifiedSocioDashboard() {
   }, [beneficiosActivos, estadisticasRapidas, estadisticas]);
 
   // Handlers optimizados
-  const handleLogoutClick = useCallback(() => {
-    setLogoutModalOpen(true);
-  }, []);
 
   const handleLogoutConfirm = useCallback(async () => {
     setLoggingOut(true);
