@@ -22,7 +22,7 @@ import { Button } from '@/components/ui/Button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/Dialog';
 import { useBeneficios } from '@/hooks/useBeneficios';
 import { BeneficioUso } from '@/types/beneficio';
-import { format, isToday, isYesterday, isThisWeek, isThisMonth, startOfMonth, endOfMonth } from 'date-fns';
+import { format, isToday, isYesterday, isThisWeek, isThisMonth, startOfMonth } from 'date-fns';
 import { es } from 'date-fns/locale';
 import toast from 'react-hot-toast';
 import { cn } from '@/lib/utils';
