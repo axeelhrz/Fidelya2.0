@@ -1,479 +1,325 @@
 'use client';
 
-import React, { memo, useMemo } from 'react';
-import { motion } from 'framer-motion';
+import React, { useState } from 'react';
 import { 
   Gift, 
-  TrendingUp, 
-  Calendar, 
-  Star,
-  Building2,
-  Activity,
-  Clock,
-  Target,
+  History, 
   QrCode,
-  Eye,
-  Percent,
-  User
+  TrendingUp,
+  Store,
+  Calendar,
+  Award,
+  Target,
+  Zap,
+  ChevronRight,
+  RefreshCw
 } from 'lucide-react';
-import { useBeneficios } from '@/hooks/useBeneficios';
+import { Button } from '@/components/ui/Button';
+import { SocioWelcomeCard } from './SocioWelcomeCard';
 import { useSocioProfile } from '@/hooks/useSocioProfile';
+import { useBeneficios } from '@/hooks/useBeneficios';
+import { format, differenceInDays } from 'date-fns';
+import { es } from 'date-fns/locale';
 
 interface SocioOverviewDashboardProps {
   onNavigate?: (section: string) => void;
-  onQuickScan?: () => void;
-  stats?: {
-    totalBeneficios?: number;
-    beneficiosUsados?: number;
-    asociacionesActivas?: number;
-    beneficiosEstesMes?: number;
-  };
+  onLogout: () => void;
 }
 
-const SocioOverviewDashboard = memo<SocioOverviewDashboardProps>(({ 
-  onNavigate, 
-  onQuickScan, 
+export const SocioOverviewDashboard: React.FC<SocioOverviewDashboardProps> = ({
+  onNavigate,
+  onLogout
 }) => {
-  const { estadisticas } = useSocioProfile();
-  const { beneficios, estadisticasRapidas, beneficiosUsados } = useBeneficios();
+  const { socio, refreshData } = useSocioProfile();
+  const { beneficiosUsados, estadisticasRapidas, refrescar } = useBeneficios();
+  const [showWelcome, setShowWelcome] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
-  // Memoizar estadísticas consolidadas con cálculo correcto del mes actual
-  const consolidatedStats = useMemo(() => {
+  // Calculate enhanced stats
+  const stats = React.useMemo(() => {
     const now = new Date();
-    const currentMonth = now.getMonth();
-    const currentYear = now.getFullYear();
-
-    console.log('🔍 Calculando estadísticas consolidadas:', {
-      beneficiosUsados: beneficiosUsados.length,
-      estadisticasRapidas,
-      estadisticas: estadisticas?.validacionesPorMes
-    });
-
-    // MÉTODO 1: Calcular desde beneficiosUsados (más preciso)
-    const beneficiosEstesMesFromUsos = beneficiosUsados.filter(uso => {
-      try {
-        let fecha: Date;
-        
-        if (!uso.fechaUso) {
-          return false;
-        }
-        
-        // Manejo robusto de diferentes tipos de fecha
-        if (typeof uso.fechaUso === 'object' && uso.fechaUso !== null && 'toDate' in uso.fechaUso && typeof uso.fechaUso.toDate === 'function') {
-          fecha = uso.fechaUso.toDate();
-        } else if (typeof uso.fechaUso === 'object' && uso.fechaUso !== null && 'getTime' in uso.fechaUso && typeof uso.fechaUso.getTime === 'function') {
-          fecha = uso.fechaUso as unknown as Date;
-        } else {
-          fecha = new Date(uso.fechaUso as unknown as string | number);
-          if (isNaN(fecha.getTime())) {
-            return false;
-          }
-        }
-        
-        const esDelMesActual = fecha.getMonth() === currentMonth && fecha.getFullYear() === currentYear;
-        
-        if (esDelMesActual) {
-          console.log('✅ Beneficio del mes actual encontrado:', {
-            fecha: fecha.toLocaleDateString(),
-            titulo: uso.beneficioTitulo,
-            comercio: uso.comercioNombre
-          });
-        }
-        
-        return esDelMesActual;
-      } catch (error) {
-        console.error('Error procesando fecha de uso:', error, uso);
-        return false;
-      }
+    const thisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    
+    const beneficiosEsteMes = beneficiosUsados.filter(uso => {
+      const fechaUso = uso.fechaUso.toDate();
+      return fechaUso >= thisMonth;
     }).length;
 
-    // MÉTODO 2: Calcular desde estadísticas (fallback)
-    const beneficiosEstesMesFromStats = estadisticas?.validacionesPorMes?.find(mes => {
-      try {
-        // Intentar diferentes formatos de mes
-        if (mes.mes.includes('-')) {
-          const [year, month] = mes.mes.split('-').map(Number);
-          return year === currentYear && month === currentMonth + 1;
-        } else {
-          // Formato "ene 2024", "feb 2024", etc.
-          const mesActualTexto = now.toLocaleDateString('es-ES', { month: 'short', year: 'numeric' });
-          return mes.mes.toLowerCase() === mesActualTexto.toLowerCase();
-        }
-      } catch {
-        return false;
-      }
-    })?.validaciones || 0;
-
-    // Usar el método más preciso (beneficiosUsados) como principal
-    const beneficiosEstesMes = beneficiosEstesMesFromUsos;
-
-    console.log('📊 Resultados del cálculo mensual:', {
-      metodo1_beneficiosUsados: beneficiosEstesMesFromUsos,
-      metodo2_estadisticas: beneficiosEstesMesFromStats,
-      seleccionado: beneficiosEstesMes,
-      totalBeneficiosUsados: beneficiosUsados.length,
-      beneficiosDisponibles: estadisticasRapidas.disponibles
-    });
+    const comerciosUnicos = new Set(beneficiosUsados.map(uso => uso.comercioId)).size;
+    
+    const creadoEn = socio?.creadoEn?.toDate() || new Date();
+    const diasComoSocio = differenceInDays(now, creadoEn);
 
     return {
-      totalBeneficios: estadisticasRapidas.disponibles || 0,
-      beneficiosUsados: estadisticasRapidas.usados || beneficiosUsados.length,
-      beneficiosEstesMes, // Usar el cálculo corregido
-      asociacionesActivas: 1, // Por ahora asumimos 1 asociación
-      ahorroTotal: estadisticas?.ahorroTotal || estadisticasRapidas.ahorroTotal || 0,
-      beneficiosVencenProximamente: beneficios.filter(b => {
-        if (!b.fechaFin) return false;
-        let fechaFin: Date;
-        if (b.fechaFin && typeof b.fechaFin === 'object' && typeof b.fechaFin.toDate === 'function') {
-          fechaFin = b.fechaFin.toDate();
-        } else if (typeof b.fechaFin === 'string' || typeof b.fechaFin === 'number') {
-          fechaFin = new Date(b.fechaFin);
-        } else {
-          return false;
-        }
-        const diasRestantes = Math.ceil((fechaFin.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-        return diasRestantes <= 7 && diasRestantes > 0;
-      }).length
+      beneficiosDisponibles: estadisticasRapidas.disponibles,
+      beneficiosUsados: estadisticasRapidas.usados,
+      beneficiosEsteMes,
+      comerciosUnicos,
+      diasComoSocio
     };
-  }, [estadisticasRapidas, estadisticas, beneficios, beneficiosUsados]);
+  }, [beneficiosUsados, estadisticasRapidas, socio]);
 
-  // Beneficios destacados - filtrar y ordenar correctamente
-  const beneficiosDestacados = useMemo(() => {
-    const now = new Date();
-    
-    return beneficios
-      .filter(b => {
-        // Verificar que esté activo
-        if (b.estado !== 'activo') return false;
-        
-        // Verificar fechas de vigencia
-        const fechaInicio = (b.fechaInicio && typeof b.fechaInicio === 'object' && typeof b.fechaInicio.toDate === 'function')
-          ? b.fechaInicio.toDate()
-          : typeof b.fechaInicio === 'string' || typeof b.fechaInicio === 'number'
-            ? new Date(b.fechaInicio)
-            : null;
-        const fechaFin = (b.fechaFin && typeof b.fechaFin === 'object' && typeof b.fechaFin.toDate === 'function')
-          ? b.fechaFin.toDate()
-          : typeof b.fechaFin === 'string' || typeof b.fechaFin === 'number'
-            ? new Date(b.fechaFin)
-            : null;
-        
-        if (!fechaInicio || !fechaFin || fechaInicio > now || fechaFin <= now) return false;
-        
-        // Verificar límites de uso
-        if (b.limiteTotal && b.usosActuales >= b.limiteTotal) return false;
-        
-        return true;
-      })
-      .sort((a, b) => {
-        // Priorizar beneficios destacados
-        if (a.destacado && !b.destacado) return -1;
-        if (!a.destacado && b.destacado) return 1;
-        
-        // Luego por descuento (mayor descuento primero)
-        return (b.descuento || 0) - (a.descuento || 0);
-      })
+  // Recent activity
+  const recentActivity = React.useMemo(() => {
+    return beneficiosUsados
+      .sort((a, b) => b.fechaUso.toDate().getTime() - a.fechaUso.toDate().getTime())
       .slice(0, 3);
-  }, [beneficios]);
+  }, [beneficiosUsados]);
 
-  // Función para formatear el descuento
-  interface Beneficio {
-    id: string;
-    titulo: string;
-    descripcion?: string;
-    descuento?: number;
-    tipo?: 'porcentaje' | 'monto_fijo' | 'producto_gratis' | string;
-    estado?: string;
-    fechaInicio?: Date | string | number | { toDate: () => Date } | undefined;
-    fechaFin?: Date | string | number | { toDate: () => Date } | undefined;
-    limiteTotal?: number;
-    usosActuales?: number;
-    destacado?: boolean;
-    comercioNombre?: string;
-  }
-
-  const formatearDescuento = (beneficio: Beneficio) => {
-    if (!beneficio.descuento) return null;
-    
-    switch (beneficio.tipo) {
-      case 'porcentaje':
-        return `${beneficio.descuento}%`;
-      case 'monto_fijo':
-        return `$${beneficio.descuento}`;
-      case 'producto_gratis':
-        return 'GRATIS';
-      default:
-        return `${beneficio.descuento}%`;
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await Promise.all([refreshData(), refrescar()]);
+    } finally {
+      setTimeout(() => setRefreshing(false), 1000);
     }
   };
 
-  // Función para manejar "Usar ahora" - navegar a validar QR
-  const handleUsarAhora = () => {
+  const handleNavigation = (section: string) => {
     if (onNavigate) {
-      onNavigate('validar');
-    } else if (onQuickScan) {
-      onQuickScan();
-    }
-  };
-
-  // Función para manejar "Ver todos" - navegar a beneficios
-  const handleVerTodos = () => {
-    if (onNavigate) {
-      onNavigate('beneficios');
-    }
-  };
-
-  // Función para navegar al perfil
-  const handleVerPerfil = () => {
-    if (onNavigate) {
-      onNavigate('perfil');
-    }
-  };
-
-  // Función para navegar a escanear QR
-  const handleEscanearQR = () => {
-    if (onNavigate) {
-      onNavigate('validar');
-    } else if (onQuickScan) {
-      onQuickScan();
+      onNavigate(section);
     }
   };
 
   return (
-    <div className="space-y-6">
-      {/* Resumen de actividad */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4"
-      >
-        <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl p-6 border border-blue-200">
-          <div className="flex items-center justify-between mb-4">
-            <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center shadow-lg">
-              <Gift className="w-6 h-6 text-white" />
+    <div className="min-h-screen bg-gray-50 pb-20 lg:pb-0">
+      {/* Mobile Header */}
+      <div className="lg:hidden bg-white border-b border-gray-200 px-4 py-4 sticky top-0 z-30">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-xl font-bold text-gray-900">Dashboard</h1>
+            <p className="text-sm text-gray-600">Panel principal</p>
+          </div>
+          <Button
+            onClick={handleRefresh}
+            disabled={refreshing}
+            variant="outline"
+            size="sm"
+            className="p-2"
+          >
+            <RefreshCw size={16} className={refreshing ? 'animate-spin' : ''} />
+          </Button>
+        </div>
+      </div>
+
+      <div className="max-w-6xl mx-auto p-4 space-y-6">
+        {/* Welcome Card */}
+        {showWelcome && (
+          <SocioWelcomeCard
+            onLogout={onLogout}
+            onDismiss={() => setShowWelcome(false)}
+            showDismiss={true}
+          />
+        )}
+
+        {/* Quick Stats Grid */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="bg-white rounded-xl p-4 shadow-sm border">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-emerald-50 rounded-lg flex items-center justify-center">
+                <Gift size={20} className="text-emerald-600" />
+              </div>
+              <div>
+                <p className="text-xl font-bold text-gray-900">{stats.beneficiosDisponibles}</p>
+                <p className="text-sm text-gray-600">Disponibles</p>
+              </div>
             </div>
-            <TrendingUp className="w-5 h-5 text-blue-600" />
           </div>
-          <div className="text-2xl font-black text-blue-700 mb-1">
-            {consolidatedStats.totalBeneficios}
+
+          <div className="bg-white rounded-xl p-4 shadow-sm border">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center">
+                <History size={20} className="text-blue-600" />
+              </div>
+              <div>
+                <p className="text-xl font-bold text-gray-900">{stats.beneficiosUsados}</p>
+                <p className="text-sm text-gray-600">Usados</p>
+              </div>
+            </div>
           </div>
-          <div className="text-sm text-blue-600 font-medium">
-            Beneficios Disponibles
+
+          <div className="bg-white rounded-xl p-4 shadow-sm border">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-purple-50 rounded-lg flex items-center justify-center">
+                <Store size={20} className="text-purple-600" />
+              </div>
+              <div>
+                <p className="text-xl font-bold text-gray-900">{stats.comerciosUnicos}</p>
+                <p className="text-sm text-gray-600">Comercios</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl p-4 shadow-sm border">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-amber-50 rounded-lg flex items-center justify-center">
+                <Calendar size={20} className="text-amber-600" />
+              </div>
+              <div>
+                <p className="text-xl font-bold text-gray-900">{stats.beneficiosEsteMes}</p>
+                <p className="text-sm text-gray-600">Este mes</p>
+              </div>
+            </div>
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-2xl p-6 border border-emerald-200">
-          <div className="flex items-center justify-between mb-4">
-            <div className="w-12 h-12 bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-2xl flex items-center justify-center shadow-lg">
-              <Star className="w-6 h-6 text-white" />
-            </div>
-            <Activity className="w-5 h-5 text-emerald-600" />
-          </div>
-          <div className="text-2xl font-black text-emerald-700 mb-1">
-            {consolidatedStats.beneficiosUsados}
-          </div>
-          <div className="text-sm text-emerald-600 font-medium">
-            Beneficios Utilizados
-          </div>
-        </div>
-
-        <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-2xl p-6 border border-purple-200">
-          <div className="flex items-center justify-between mb-4">
-            <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg">
-              <Calendar className="w-6 h-6 text-white" />
-            </div>
-            <Target className="w-5 h-5 text-purple-600" />
-          </div>
-          <div className="text-2xl font-black text-purple-700 mb-1">
-            {consolidatedStats.beneficiosEstesMes}
-          </div>
-          <div className="text-sm text-purple-600 font-medium">
-            Usados Este Mes
-          </div>
-          {/* Indicador visual adicional para debugging */}
-          <div className="mt-2 text-xs text-purple-500 opacity-75">
-            {new Date().toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })}
-          </div>
-        </div>
-
-        <div className="bg-gradient-to-br from-amber-50 to-amber-100 rounded-2xl p-6 border border-amber-200">
-          <div className="flex items-center justify-between mb-4">
-            <div className="w-12 h-12 bg-gradient-to-r from-amber-500 to-amber-600 rounded-2xl flex items-center justify-center shadow-lg">
-              <Building2 className="w-6 h-6 text-white" />
-            </div>
-            <Clock className="w-5 h-5 text-amber-600" />
-          </div>
-          <div className="text-2xl font-black text-amber-700 mb-1">
-            {consolidatedStats.asociacionesActivas}
-          </div>
-          <div className="text-sm text-amber-600 font-medium">
-            Asociaciones Activas
-          </div>
-        </div>
-      </motion.div>
-
-      {/* Beneficios destacados */}
-      {beneficiosDestacados.length > 0 && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="bg-white/80 backdrop-blur-sm rounded-3xl border border-white/20 shadow-xl p-6"
-        >
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-2xl font-bold text-slate-900 flex items-center gap-3">
-              <Star className="w-6 h-6 text-yellow-500" />
-              Beneficios Destacados
-            </h3>
+        {/* Quick Actions */}
+        <div className="bg-white rounded-2xl p-6 shadow-sm border">
+          <h3 className="text-lg font-bold text-gray-900 mb-4">Acciones Rápidas</h3>
+          
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <button
-              onClick={handleVerTodos}
-              className="flex items-center gap-2 text-blue-600 hover:text-blue-700 font-medium text-sm transition-colors duration-200 hover:bg-blue-50 px-3 py-2 rounded-lg"
+              onClick={() => handleNavigation('validar')}
+              className="flex items-center gap-4 p-4 bg-blue-50 rounded-xl border border-blue-200 hover:bg-blue-100 transition-colors text-left"
             >
-              <Eye className="w-4 h-4" />
-              Ver todos
+              <div className="w-12 h-12 bg-blue-500 rounded-xl flex items-center justify-center">
+                <QrCode size={24} className="text-white" />
+              </div>
+              <div className="flex-1">
+                <h4 className="font-semibold text-gray-900">Escanear QR</h4>
+                <p className="text-sm text-gray-600">Validar beneficios</p>
+              </div>
+              <ChevronRight size={20} className="text-gray-400" />
+            </button>
+
+            <button
+              onClick={() => handleNavigation('beneficios')}
+              className="flex items-center gap-4 p-4 bg-emerald-50 rounded-xl border border-emerald-200 hover:bg-emerald-100 transition-colors text-left"
+            >
+              <div className="w-12 h-12 bg-emerald-500 rounded-xl flex items-center justify-center">
+                <Gift size={24} className="text-white" />
+              </div>
+              <div className="flex-1">
+                <h4 className="font-semibold text-gray-900">Mis Beneficios</h4>
+                <p className="text-sm text-gray-600">{stats.beneficiosDisponibles} disponibles</p>
+              </div>
+              <ChevronRight size={20} className="text-gray-400" />
+            </button>
+
+            <button
+              onClick={() => handleNavigation('historial')}
+              className="flex items-center gap-4 p-4 bg-purple-50 rounded-xl border border-purple-200 hover:bg-purple-100 transition-colors text-left"
+            >
+              <div className="w-12 h-12 bg-purple-500 rounded-xl flex items-center justify-center">
+                <History size={24} className="text-white" />
+              </div>
+              <div className="flex-1">
+                <h4 className="font-semibold text-gray-900">Historial</h4>
+                <p className="text-sm text-gray-600">{stats.beneficiosUsados} usos</p>
+              </div>
+              <ChevronRight size={20} className="text-gray-400" />
             </button>
           </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {beneficiosDestacados.map((beneficio, index) => (
-              <motion.div
-                key={beneficio.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 + index * 0.05 }}
-                className="bg-gradient-to-br from-white to-gray-50 rounded-2xl p-4 border border-gray-200 hover:shadow-lg transition-all duration-300 group"
-              >
-                <div className="flex items-start justify-between mb-3">
-                  <h4 className="font-bold text-gray-900 text-sm leading-tight flex-1">
-                    {beneficio.titulo}
-                  </h4>
-                  {beneficio.descuento && (
-                    <div className="ml-2 px-3 py-1 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-lg text-xs font-bold shadow-lg flex items-center gap-1">
-                      <Percent className="w-3 h-3" />
-                      {formatearDescuento(beneficio)}
-                    </div>
-                  )}
-                </div>
-                
-                {beneficio.comercioNombre && (
-                  <div className="flex items-center gap-2 mb-2">
-                    <Building2 className="w-3 h-3 text-gray-400" />
-                    <span className="text-xs text-gray-600 font-medium">{beneficio.comercioNombre}</span>
-                  </div>
-                )}
-                
-                {beneficio.descripcion && (
-                  <p className="text-xs text-gray-500 leading-relaxed mb-3 line-clamp-2">
-                    {beneficio.descripcion}
-                  </p>
-                )}
-                
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                    <span className="text-xs text-green-600 font-bold">Disponible</span>
-                  </div>
-                  
-                  <button
-                    onClick={handleUsarAhora}
-                    className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 font-bold transition-colors duration-200 hover:bg-blue-50 px-2 py-1 rounded-md"
-                  >
-                    <QrCode className="w-3 h-3" />
-                    Usar ahora
-                  </button>
-                </div>
-              </motion.div>
-            ))}
-          </div>
-        </motion.div>
-      )}
+        </div>
 
-      {/* Alertas y notificaciones */}
-      {consolidatedStats.beneficiosVencenProximamente > 0 && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-2xl p-6 border border-amber-200"
-        >
+        {/* Recent Activity */}
+        {recentActivity.length > 0 && (
+          <div className="bg-white rounded-2xl p-6 shadow-sm border">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-gray-900">Actividad Reciente</h3>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleNavigation('historial')}
+              >
+                Ver todo
+                <ChevronRight size={16} className="ml-1" />
+              </Button>
+            </div>
+
+            <div className="space-y-3">
+              {recentActivity.map((uso) => (
+                <div key={uso.id} className="flex items-center gap-4 p-3 bg-gray-50 rounded-lg">
+                  <div className="w-10 h-10 bg-emerald-500 rounded-lg flex items-center justify-center text-white font-bold text-sm">
+                    <Award size={16} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h4 className="font-medium text-gray-900 truncate">
+                      {uso.beneficioTitulo || 'Beneficio usado'}
+                    </h4>
+                    <p className="text-sm text-gray-600">
+                      {uso.comercioNombre} • {format(uso.fechaUso.toDate(), 'dd MMM', { locale: es })}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-semibold text-emerald-600">
+                      ${uso.montoDescuento || 0}
+                    </p>
+                    <p className="text-xs text-gray-500">ahorrado</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Progress Card */}
+        <div className="bg-white rounded-2xl p-6 shadow-sm border">
           <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 bg-gradient-to-r from-amber-500 to-orange-500 rounded-xl flex items-center justify-center">
-              <Clock className="w-5 h-5 text-white" />
+            <div className="w-10 h-10 bg-amber-50 rounded-lg flex items-center justify-center">
+              <Target size={20} className="text-amber-600" />
             </div>
             <div>
-              <h4 className="font-bold text-amber-900">Beneficios por vencer</h4>
-              <p className="text-sm text-amber-700">
-                Tienes {consolidatedStats.beneficiosVencenProximamente} beneficio{consolidatedStats.beneficiosVencenProximamente > 1 ? 's' : ''} que vence{consolidatedStats.beneficiosVencenProximamente > 1 ? 'n' : ''} pronto
-              </p>
+              <h3 className="text-lg font-bold text-gray-900">Tu Progreso</h3>
+              <p className="text-sm text-gray-600">Llevas {stats.diasComoSocio} días como socio</p>
             </div>
           </div>
-          <button
-            onClick={handleVerTodos}
-            className="bg-gradient-to-r from-amber-500 to-orange-500 text-white px-4 py-2 rounded-xl font-medium text-sm hover:from-amber-600 hover:to-orange-600 transition-all duration-200"
-          >
-            Ver detalles
-          </button>
-        </motion.div>
-      )}
 
-      {/* Acciones rápidas */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.3 }}
-        className="bg-white/80 backdrop-blur-sm rounded-3xl border border-white/20 shadow-xl p-6"
-      >
-        <h3 className="text-2xl font-bold text-slate-900 mb-6">Acciones Rápidas</h3>
-        
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <button
-            onClick={handleEscanearQR}
-            className="bg-gradient-to-r from-blue-500 to-purple-600 text-white p-6 rounded-2xl hover:from-blue-600 hover:to-purple-700 transition-all duration-300 text-left group transform hover:scale-105"
-          >
-            <div className="flex items-center justify-between mb-4">
-              <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
-                <QrCode className="w-6 h-6 text-white" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium text-gray-700">Beneficios este mes</span>
+                <span className="text-sm font-bold text-gray-900">{stats.beneficiosEsteMes}/10</span>
               </div>
-              <TrendingUp className="w-5 h-5 text-white/70 group-hover:text-white transition-colors" />
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div 
+                  className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full transition-all duration-500"
+                  style={{ width: `${Math.min((stats.beneficiosEsteMes / 10) * 100, 100)}%` }}
+                />
+              </div>
+              <p className="text-xs text-gray-500 mt-1">Meta mensual</p>
             </div>
-            <h4 className="font-bold text-white mb-2">Escanear QR</h4>
-            <p className="text-white/80 text-sm">Valida un beneficio escaneando el código QR</p>
-          </button>
 
-          <button
-            onClick={handleVerTodos}
-            className="bg-gradient-to-r from-emerald-500 to-teal-600 text-white p-6 rounded-2xl hover:from-emerald-600 hover:to-teal-700 transition-all duration-300 text-left group transform hover:scale-105"
-          >
-            <div className="flex items-center justify-between mb-4">
-              <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
-                <Gift className="w-6 h-6 text-white" />
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium text-gray-700">Comercios visitados</span>
+                <span className="text-sm font-bold text-gray-900">{stats.comerciosUnicos}/5</span>
               </div>
-              <Activity className="w-5 h-5 text-white/70 group-hover:text-white transition-colors" />
-            </div>
-            <h4 className="font-bold text-white mb-2">Ver Beneficios</h4>
-            <p className="text-white/80 text-sm">Explora todos los beneficios disponibles</p>
-          </button>
-
-          <button
-            onClick={handleVerPerfil}
-            className="bg-gradient-to-r from-purple-500 to-pink-600 text-white p-6 rounded-2xl hover:from-purple-600 hover:to-pink-700 transition-all duration-300 text-left group transform hover:scale-105"
-          >
-            <div className="flex items-center justify-between mb-4">
-              <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
-                <User className="w-6 h-6 text-white" />
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div 
+                  className="bg-gradient-to-r from-emerald-500 to-teal-500 h-2 rounded-full transition-all duration-500"
+                  style={{ width: `${Math.min((stats.comerciosUnicos / 5) * 100, 100)}%` }}
+                />
               </div>
-              <Target className="w-5 h-5 text-white/70 group-hover:text-white transition-colors" />
+              <p className="text-xs text-gray-500 mt-1">Diversidad de uso</p>
             </div>
-            <h4 className="font-bold text-white mb-2">Mi Perfil</h4>
-            <p className="text-white/80 text-sm">Actualiza tu información personal</p>
-          </button>
+          </div>
         </div>
-      </motion.div>
+
+        {/* Tips Card */}
+        <div className="bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl p-6 text-white">
+          <div className="flex items-start gap-4">
+            <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
+              <Zap size={24} className="text-white" />
+            </div>
+            <div className="flex-1">
+              <h3 className="text-lg font-bold mb-2">💡 Consejo del día</h3>
+              <p className="text-white/90 text-sm leading-relaxed mb-4">
+                {stats.beneficiosDisponibles > 0 
+                  ? 'Recuerda revisar la fecha de vencimiento de tus beneficios para no perder ninguna oportunidad de ahorro.'
+                  : 'Mantente atento a las notificaciones para ser el primero en conocer los nuevos beneficios disponibles.'
+                }
+              </p>
+              <div className="flex items-center gap-2 text-white/80 text-xs">
+                <TrendingUp size={12} />
+                <span>Actualizado hoy</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
-});
+};
 
-SocioOverviewDashboard.displayName = 'SocioOverviewDashboard';
-
-export { SocioOverviewDashboard };
 export default SocioOverviewDashboard;

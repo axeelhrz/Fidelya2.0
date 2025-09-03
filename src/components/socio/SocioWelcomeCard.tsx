@@ -1,175 +1,223 @@
 'use client';
 
-import React, { memo } from 'react';
-import { motion } from 'framer-motion';
+import React, { useState } from 'react';
 import { 
-  User, 
-  TrendingUp, 
-  Shield, 
-  QrCode,
-  Eye,
-  LogOut
+  LogOut, 
+  X, 
+  Sparkles,
+  Award,
+  Gift,
+  Calendar,
+  ChevronRight
 } from 'lucide-react';
+import { Button } from '@/components/ui/Button';
+import { useAuth } from '@/hooks/useAuth';
+import { useSocioProfile } from '@/hooks/useSocioProfile';
+import { useBeneficios } from '@/hooks/useBeneficios';
+import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
+import { cn } from '@/lib/utils';
 
 interface SocioWelcomeCardProps {
-  user: {
-    nombre?: string;
-    email?: string;
-    role?: string;
-  };
-  socio?: {
-    nombre?: string;
-    numeroSocio?: string;
-    estadoMembresia?: string;
-    fechaVinculacion?: Date | { toDate: () => Date } | null;
-  };
-  stats: {
-    totalBeneficios?: number;
-    beneficiosUsados?: number;
-    asociacionesActivas?: number;
-    beneficiosEstesMes?: number;
-  };
-  onQuickScan: () => void;
-  onViewProfile: () => void;
   onLogout: () => void;
+  onNavigate?: (section: string) => void;
+  onDismiss?: () => void;
+  showDismiss?: boolean;
 }
 
-const SocioWelcomeCard = memo<SocioWelcomeCardProps>(({ 
-  user, 
-  socio, 
-  onQuickScan, 
-  onViewProfile,
-  onLogout
+export const SocioWelcomeCard: React.FC<SocioWelcomeCardProps> = ({
+  onLogout,
+  onNavigate,
+  onDismiss,
+  showDismiss = true
 }) => {
-  const getEstadoColor = (estado?: string) => {
-    switch (estado) {
-      case 'activo':
-        return 'from-emerald-500 to-teal-500';
-      case 'pendiente':
-        return 'from-amber-500 to-orange-500';
-      case 'suspendido':
-        return 'from-red-500 to-rose-500';
-      default:
-        return 'from-blue-500 to-indigo-500';
+  const { user } = useAuth();
+  const { socio } = useSocioProfile();
+  const { estadisticasRapidas } = useBeneficios();
+  const [isVisible, setIsVisible] = useState(true);
+
+  const handleDismiss = () => {
+    setIsVisible(false);
+    if (onDismiss) {
+      onDismiss();
     }
   };
 
-  const getEstadoText = (estado?: string) => {
+  const handleLogout = () => {
+    onLogout();
+  };
+
+  const handleViewBeneficios = () => {
+    if (onNavigate) {
+      onNavigate('beneficios');
+    }
+  };
+
+  if (!isVisible) return null;
+
+  const userInfo = {
+    name: socio?.nombre || user?.nombre || 'Socio',
+    initial: (socio?.nombre || user?.nombre)?.charAt(0).toUpperCase() || 'S',
+    status: socio?.estado || 'activo',
+    numeroSocio: socio?.numeroSocio || '',
+    email: socio?.email || user?.email || ''
+  };
+
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return '¡Buenos días';
+    if (hour < 18) return '¡Buenas tardes';
+    return '¡Buenas noches';
+  };
+
+  const getStatusColor = (estado: string) => {
+    switch (estado) {
+      case 'activo':
+        return 'bg-green-500';
+      case 'vencido':
+        return 'bg-amber-500';
+      case 'pendiente':
+        return 'bg-blue-500';
+      default:
+        return 'bg-gray-500';
+    }
+  };
+
+  const getStatusText = (estado: string) => {
     switch (estado) {
       case 'activo':
         return 'Activo';
+      case 'vencido':
+        return 'Vencido';
       case 'pendiente':
         return 'Pendiente';
-      case 'suspendido':
-        return 'Suspendido';
       default:
-        return 'Verificando';
+        return 'Inactivo';
     }
   };
 
   return (
-    <motion.div 
-      initial={{ opacity: 0, y: -20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="bg-white/90 backdrop-blur-xl rounded-2xl sm:rounded-3xl shadow-lg sm:shadow-xl border border-white/30 p-4 sm:p-6 lg:p-8 mb-6 sm:mb-8"
-    >
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 sm:gap-6">
-        <div className="flex flex-col sm:flex-row sm:items-center gap-4 lg:gap-6">
-          <div className="relative">
-            <div className="w-12 h-12 sm:w-16 sm:h-16 lg:w-20 lg:h-20 bg-gradient-to-br from-blue-600 via-purple-600 to-indigo-700 rounded-2xl sm:rounded-3xl flex items-center justify-center shadow-xl sm:shadow-2xl">
-              <User className="w-6 h-6 sm:w-8 sm:h-8 lg:w-10 lg:h-10 text-white" />
-            </div>
-            <div className={`absolute -bottom-1 -right-1 sm:-bottom-2 sm:-right-2 w-4 h-4 sm:w-6 sm:h-6 bg-gradient-to-r ${getEstadoColor(socio?.estadoMembresia)} rounded-full border-2 sm:border-3 border-white shadow-lg flex items-center justify-center`}>
-              <TrendingUp className="w-2 h-2 sm:w-3 sm:h-3 text-white" />
-            </div>
+    <div className="bg-gradient-to-r from-blue-500 via-purple-500 to-indigo-600 rounded-2xl p-6 text-white shadow-lg relative overflow-hidden">
+      {/* Background decorations */}
+      <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl" />
+      <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/5 rounded-full blur-xl" />
+      
+      {/* Dismiss button */}
+      {showDismiss && (
+        <button
+          onClick={handleDismiss}
+          className="absolute top-4 right-4 p-1.5 rounded-lg hover:bg-white/20 transition-colors duration-200"
+        >
+          <X size={16} className="text-white/80" />
+        </button>
+      )}
+
+      <div className="relative z-10">
+        {/* Header */}
+        <div className="flex items-start gap-4 mb-6">
+          <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-sm border border-white/30">
+            <span className="text-2xl font-bold text-white">{userInfo.initial}</span>
           </div>
-          <div>
-            <motion.h1 
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.1 }}
-              className="text-xl sm:text-2xl lg:text-3xl xl:text-4xl font-bold text-slate-900 mb-1 sm:mb-2"
-            >
-              Hola, {socio?.nombre || user?.nombre || 'Socio'}
-            </motion.h1>
-            <motion.div 
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.2 }}
-              className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4"
-            >
-              <p className="text-sm sm:text-base lg:text-lg xl:text-xl text-slate-600">
-                Panel de beneficios y servicios
-              </p>
-              {socio?.numeroSocio && (
-                <div className="flex items-center gap-2 bg-gradient-to-r from-blue-50 to-indigo-50 px-3 py-1 rounded-full border border-blue-200">
-                  <Shield className="w-3 h-3 sm:w-4 sm:h-4 text-blue-600" />
-                  <span className="text-xs sm:text-sm font-bold text-blue-700">
-                    Socio #{socio.numeroSocio}
-                  </span>
-                </div>
-              )}
-            </motion.div>
-          </div>
-        </div>
-        
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 lg:gap-4">
-          <motion.button
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.4 }}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={onQuickScan}
-            className="bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-700 hover:from-blue-700 hover:via-purple-700 hover:to-indigo-800 text-white px-4 sm:px-6 lg:px-8 py-2.5 sm:py-3 lg:py-4 rounded-xl sm:rounded-2xl font-semibold transition-all duration-300 flex items-center justify-center space-x-2 shadow-lg sm:shadow-xl hover:shadow-xl sm:hover:shadow-2xl group text-sm sm:text-base"
-          >
-            <QrCode className="w-4 h-4 sm:w-5 sm:h-5" />
-            <span>Escanear QR</span>
-          </motion.button>
           
-          <div className="flex items-center gap-2">
-            <div className={`flex items-center gap-2 bg-gradient-to-r ${getEstadoColor(socio?.estadoMembresia).replace('from-', 'from-').replace('to-', 'to-').replace('-500', '-50').replace('-500', '-50')} px-3 sm:px-4 py-2 sm:py-3 rounded-xl sm:rounded-2xl border ${getEstadoColor(socio?.estadoMembresia).replace('from-', 'border-').replace('to-', '').replace('-500', '-200')}`}>
-              <Shield className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-600" />
-              <span className="text-xs sm:text-sm font-medium text-emerald-700">
-                {getEstadoText(socio?.estadoMembresia)}
-              </span>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-2">
+              <Sparkles size={20} className="text-yellow-300" />
+              <h2 className="text-xl font-bold text-white">
+                {getGreeting()}, {userInfo.name}!
+              </h2>
             </div>
             
-            <div className="flex items-center gap-2">
-              <motion.button
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0.5 }}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={onViewProfile}
-                className="p-2.5 sm:p-3 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-xl sm:rounded-2xl transition-all duration-200"
-                title="Ver perfil"
-              >
-                <Eye className="w-4 h-4 sm:w-5 sm:h-5" />
-              </motion.button>
+            <div className="flex flex-wrap items-center gap-2 mb-3">
+              <span className="text-white/90 text-sm font-medium">
+                Socio #{userInfo.numeroSocio}
+              </span>
+              <div className="flex items-center gap-1">
+                <div className={cn(
+                  "w-2 h-2 rounded-full",
+                  getStatusColor(userInfo.status)
+                )} />
+                <span className="text-white/80 text-xs font-medium">
+                  {getStatusText(userInfo.status)}
+                </span>
+              </div>
+            </div>
 
-              <motion.button
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0.6 }}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={onLogout}
-                className="p-2.5 sm:p-3 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-xl sm:rounded-2xl transition-all duration-200"
-                title="Cerrar sesión"
-              >
-                <LogOut className="w-4 h-4 sm:w-5 sm:h-5" />
-              </motion.button>
+            <p className="text-white/80 text-sm">
+              {format(new Date(), "EEEE, dd 'de' MMMM", { locale: es })}
+            </p>
+          </div>
+        </div>
+
+        {/* Quick Stats */}
+        <div className="grid grid-cols-2 gap-4 mb-6">
+          <div className="bg-white/10 rounded-xl p-4 backdrop-blur-sm border border-white/20">
+            <div className="flex items-center gap-2 mb-2">
+              <Gift size={16} className="text-white/80" />
+              <span className="text-white/80 text-xs font-medium">Disponibles</span>
+            </div>
+            <div className="text-2xl font-bold text-white">
+              {estadisticasRapidas.disponibles}
+            </div>
+          </div>
+
+          <div className="bg-white/10 rounded-xl p-4 backdrop-blur-sm border border-white/20">
+            <div className="flex items-center gap-2 mb-2">
+              <Award size={16} className="text-white/80" />
+              <span className="text-white/80 text-xs font-medium">Usados</span>
+            </div>
+            <div className="text-2xl font-bold text-white">
+              {estadisticasRapidas.usados}
+            </div>
+          </div>
+        </div>
+
+        {/* Welcome Message */}
+        <div className="bg-white/10 rounded-xl p-4 backdrop-blur-sm border border-white/20 mb-6">
+          <p className="text-white/90 text-sm leading-relaxed">
+            {estadisticasRapidas.disponibles > 0 
+              ? `Tienes ${estadisticasRapidas.disponibles} beneficios disponibles para usar. ¡Aprovecha tus descuentos exclusivos!`
+              : 'Mantente atento a nuevos beneficios que estarán disponibles pronto.'
+            }
+          </p>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex flex-col sm:flex-row gap-3">
+          {estadisticasRapidas.disponibles > 0 && (
+            <Button
+              onClick={handleViewBeneficios}
+              variant="outline"
+              className="flex-1 bg-white/20 border-white/30 text-white hover:bg-white/30 backdrop-blur-sm"
+            >
+              <Gift size={16} className="mr-2" />
+              Ver Beneficios
+              <ChevronRight size={16} className="ml-auto" />
+            </Button>
+          )}
+          
+          <Button
+            onClick={handleLogout}
+            variant="outline"
+            className="bg-red-500/20 border-red-300/50 text-white hover:bg-red-500/30 backdrop-blur-sm"
+          >
+            <LogOut size={16} className="mr-2" />
+            Cerrar Sesión
+          </Button>
+        </div>
+
+        {/* User Info Footer */}
+        <div className="mt-6 pt-4 border-t border-white/20">
+          <div className="flex items-center justify-between text-white/70 text-xs">
+            <span>Conectado como: {userInfo.email}</span>
+            <div className="flex items-center gap-1">
+              <Calendar size={12} />
+              <span>Hoy</span>
             </div>
           </div>
         </div>
       </div>
-    </motion.div>
+    </div>
   );
-});
+};
 
-SocioWelcomeCard.displayName = 'SocioWelcomeCard';
-
-export { SocioWelcomeCard };
 export default SocioWelcomeCard;

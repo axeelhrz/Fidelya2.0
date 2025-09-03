@@ -3,6 +3,7 @@
 import React, { useState, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { 
+  Home,
   QrCode, 
   Gift, 
   History,
@@ -20,7 +21,7 @@ import { cn } from '@/lib/utils';
 interface NavigationItem {
   id: string;
   label: string;
-  icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
+  icon: React.ComponentType<{ size?: number; className?: string }>;
   route: string;
   badge?: number;
 }
@@ -47,8 +48,14 @@ export const MobileSocioNavigation: React.FC<MobileSocioNavigationProps> = ({
   // Navigation items
   const navigationItems: NavigationItem[] = [
     {
+      id: 'dashboard',
+      label: 'Inicio',
+      icon: Home,
+      route: '/dashboard/socio',
+    },
+    {
       id: 'validar',
-      label: 'Escanear QR',
+      label: 'Escanear',
       icon: QrCode,
       route: '/dashboard/socio/validar',
     },
@@ -65,7 +72,11 @@ export const MobileSocioNavigation: React.FC<MobileSocioNavigationProps> = ({
       icon: History,
       route: '/dashboard/socio/historial',
       badge: estadisticasRapidas.usados
-    },
+    }
+  ];
+
+  const sidebarItems: NavigationItem[] = [
+    ...navigationItems,
     {
       id: 'perfil',
       label: 'Mi Perfil',
@@ -118,7 +129,7 @@ export const MobileSocioNavigation: React.FC<MobileSocioNavigationProps> = ({
       {/* Bottom Navigation - Mobile */}
       <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-2 py-2 z-40">
         <div className="flex items-center justify-around">
-          {navigationItems.slice(0, 4).map((item) => {
+          {navigationItems.map((item) => {
             const isActive = activeSection === item.id || pathname === item.route;
             const Icon = item.icon;
             
@@ -134,7 +145,7 @@ export const MobileSocioNavigation: React.FC<MobileSocioNavigationProps> = ({
                 )}
               >
                 <div className="relative">
-                  <Icon width={20} height={20} />
+                  <Icon size={20} />
                   {item.badge !== undefined && item.badge > 0 && (
                     <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">
                       {item.badge > 99 ? '99+' : item.badge}
@@ -196,7 +207,7 @@ export const MobileSocioNavigation: React.FC<MobileSocioNavigationProps> = ({
 
         {/* Navigation Items */}
         <div className="p-4 space-y-2">
-          {navigationItems.map((item) => {
+          {sidebarItems.map((item) => {
             const isActive = activeSection === item.id || pathname === item.route;
             const Icon = item.icon;
             
@@ -211,7 +222,7 @@ export const MobileSocioNavigation: React.FC<MobileSocioNavigationProps> = ({
                     : "text-gray-700 hover:bg-gray-50 hover:text-gray-900"
                 )}
               >
-                <Icon width={20} height={20} />
+                <Icon size={20} />
                 <span className="font-medium flex-1">{item.label}</span>
                 <div className="flex items-center gap-2">
                   {item.badge !== undefined && item.badge > 0 && (
