@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Gift, 
   History, 
@@ -14,12 +13,18 @@ import {
   Award,
   Zap,
   Percent,
-  Package
+  Package,
+  ChevronRight,
+  MapPin,
+  Clock,
+  Star,
+  Sparkles
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { useBeneficiosSocio } from '@/hooks/useBeneficiosSocio';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { cn } from '@/lib/utils';
 
 type BeneficioUsado = {
   id: string;
@@ -47,21 +52,32 @@ export const BeneficiosSimple: React.FC = () => {
   } = useBeneficiosSocio();
 
   const [activeTab, setActiveTab] = useState<'beneficios' | 'usados'>('beneficios');
+  const [refreshing, setRefreshing] = useState(false);
 
   const handleUseBenefit = async (beneficioId: string, comercioId: string) => {
     await usarBeneficio(beneficioId, comercioId);
   };
 
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await refrescar();
+    } finally {
+      setTimeout(() => setRefreshing(false), 1000);
+    }
+  };
+
   if (error) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="text-center max-w-md">
           <div className="w-16 h-16 mx-auto mb-4 bg-red-100 rounded-2xl flex items-center justify-center">
             <Gift size={32} className="text-red-500" />
           </div>
-          <h3 className="text-xl font-bold text-gray-900 mb-2">Error al cargar beneficios</h3>
+          <h3 className="text-xl font-semibold text-gray-900 mb-2">Error al cargar beneficios</h3>
           <p className="text-gray-600 mb-4">{error}</p>
-          <Button onClick={refrescar} leftIcon={<RefreshCw size={16} />}>
+          <Button onClick={handleRefresh} className="w-full">
+            <RefreshCw size={16} className="mr-2" />
             Reintentar
           </Button>
         </div>
@@ -70,121 +86,162 @@ export const BeneficiosSimple: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header con estadísticas */}
-      <div className="bg-white rounded-2xl p-6 shadow-sm border">
-        <div className="flex items-center justify-between mb-6">
+    <div className="min-h-screen bg-gray-50 pb-20 lg:pb-0">
+      {/* Mobile Header */}
+      <div className="lg:hidden bg-white border-b border-gray-200 px-4 py-4 sticky top-0 z-30">
+        <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">Mis Beneficios</h2>
-            <p className="text-gray-600">Descubre y utiliza todos tus descuentos disponibles</p>
+            <h1 className="text-xl font-bold text-gray-900">Mis Beneficios</h1>
+            <p className="text-sm text-gray-600">Descubre y utiliza tus descuentos</p>
           </div>
           <Button
-            onClick={refrescar}
-            disabled={loading}
-            leftIcon={<RefreshCw size={16} className={loading ? 'animate-spin' : ''} />}
+            onClick={handleRefresh}
+            disabled={refreshing}
             variant="outline"
+            size="sm"
+            className="p-2"
           >
-            {loading ? 'Actualizando...' : 'Actualizar'}
+            <RefreshCw size={16} className={refreshing ? 'animate-spin' : ''} />
           </Button>
         </div>
+      </div>
 
-        {/* Estadísticas */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="bg-emerald-50 rounded-xl p-4 border border-emerald-200">
+      <div className="max-w-6xl mx-auto p-4 space-y-4">
+        {/* Desktop Header */}
+        <div className="hidden lg:block bg-white rounded-xl p-6 shadow-sm border">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">Mis Beneficios</h2>
+              <p className="text-gray-600">Descubre y utiliza todos tus descuentos disponibles</p>
+            </div>
+            <Button
+              onClick={handleRefresh}
+              disabled={refreshing}
+              variant="outline"
+            >
+              <RefreshCw size={16} className={cn("mr-2", refreshing && 'animate-spin')} />
+              {refreshing ? 'Actualizando...' : 'Actualizar'}
+            </Button>
+          </div>
+        </div>
+
+        {/* Stats Cards - Mobile Optimized */}
+        <div className="grid grid-cols-2 gap-3 lg:hidden">
+          <div className="bg-white rounded-xl p-4 shadow-sm border">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-emerald-500 rounded-lg flex items-center justify-center">
-                <Target size={20} className="text-white" />
+                <Target size={18} className="text-white" />
               </div>
               <div>
-                <div className="text-2xl font-bold text-emerald-700">{estadisticas.disponibles}</div>
-                <div className="text-sm text-emerald-600">Disponibles</div>
+                <div className="text-xl font-bold text-emerald-700">{estadisticas.disponibles}</div>
+                <div className="text-xs text-emerald-600">Disponibles</div>
               </div>
             </div>
           </div>
 
-          <div className="bg-indigo-50 rounded-xl p-4 border border-indigo-200">
+          <div className="bg-white rounded-xl p-4 shadow-sm border">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-indigo-500 rounded-lg flex items-center justify-center">
-                <History size={20} className="text-white" />
+                <History size={18} className="text-white" />
               </div>
               <div>
-                <div className="text-2xl font-bold text-indigo-700">{estadisticas.usados}</div>
-                <div className="text-sm text-indigo-600">Usados</div>
+                <div className="text-xl font-bold text-indigo-700">{estadisticas.usados}</div>
+                <div className="text-xs text-indigo-600">Usados</div>
               </div>
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Tabs */}
-      <div className="bg-white rounded-2xl p-2 shadow-sm border">
-        <div className="flex gap-2">
-          <button
-            onClick={() => setActiveTab('beneficios')}
-            className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-medium transition-all ${
-              activeTab === 'beneficios'
-                ? 'bg-blue-500 text-white shadow-md'
-                : 'text-gray-600 hover:bg-gray-50'
-            }`}
-          >
-            <Gift size={18} />
-            <span>Beneficios</span>
-            <span className={`px-2 py-1 rounded-lg text-xs font-bold ${
-              activeTab === 'beneficios' ? 'bg-white/20 text-white' : 'bg-blue-100 text-blue-600'
-            }`}>
-              {estadisticas.disponibles}
-            </span>
-          </button>
-          
-          <button
-            onClick={() => setActiveTab('usados')}
-            className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-medium transition-all ${
-              activeTab === 'usados'
-                ? 'bg-blue-500 text-white shadow-md'
-                : 'text-gray-600 hover:bg-gray-50'
-            }`}
-          >
-            <History size={18} />
-            <span>Usados</span>
-            <span className={`px-2 py-1 rounded-lg text-xs font-bold ${
-              activeTab === 'usados' ? 'bg-white/20 text-white' : 'bg-indigo-100 text-indigo-600'
-            }`}>
-              {estadisticas.usados}
-            </span>
-          </button>
+        {/* Desktop Stats */}
+        <div className="hidden lg:grid lg:grid-cols-2 gap-4">
+          <div className="bg-white rounded-xl p-6 shadow-sm border">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-emerald-500 rounded-lg flex items-center justify-center">
+                <Target size={24} className="text-white" />
+              </div>
+              <div>
+                <div className="text-3xl font-bold text-emerald-700">{estadisticas.disponibles}</div>
+                <div className="text-sm text-emerald-600">Beneficios Disponibles</div>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl p-6 shadow-sm border">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-indigo-500 rounded-lg flex items-center justify-center">
+                <History size={24} className="text-white" />
+              </div>
+              <div>
+                <div className="text-3xl font-bold text-indigo-700">{estadisticas.usados}</div>
+                <div className="text-sm text-indigo-600">Beneficios Usados</div>
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
 
-      {/* Contenido */}
-      <AnimatePresence mode="wait">
+        {/* Tab Navigation - Mobile Optimized */}
+        <div className="bg-white rounded-xl p-2 shadow-sm border">
+          <div className="flex gap-1">
+            <button
+              onClick={() => setActiveTab('beneficios')}
+              className={cn(
+                "flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-lg font-medium transition-all text-sm lg:text-base",
+                activeTab === 'beneficios'
+                  ? "bg-blue-500 text-white shadow-md"
+                  : "text-gray-600 hover:bg-gray-50"
+              )}
+            >
+              <Gift size={18} />
+              <span className="hidden sm:inline">Beneficios</span>
+              <span className={cn(
+                "px-2 py-1 rounded-lg text-xs font-bold",
+                activeTab === 'beneficios' ? 'bg-white/20 text-white' : 'bg-blue-100 text-blue-600'
+              )}>
+                {estadisticas.disponibles}
+              </span>
+            </button>
+            
+            <button
+              onClick={() => setActiveTab('usados')}
+              className={cn(
+                "flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-lg font-medium transition-all text-sm lg:text-base",
+                activeTab === 'usados'
+                  ? "bg-blue-500 text-white shadow-md"
+                  : "text-gray-600 hover:bg-gray-50"
+              )}
+            >
+              <History size={18} />
+              <span className="hidden sm:inline">Usados</span>
+              <span className={cn(
+                "px-2 py-1 rounded-lg text-xs font-bold",
+                activeTab === 'usados' ? 'bg-white/20 text-white' : 'bg-indigo-100 text-indigo-600'
+              )}>
+                {estadisticas.usados}
+              </span>
+            </button>
+          </div>
+        </div>
+
+        {/* Content */}
         {activeTab === 'beneficios' && (
-          <motion.div
-            key="beneficios"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            transition={{ duration: 0.2 }}
-          >
+          <div>
             {loading ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
                 {[...Array(6)].map((_, i) => (
-                  <div key={i} className="bg-white rounded-xl p-6 shadow-sm border animate-pulse">
+                  <div key={i} className="bg-white rounded-xl p-4 lg:p-6 shadow-sm border animate-pulse">
                     <div className="h-4 bg-gray-200 rounded mb-4"></div>
                     <div className="h-3 bg-gray-200 rounded mb-2"></div>
                     <div className="h-3 bg-gray-200 rounded mb-4"></div>
-                    <div className="h-8 bg-gray-200 rounded"></div>
+                    <div className="h-10 bg-gray-200 rounded"></div>
                   </div>
                 ))}
               </div>
             ) : beneficios.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {beneficios.map((beneficio, index) => (
-                  <motion.div
+              <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+                {beneficios.map((beneficio) => (
+                  <div
                     key={beneficio.id}
-                    className="bg-white rounded-xl p-6 shadow-sm border hover:shadow-md transition-all duration-200"
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.2, delay: index * 0.05 }}
+                    className="bg-white rounded-xl p-4 lg:p-6 shadow-sm border hover:shadow-md transition-all duration-200"
                   >
                     {/* Header del beneficio */}
                     <div className="flex items-start justify-between mb-4">
@@ -194,13 +251,20 @@ export const BeneficiosSimple: React.FC = () => {
                         </div>
                         {beneficio.destacado && (
                           <div className="w-6 h-6 bg-yellow-400 rounded-full flex items-center justify-center">
-                            <Award size={12} className="text-white" />
+                            <Star size={12} className="text-white" />
                           </div>
                         )}
                       </div>
                       
                       {/* Tipo de acceso */}
-                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                      <span className={cn(
+                        "inline-flex items-center px-2 py-1 rounded-full text-xs font-medium",
+                        beneficio.tipoAcceso === 'asociacion' 
+                          ? "bg-purple-100 text-purple-800"
+                          : beneficio.tipoAcceso === 'publico'
+                          ? "bg-green-100 text-green-800"
+                          : "bg-blue-100 text-blue-800"
+                      )}>
                         {beneficio.tipoAcceso === 'asociacion' ? (
                           <><Users size={10} className="mr-1" /> Asociación</>
                         ) : beneficio.tipoAcceso === 'publico' ? (
@@ -211,10 +275,10 @@ export const BeneficiosSimple: React.FC = () => {
                       </span>
                     </div>
 
-                    <h3 className="text-lg font-bold text-gray-900 mb-2">{beneficio.titulo}</h3>
+                    <h3 className="text-lg font-bold text-gray-900 mb-2 line-clamp-2">{beneficio.titulo}</h3>
                     <p className="text-gray-600 text-sm mb-4 line-clamp-2">{beneficio.descripcion}</p>
 
-                    {/* Descuento */}
+                    {/* Descuento - Mobile Optimized */}
                     <div className="flex items-center justify-between mb-4">
                       <div className="flex items-center gap-2">
                         {beneficio.tipo === 'porcentaje' && (
@@ -240,11 +304,15 @@ export const BeneficiosSimple: React.FC = () => {
                           </div>
                         )}
                       </div>
-                      
-                      <div className="text-right">
-                        <div className="text-xs text-gray-500">en</div>
-                        <div className="font-medium text-gray-900 text-sm">{beneficio.comercioNombre}</div>
-                      </div>
+                    </div>
+
+                    {/* Comercio Info */}
+                    <div className="flex items-center gap-2 mb-4 p-3 bg-gray-50 rounded-lg">
+                      <MapPin size={14} className="text-gray-500" />
+                      <span className="font-medium text-gray-900 text-sm flex-1 truncate">
+                        {beneficio.comercioNombre}
+                      </span>
+                      <ChevronRight size={14} className="text-gray-400" />
                     </div>
 
                     {/* Información adicional */}
@@ -261,15 +329,16 @@ export const BeneficiosSimple: React.FC = () => {
                       )}
                     </div>
 
-                    {/* Botón de acción */}
+                    {/* Botón de acción - Mobile Optimized */}
                     <Button
                       onClick={() => handleUseBenefit(beneficio.id, beneficio.comercioId)}
                       disabled={loading}
-                      className="w-full bg-blue-500 hover:bg-blue-600 text-white"
+                      className="w-full bg-blue-500 hover:bg-blue-600 text-white py-3"
                     >
+                      <Sparkles size={16} className="mr-2" />
                       Usar Beneficio
                     </Button>
-                  </motion.div>
+                  </div>
                 ))}
               </div>
             ) : (
@@ -279,31 +348,23 @@ export const BeneficiosSimple: React.FC = () => {
                 </div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">No hay beneficios disponibles</h3>
                 <p className="text-gray-500 mb-4">Los beneficios aparecerán aquí cuando estén disponibles</p>
-                <Button onClick={refrescar} leftIcon={<RefreshCw size={16} />}>
+                <Button onClick={handleRefresh} className="w-full max-w-xs">
+                  <RefreshCw size={16} className="mr-2" />
                   Actualizar
                 </Button>
               </div>
             )}
-          </motion.div>
+          </div>
         )}
 
         {activeTab === 'usados' && (
-          <motion.div
-            key="usados"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            transition={{ duration: 0.2 }}
-          >
+          <div>
             {beneficiosUsados.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {beneficiosUsados.map((uso: BeneficioUsado, index) => (
-                  <motion.div
+              <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+                {beneficiosUsados.map((uso: BeneficioUsado) => (
+                  <div
                     key={uso.id}
-                    className="bg-white rounded-xl p-6 shadow-sm border"
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.2, delay: index * 0.05 }}
+                    className="bg-white rounded-xl p-4 lg:p-6 shadow-sm border"
                   >
                     <div className="flex gap-2 mb-4 flex-wrap">
                       <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">
@@ -318,19 +379,21 @@ export const BeneficiosSimple: React.FC = () => {
                       )}
                     </div>
                 
-                    <h3 className="text-lg font-bold text-gray-900 mb-2">
+                    <h3 className="text-lg font-bold text-gray-900 mb-2 line-clamp-2">
                       {uso.beneficioTitulo || 'Beneficio Usado'}
                     </h3>
                     
-                    <p className="text-gray-600 mb-4 flex items-center gap-2 text-sm">
-                      <Building2 size={14} />
-                      Usado en {uso.comercioNombre}
-                    </p>
+                    <div className="flex items-center gap-2 mb-4 p-3 bg-gray-50 rounded-lg">
+                      <Building2 size={14} className="text-gray-500" />
+                      <span className="text-sm font-medium text-gray-900 flex-1 truncate">
+                        {uso.comercioNombre}
+                      </span>
+                    </div>
                 
                     <div className="space-y-2 text-sm">
                       <div className="flex items-center justify-between p-2 bg-gray-50 rounded">
                         <span className="text-gray-600 flex items-center gap-1">
-                          <Calendar size={12} />
+                          <Clock size={12} />
                           Fecha:
                         </span>
                         <span className="font-medium text-gray-900">
@@ -352,7 +415,7 @@ export const BeneficiosSimple: React.FC = () => {
                         </div>
                       )}
                     </div>
-                  </motion.div>
+                  </div>
                 ))}
               </div>
             ) : (
@@ -364,15 +427,16 @@ export const BeneficiosSimple: React.FC = () => {
                 <p className="text-gray-500 mb-4">Cuando uses un beneficio, aparecerá aquí</p>
                 <Button 
                   onClick={() => setActiveTab('beneficios')}
-                  leftIcon={<Zap size={16} />}
+                  className="w-full max-w-xs"
                 >
+                  <Zap size={16} className="mr-2" />
                   Explorar Beneficios
                 </Button>
               </div>
             )}
-          </motion.div>
+          </div>
         )}
-      </AnimatePresence>
+      </div>
     </div>
   );
 };

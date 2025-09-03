@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { motion } from 'framer-motion';
 import { 
   User, 
   Mail, 
@@ -14,14 +13,9 @@ import {
   TrendingUp,
   Gift,
   Store,
-  Zap,
-  Star,
-  Crown,
-  Sparkles,
   Save,
   X,
   RefreshCw,
-  BarChart3,
   Camera,
   Upload,
   CheckCircle,
@@ -58,13 +52,13 @@ interface ProfileFormData {
 const getStatusColor = (estado: string) => {
   switch (estado) {
     case 'activo':
-      return 'bg-gradient-to-r from-emerald-500 to-green-500';
+      return 'bg-green-500';
     case 'vencido':
-      return 'bg-gradient-to-r from-amber-500 to-orange-500';
+      return 'bg-amber-500';
     case 'pendiente':
-      return 'bg-gradient-to-r from-blue-500 to-cyan-500';
+      return 'bg-blue-500';
     default:
-      return 'bg-gradient-to-r from-gray-500 to-slate-500';
+      return 'bg-gray-500';
   }
 };
 
@@ -78,40 +72,6 @@ const getStatusText = (estado: string) => {
       return 'Pendiente';
     default:
       return 'Inactivo';
-  }
-};
-
-const getNivelIcon = (nivel: string) => {
-  switch (nivel) {
-    case 'Bronze':
-      return <Award className="w-5 h-5 text-white" />;
-    case 'Silver':
-      return <Star className="w-5 h-5 text-white" />;
-    case 'Gold':
-      return <Crown className="w-5 h-5 text-white" />;
-    case 'Platinum':
-      return <Sparkles className="w-5 h-5 text-white" />;
-    case 'Diamond':
-      return <Zap className="w-5 h-5 text-white" />;
-    default:
-      return <Award className="w-5 h-5 text-white" />;
-  }
-};
-
-const getNivelGradient = (nivel: string) => {
-  switch (nivel) {
-    case 'Bronze':
-      return 'from-amber-500 to-orange-600';
-    case 'Silver':
-      return 'from-gray-400 to-gray-600';
-    case 'Gold':
-      return 'from-yellow-400 to-yellow-600';
-    case 'Platinum':
-      return 'from-purple-400 to-purple-600';
-    case 'Diamond':
-      return 'from-blue-400 to-blue-600';
-    default:
-      return 'from-gray-400 to-gray-500';
   }
 };
 
@@ -132,46 +92,24 @@ const convertToDate = (value: Date | Timestamp | string | undefined): Date | und
   return undefined;
 };
 
-// Modern Stats Card Component
-const ModernStatsCard: React.FC<{
+// Simple Stats Card Component
+const StatsCard: React.FC<{
   title: string;
   value: string | number;
   icon: React.ReactNode;
-  gradient: string;
-  change?: number;
-  subtitle?: string;
-  onClick?: () => void;
-}> = ({ title, value, icon, gradient, change, subtitle, onClick }) => (
-  <motion.div
-    initial={{ opacity: 0, y: 20 }}
-    animate={{ opacity: 1, y: 0 }}
-    whileHover={{ scale: 1.02, y: -4 }}
-    className={`bg-white/80 backdrop-blur-sm rounded-3xl p-6 border border-white/20 shadow-lg cursor-pointer transition-all duration-300 hover:shadow-xl ${onClick ? 'hover:bg-white/90' : ''}`}
-    onClick={onClick}
-  >
-    <div className="flex items-center justify-between mb-4">
-      <div className={`w-14 h-14 rounded-2xl ${gradient} flex items-center justify-center shadow-lg`}>
+  color?: string;
+}> = ({ title, value, icon, color = 'bg-blue-50 text-blue-600' }) => (
+  <div className="bg-white rounded-xl p-4 shadow-sm border">
+    <div className="flex items-center gap-3">
+      <div className={cn("w-10 h-10 rounded-lg flex items-center justify-center", color)}>
         {icon}
       </div>
-      {change !== undefined && (
-        <div className={cn(
-          "flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold",
-          change >= 0 ? "text-emerald-600 bg-emerald-100" : "text-red-600 bg-red-100"
-        )}>
-          <TrendingUp size={12} className={change >= 0 ? "text-emerald-600" : "text-red-600 rotate-180"} />
-          {Math.abs(change)}%
-        </div>
-      )}
+      <div>
+        <p className="text-xl lg:text-2xl font-bold text-gray-900">{value}</p>
+        <p className="text-sm text-gray-600">{title}</p>
+      </div>
     </div>
-    
-    <div className="space-y-2">
-      <div className="text-3xl font-black text-gray-900">{value}</div>
-      <div className="text-sm font-bold text-gray-600 uppercase tracking-wider">{title}</div>
-      {subtitle && (
-        <div className="text-xs text-gray-500 font-medium">{subtitle}</div>
-      )}
-    </div>
-  </motion.div>
+  </div>
 );
 
 // Main component
@@ -475,23 +413,11 @@ export const SocioProfile: React.FC = () => {
   // Modern loading state
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-100/20 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
         <div className="text-center max-w-md mx-auto">
-          <div className="relative mb-8">
-            <div className="w-20 h-20 border-4 border-slate-200 border-t-blue-500 rounded-full animate-spin mx-auto" />
-            <div className="absolute inset-0 w-20 h-20 border-4 border-transparent border-r-indigo-300 rounded-full animate-pulse mx-auto" />
-          </div>
-          <h2 className="text-2xl font-bold text-slate-900 mb-3">
-            Cargando perfil
-          </h2>
-          <p className="text-slate-600 text-lg">
-            Obteniendo tu información...
-          </p>
-          <div className="mt-6 flex justify-center space-x-1">
-            <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-            <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-            <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-          </div>
+          <div className="w-16 h-16 border-4 border-gray-200 border-t-blue-500 rounded-full animate-spin mx-auto mb-4" />
+          <h2 className="text-xl font-bold text-gray-900 mb-2">Cargando perfil</h2>
+          <p className="text-gray-600">Obteniendo tu información...</p>
         </div>
       </div>
     );
@@ -499,45 +425,62 @@ export const SocioProfile: React.FC = () => {
 
   return (
     <>
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-100/20">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8 max-w-7xl space-y-8">
-          
-          {/* Modern Header Section */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-lg border border-white/20 overflow-hidden"
-          >
-            {/* Header Background with Gradient */}
-            <div className="h-40 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 relative overflow-hidden">
-              <div className="absolute inset-0 bg-black/10"></div>
-              <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
-              
-              {/* Floating elements */}
-              <div className="absolute top-4 left-4 w-20 h-20 bg-white/10 rounded-full blur-xl"></div>
-              <div className="absolute bottom-4 right-4 w-32 h-32 bg-white/5 rounded-full blur-2xl"></div>
-              
-              <div className="absolute top-6 right-6">
+      <div className="min-h-screen bg-gray-50 pb-20 lg:pb-0">
+        {/* Mobile Header */}
+        <div className="lg:hidden bg-white border-b border-gray-200 px-4 py-4 sticky top-0 z-30">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center">
+                <User size={20} className="text-white" />
+              </div>
+              <div>
+                <h1 className="text-xl font-bold text-gray-900">Mi Perfil</h1>
+                <p className="text-sm text-gray-600">Información personal</p>
+              </div>
+            </div>
+            <Button
+              onClick={handleRefresh}
+              disabled={refreshing}
+              variant="outline"
+              size="sm"
+              className="p-2"
+            >
+              <RefreshCw size={16} className={refreshing ? 'animate-spin' : ''} />
+              <span className="hidden lg:inline ml-2">
+                {refreshing ? 'Actualizando...' : 'Actualizar'}
+              </span>
+            </Button>
+          </div>
+        </div>
+
+        <div className="max-w-6xl mx-auto p-4 space-y-6">
+          {/* Profile Header Card */}
+          <div className="bg-white rounded-2xl shadow-sm border overflow-hidden">
+            {/* Header Background */}
+            <div className="h-24 lg:h-32 bg-gradient-to-r from-blue-500 to-purple-600 relative">
+              <div className="absolute top-4 right-4">
                 <Button
                   variant="outline"
                   size="sm"
-                  leftIcon={<RefreshCw size={16} className={refreshing ? 'animate-spin' : ''} />}
                   onClick={handleRefresh}
                   disabled={refreshing}
-                  className="bg-white/20 border-white/30 text-white hover:bg-white/30 backdrop-blur-sm font-bold"
+                  className="bg-white/20 border-white/30 text-white hover:bg-white/30 backdrop-blur-sm"
                 >
-                  {refreshing ? 'Actualizando...' : 'Actualizar'}
+                  <RefreshCw size={16} className={refreshing ? 'animate-spin' : ''} />
+                  <span className="hidden lg:inline ml-2">
+                    {refreshing ? 'Actualizando...' : 'Actualizar'}
+                  </span>
                 </Button>
               </div>
             </div>
 
             {/* Profile Content */}
-            <div className="px-6 sm:px-8 pb-8">
-              <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between -mt-20 mb-8">
-                <div className="flex flex-col sm:flex-row sm:items-end space-y-4 sm:space-y-0 sm:space-x-6">
-                  {/* Modern Avatar with Photo Upload */}
+            <div className="px-4 lg:px-6 pb-6">
+              <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between -mt-12 lg:-mt-16 mb-6">
+                <div className="flex flex-col sm:flex-row sm:items-end space-y-4 sm:space-y-0 sm:space-x-4">
+                  {/* Avatar with Photo Upload */}
                   <div className="relative group">
-                    <div className="w-32 h-32 bg-white rounded-3xl shadow-2xl flex items-center justify-center border-4 border-white overflow-hidden">
+                    <div className="w-24 h-24 lg:w-32 lg:h-32 bg-white rounded-2xl shadow-lg flex items-center justify-center border-4 border-white overflow-hidden">
                       {profileData.fotoPerfil ? (
                         <Image
                           src={profileData.fotoPerfil}
@@ -549,24 +492,26 @@ export const SocioProfile: React.FC = () => {
                           unoptimized
                         />
                       ) : (
-                        <div className="w-28 h-28 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 rounded-2xl flex items-center justify-center relative overflow-hidden">
-                          <User size={48} className="text-white z-10" />
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
+                        <div className="w-20 h-20 lg:w-28 lg:h-28 bg-gradient-to-r from-blue-500 to-purple-500 rounded-xl flex items-center justify-center">
+                          <User size={32} className="text-white lg:w-10 lg:h-10" />
                         </div>
                       )}
                     </div>
                     
-                    <div className={`absolute -bottom-2 -right-2 w-8 h-8 ${getStatusColor(profileData.estado)} rounded-2xl border-4 border-white shadow-lg flex items-center justify-center`}>
-                      <CheckCircle className="w-4 h-4 text-white" />
+                    <div className={cn(
+                      "absolute -bottom-1 -right-1 w-6 h-6 lg:w-8 lg:h-8 rounded-full border-2 lg:border-4 border-white shadow-lg flex items-center justify-center",
+                      getStatusColor(profileData.estado)
+                    )}>
+                      <CheckCircle className="w-3 h-3 lg:w-4 lg:h-4 text-white" />
                     </div>
                     
                     {/* Upload overlay */}
                     <div 
-                      className="absolute inset-0 bg-black/50 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center cursor-pointer"
+                      className="absolute inset-0 bg-black/50 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center cursor-pointer"
                       onClick={() => setPhotoModalOpen(true)}
                     >
                       <div className="text-center text-white">
-                        <Camera className="w-6 h-6 mx-auto mb-1" />
+                        <Camera className="w-5 h-5 mx-auto mb-1" />
                         <span className="text-xs font-medium">Cambiar</span>
                       </div>
                     </div>
@@ -574,177 +519,162 @@ export const SocioProfile: React.FC = () => {
 
                   {/* Profile Info */}
                   <div className="pb-2">
-                    <h1 className="text-3xl lg:text-4xl font-black text-gray-900 mb-2">
+                    <h1 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-2">
                       {profileData.nombre}
                     </h1>
-                    <div className="flex flex-wrap items-center gap-3 mb-4">
-                      <span className="text-lg text-gray-600 font-medium">
+                    <div className="flex flex-wrap items-center gap-2 mb-3">
+                      <span className="text-sm lg:text-base text-gray-600 font-medium">
                         Socio #{profileData.numeroSocio}
                       </span>
-                      <span className={`px-3 py-1 rounded-2xl text-white text-sm font-bold shadow-lg ${getStatusColor(profileData.estado)}`}>
+                      <span className={cn(
+                        "px-2 py-1 rounded-lg text-white text-xs font-bold shadow-sm",
+                        getStatusColor(profileData.estado)
+                      )}>
                         {getStatusText(profileData.estado)}
                       </span>
                     </div>
-                    <div className={`inline-flex items-center gap-3 px-4 py-2 rounded-2xl bg-gradient-to-r ${getNivelGradient(profileData.nivel.nivel)} text-white font-bold shadow-lg`}>
-                      {getNivelIcon(profileData.nivel.nivel)}
-                      <span className="text-lg">Nivel {profileData.nivel.nivel}</span>
+                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-lg bg-gradient-to-r from-amber-500 to-orange-500 text-white font-bold text-sm shadow-sm">
+                      <Award size={14} />
+                      <span>Nivel {profileData.nivel.nivel}</span>
                     </div>
                   </div>
                 </div>
 
                 {/* Action Buttons */}
-                <div className="flex flex-wrap gap-3 mt-6 lg:mt-0">
+                <div className="flex flex-wrap gap-2 mt-4 lg:mt-0">
                   <Button
                     variant="outline"
-                    size="lg"
-                    leftIcon={<Camera size={20} />}
+                    size="sm"
                     onClick={() => setPhotoModalOpen(true)}
-                    className="font-bold"
+                    className="flex-1 sm:flex-none"
                   >
-                    Cambiar Foto
+                    <Camera size={16} className="mr-2" />
+                    Foto
                   </Button>
                   <Button
-                    size="lg"
-                    leftIcon={<Edit3 size={20} />}
+                    size="sm"
                     onClick={() => setEditModalOpen(true)}
-                    className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold shadow-lg hover:shadow-xl transition-all duration-300"
+                    className="bg-blue-500 hover:bg-blue-600 text-white flex-1 sm:flex-none"
                   >
-                    Editar Perfil
+                    <Edit3 size={16} className="mr-2" />
+                    Editar
                   </Button>
                 </div>
               </div>
 
-              {/* Modern Level Progress */}
-              <div className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-3xl p-6 mb-8 border border-gray-200/50">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center space-x-3">
-                    <div className={`w-10 h-10 rounded-xl bg-gradient-to-r ${getNivelGradient(profileData.nivel.proximoNivel)} flex items-center justify-center shadow-lg`}>
-                      <Target className="w-5 h-5 text-white" />
-                    </div>
-                    <span className="text-lg font-bold text-gray-700">
+              {/* Level Progress - Mobile Optimized */}
+              <div className="bg-gray-50 rounded-xl p-4 border">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center space-x-2">
+                    <Target size={16} className="text-gray-600" />
+                    <span className="text-sm font-semibold text-gray-700">
                       Progreso a {profileData.nivel.proximoNivel}
                     </span>
                   </div>
-                  <span className="text-lg font-bold text-gray-600">
+                  <span className="text-sm font-bold text-gray-600">
                     {profileData.nivel.puntos} / {profileData.nivel.puntosParaProximoNivel} pts
                   </span>
                 </div>
-                <div className="w-full bg-gray-200 rounded-full h-4 shadow-inner">
-                  <motion.div 
-                    className={`h-4 rounded-full bg-gradient-to-r ${getNivelGradient(profileData.nivel.proximoNivel)} shadow-lg`}
-                    initial={{ width: 0 }}
-                    animate={{ 
+                <div className="w-full bg-gray-200 rounded-full h-3 shadow-inner">
+                  <div 
+                    className="h-3 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 shadow-sm transition-all duration-1000"
+                    style={{ 
                       width: `${(profileData.nivel.puntos / profileData.nivel.puntosParaProximoNivel) * 100}%` 
                     }}
-                    transition={{ duration: 1.5, delay: 0.5, ease: "easeOut" }}
                   />
                 </div>
-                <p className="text-sm text-gray-600 mt-2 font-medium">
+                <p className="text-xs text-gray-600 mt-2">
                   {profileData.nivel.puntosParaProximoNivel - profileData.nivel.puntos} puntos restantes
                 </p>
               </div>
-
-              {/* Modern Quick Stats */}
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
-                <ModernStatsCard
-                  title="Beneficios Usados"
-                  value={enhancedStats.beneficiosUsados}
-                  icon={<Gift className="w-7 h-7 text-white" />}
-                  gradient="bg-gradient-to-r from-emerald-500 to-green-500"
-                  subtitle="Total acumulado"
-                />
-                <ModernStatsCard
-                  title="Comercios Visitados"
-                  value={enhancedStats.comerciosVisitados}
-                  icon={<Store className="w-7 h-7 text-white" />}
-                  gradient="bg-gradient-to-r from-blue-500 to-cyan-500"
-                  subtitle="Establecimientos únicos"
-                />
-                <ModernStatsCard
-                  title="Beneficios Este Mes"
-                  value={enhancedStats.beneficiosEsteMes}
-                  icon={<Calendar className="w-7 h-7 text-white" />}
-                  gradient="bg-gradient-to-r from-purple-500 to-pink-500"
-                  subtitle="Mes actual"
-                />
-                <ModernStatsCard
-                  title="Días como Socio"
-                  value={enhancedStats.tiempoComoSocio}
-                  icon={<Trophy className="w-7 h-7 text-white" />}
-                  gradient="bg-gradient-to-r from-amber-500 to-orange-500"
-                  subtitle="Desde registro"
-                />
-              </div>
             </div>
-          </motion.div>
+          </div>
+
+          {/* Stats Grid */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <StatsCard
+              title="Beneficios Usados"
+              value={enhancedStats.beneficiosUsados}
+              icon={<Gift size={20} />}
+              color="bg-emerald-50 text-emerald-600"
+            />
+            
+            <StatsCard
+              title="Comercios Visitados"
+              value={enhancedStats.comerciosVisitados}
+              icon={<Store size={20} />}
+              color="bg-blue-50 text-blue-600"
+            />
+            
+            <StatsCard
+              title="Este Mes"
+              value={enhancedStats.beneficiosEsteMes}
+              icon={<Calendar size={20} />}
+              color="bg-purple-50 text-purple-600"
+            />
+            
+            <StatsCard
+              title="Días como Socio"
+              value={enhancedStats.tiempoComoSocio}
+              icon={<Trophy size={20} />}
+              color="bg-amber-50 text-amber-600"
+            />
+          </div>
 
           {/* Main Content Grid */}
-          <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
             
             {/* Personal Information */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 }}
-              className="xl:col-span-2 bg-white/80 backdrop-blur-sm rounded-3xl shadow-lg border border-white/20 p-8"
-            >
-              <div className="flex items-center justify-between mb-8">
-                <div className="flex items-center space-x-4">
-                  <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-500 rounded-2xl flex items-center justify-center shadow-lg">
-                    <User className="w-6 h-6 text-white" />
+            <div className="xl:col-span-2 bg-white rounded-2xl shadow-sm border p-6">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center">
+                    <User size={20} className="text-white" />
                   </div>
-                  <h3 className="text-2xl font-bold text-gray-900">Información Personal</h3>
+                  <h3 className="text-xl font-bold text-gray-900">Información Personal</h3>
                 </div>
                 <Button
                   variant="outline"
-                  leftIcon={<Edit3 size={16} />}
+                  size="sm"
                   onClick={() => setEditModalOpen(true)}
-                  className="font-bold"
                 >
-                  Editar Información Personal
+                  <Edit3 size={16} className="mr-2" />
+                  Editar
                 </Button>
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                <div className="space-y-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="space-y-4">
                   <div>
-                    <label className="text-sm font-bold text-gray-700 mb-3 block uppercase tracking-wider">Email</label>
-                    <div className="flex items-center gap-4 p-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-2xl border border-gray-200/50">
-                      <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-xl flex items-center justify-center shadow-lg">
-                        <Mail size={18} className="text-white" />
-                      </div>
+                    <label className="text-sm font-semibold text-gray-700 mb-2 block">Email</label>
+                    <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border">
+                      <Mail size={16} className="text-gray-500" />
                       <span className="text-gray-900 font-medium">{profileData.email}</span>
                     </div>
                   </div>
                   
                   <div>
-                    <label className="text-sm font-bold text-gray-700 mb-3 block uppercase tracking-wider">Teléfono</label>
-                    <div className="flex items-center gap-4 p-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-2xl border border-gray-200/50">
-                      <div className="w-10 h-10 bg-gradient-to-r from-green-500 to-emerald-500 rounded-xl flex items-center justify-center shadow-lg">
-                        <Phone size={18} className="text-white" />
-                      </div>
+                    <label className="text-sm font-semibold text-gray-700 mb-2 block">Teléfono</label>
+                    <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border">
+                      <Phone size={16} className="text-gray-500" />
                       <span className="text-gray-900 font-medium">{profileData.telefono || 'No especificado'}</span>
                     </div>
                   </div>
                 </div>
 
-                <div className="space-y-6">
+                <div className="space-y-4">
                   <div>
-                    <label className="text-sm font-bold text-gray-700 mb-3 block uppercase tracking-wider">DNI</label>
-                    <div className="flex items-center gap-4 p-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-2xl border border-gray-200/50">
-                      <div className="w-10 h-10 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl flex items-center justify-center shadow-lg">
-                        <Shield size={18} className="text-white" />
-                      </div>
+                    <label className="text-sm font-semibold text-gray-700 mb-2 block">DNI</label>
+                    <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border">
+                      <Shield size={16} className="text-gray-500" />
                       <span className="text-gray-900 font-medium">{profileData.dni || 'No especificado'}</span>
                     </div>
                   </div>
                   
                   <div>
-                    <label className="text-sm font-bold text-gray-700 mb-3 block uppercase tracking-wider">Dirección</label>
-                    <div className="flex items-center gap-4 p-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-2xl border border-gray-200/50">
-                      <div className="w-10 h-10 bg-gradient-to-r from-amber-500 to-orange-500 rounded-xl flex items-center justify-center shadow-lg">
-                        <MapPin size={18} className="text-white" />
-                      </div>
+                    <label className="text-sm font-semibold text-gray-700 mb-2 block">Dirección</label>
+                    <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border">
+                      <MapPin size={16} className="text-gray-500" />
                       <span className="text-gray-900 font-medium">{profileData.direccion || 'No especificado'}</span>
                     </div>
                   </div>
@@ -752,65 +682,54 @@ export const SocioProfile: React.FC = () => {
               </div>
 
               {profileData.fechaNacimiento && (
-                <div className="mt-8">
-                  <label className="text-sm font-bold text-gray-700 mb-3 block uppercase tracking-wider">Fecha de Nacimiento</label>
-                  <div className="flex items-center gap-4 p-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-2xl border border-gray-200/50">
-                    <div className="w-10 h-10 bg-gradient-to-r from-indigo-500 to-blue-500 rounded-xl flex items-center justify-center shadow-lg">
-                      <Calendar size={18} className="text-white" />
-                    </div>
+                <div className="mt-6">
+                  <label className="text-sm font-semibold text-gray-700 mb-2 block">Fecha de Nacimiento</label>
+                  <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border">
+                    <Calendar size={16} className="text-gray-500" />
                     <span className="text-gray-900 font-medium">
                       {format(profileData.fechaNacimiento, 'dd/MM/yyyy', { locale: es })}
                     </span>
                   </div>
                 </div>
               )}
-            </motion.div>
+            </div>
 
             {/* Activity Sidebar */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-              className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-lg border border-white/20 p-8"
-            >
-              <div className="flex items-center space-x-4 mb-8">
-                <div className="w-12 h-12 bg-gradient-to-r from-emerald-500 to-green-500 rounded-2xl flex items-center justify-center shadow-lg">
-                  <Activity className="w-6 h-6 text-white" />
+            <div className="bg-white rounded-2xl shadow-sm border p-6">
+              <div className="flex items-center space-x-3 mb-6">
+                <div className="w-10 h-10 bg-emerald-500 rounded-lg flex items-center justify-center">
+                  <Activity size={20} className="text-white" />
                 </div>
-                <h3 className="text-2xl font-bold text-gray-900">Actividad Reciente</h3>
+                <h3 className="text-xl font-bold text-gray-900">Actividad Reciente</h3>
               </div>
               
               {beneficiosMasUsados && beneficiosMasUsados.length > 0 ? (
-                <div className="space-y-4">
+                <div className="space-y-3">
                   {beneficiosMasUsados.slice(0, 5).map((beneficio, index) => (
-                    <motion.div 
+                    <div 
                       key={index} 
-                      className="flex items-center gap-4 p-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-2xl border border-gray-200/50 hover:shadow-md transition-all duration-300"
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: index * 0.1 }}
-                      whileHover={{ scale: 1.02 }}
+                      className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border hover:shadow-sm transition-all duration-200"
                     >
-                      <div className="w-12 h-12 bg-gradient-to-r from-emerald-500 to-teal-600 rounded-2xl flex items-center justify-center text-white font-black shadow-lg">
+                      <div className="w-10 h-10 bg-emerald-500 rounded-lg flex items-center justify-center text-white font-bold text-sm">
                         {beneficio.usos}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="font-bold text-gray-900 truncate">{beneficio.titulo}</div>
-                        <div className="text-sm text-gray-500 font-medium">{beneficio.usos} usos</div>
+                        <div className="font-semibold text-gray-900 truncate text-sm">{beneficio.titulo}</div>
+                        <div className="text-xs text-gray-500">{beneficio.usos} usos</div>
                       </div>
-                    </motion.div>
+                    </div>
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-12">
-                  <div className="w-20 h-20 bg-gradient-to-r from-gray-100 to-gray-200 rounded-3xl flex items-center justify-center mx-auto mb-6">
-                    <BarChart3 className="w-10 h-10 text-gray-400" />
+                <div className="text-center py-8">
+                  <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                    <TrendingUp size={24} className="text-gray-400" />
                   </div>
-                  <p className="text-gray-600 font-bold text-lg">No hay actividad reciente</p>
-                  <p className="text-gray-500 mt-2">Comienza a usar beneficios para ver tu actividad</p>
+                  <p className="text-gray-600 font-semibold">No hay actividad reciente</p>
+                  <p className="text-gray-500 text-sm mt-1">Comienza a usar beneficios</p>
                 </div>
               )}
-            </motion.div>
+            </div>
           </div>
         </div>
       </div>
@@ -819,19 +738,17 @@ export const SocioProfile: React.FC = () => {
       <Dialog open={photoModalOpen} onClose={handleClosePhotoModal}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-3 text-xl">
-              <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-xl flex items-center justify-center">
-                <Camera size={20} className="text-white" />
-              </div>
+            <DialogTitle className="flex items-center gap-3">
+              <Camera size={20} className="text-blue-500" />
               Cambiar Foto de Perfil
             </DialogTitle>
           </DialogHeader>
 
-          <div className="space-y-6">
+          <div className="space-y-4">
             {/* Upload Area */}
             <div
               className={cn(
-                "relative border-2 border-dashed rounded-3xl p-8 text-center transition-all duration-300",
+                "relative border-2 border-dashed rounded-2xl p-6 text-center transition-all duration-300",
                 dragActive 
                   ? "border-blue-500 bg-blue-50" 
                   : "border-gray-300 hover:border-gray-400 hover:bg-gray-50",
@@ -853,17 +770,16 @@ export const SocioProfile: React.FC = () => {
 
               {previewUrl ? (
                 <div className="space-y-4">
-                  <div className="relative w-32 h-32 mx-auto">
+                  <div className="relative w-24 h-24 mx-auto">
                     <Image
                       src={previewUrl || ''}
                       alt="Preview"
-                      width={128}
-                      height={128}
-                      className="w-full h-full object-cover rounded-2xl shadow-lg"
+                      width={96}
+                      height={96}
+                      className="w-full h-full object-cover rounded-xl shadow-lg"
                       style={{ width: '100%', height: '100%' }}
                       unoptimized
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent rounded-2xl" />
                   </div>
                   <p className="text-sm font-medium text-gray-700">
                     {selectedFile?.name}
@@ -879,11 +795,11 @@ export const SocioProfile: React.FC = () => {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  <div className="w-16 h-16 bg-gradient-to-r from-blue-100 to-purple-100 rounded-2xl flex items-center justify-center mx-auto">
-                    <ImageIcon className="w-8 h-8 text-blue-500" />
+                  <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center mx-auto">
+                    <ImageIcon size={24} className="text-blue-500" />
                   </div>
                   <div>
-                    <p className="text-lg font-bold text-gray-900 mb-2">
+                    <p className="font-semibold text-gray-900 mb-2">
                       Arrastra una imagen aquí
                     </p>
                     <p className="text-sm text-gray-500 mb-4">
@@ -893,8 +809,8 @@ export const SocioProfile: React.FC = () => {
                       variant="outline"
                       onClick={() => fileInputRef.current?.click()}
                       disabled={uploadingPhoto}
-                      leftIcon={<Upload size={16} />}
                     >
+                      <Upload size={16} className="mr-2" />
                       Seleccionar Archivo
                     </Button>
                   </div>
@@ -906,24 +822,11 @@ export const SocioProfile: React.FC = () => {
 
               {/* Upload Progress */}
               {uploadingPhoto && (
-                <div className="absolute inset-0 bg-white/90 backdrop-blur-sm rounded-3xl flex items-center justify-center">
-                  <div className="text-center space-y-4">
-                    <div className="relative w-16 h-16 mx-auto">
-                      <div className="absolute inset-0 rounded-full border-4 border-gray-200"></div>
-                      <div 
-                        className="absolute inset-0 rounded-full border-4 border-blue-500 border-t-transparent animate-spin"
-                        style={{
-                          background: `conic-gradient(from 0deg, transparent ${uploadProgress * 3.6}deg, #e5e7eb ${uploadProgress * 3.6}deg)`
-                        }}
-                      ></div>
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <span className="text-sm font-bold text-blue-600">
-                          {Math.round(uploadProgress)}%
-                        </span>
-                      </div>
-                    </div>
+                <div className="absolute inset-0 bg-white/90 backdrop-blur-sm rounded-2xl flex items-center justify-center">
+                  <div className="text-center space-y-3">
+                    <div className="w-12 h-12 border-4 border-gray-200 border-t-blue-500 rounded-full animate-spin mx-auto" />
                     <p className="text-sm font-medium text-gray-700">
-                      Subiendo imagen...
+                      Subiendo... {Math.round(uploadProgress)}%
                     </p>
                   </div>
                 </div>
@@ -936,17 +839,17 @@ export const SocioProfile: React.FC = () => {
               variant="outline"
               onClick={handleClosePhotoModal}
               disabled={uploadingPhoto}
-              leftIcon={<X size={16} />}
             >
+              <X size={16} className="mr-2" />
               Cancelar
             </Button>
             <Button
               onClick={handlePhotoUpload}
               disabled={!selectedFile || uploadingPhoto}
               loading={uploadingPhoto}
-              leftIcon={<Upload size={16} />}
-              className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+              className="bg-blue-500 hover:bg-blue-600"
             >
+              <Upload size={16} className="mr-2" />
               Subir Foto
             </Button>
           </DialogFooter>
@@ -955,120 +858,91 @@ export const SocioProfile: React.FC = () => {
 
       {/* Edit Profile Modal */}
       <Dialog open={editModalOpen} onClose={handleCloseEditModal}>
-        <DialogContent className="max-w-4xl">
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-3 text-2xl">
-              <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-500 rounded-2xl flex items-center justify-center shadow-lg">
-                <Edit3 size={24} className="text-white" />
-              </div>
-              <div>
-                <span>Editar Perfil</span>
-                <p className="text-sm font-normal text-gray-600 mt-1">
-                  Actualiza tu información personal
-                </p>
-              </div>
+            <DialogTitle className="flex items-center gap-3">
+              <Edit3 size={20} className="text-blue-500" />
+              Editar Perfil
             </DialogTitle>
           </DialogHeader>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-6">
-              <div>
-                <div className="relative">
-                  <User size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none z-10" />
-                  <Input
-                    label="                    Nombre completo"
-                    value={formData.nombre}
-                    onChange={(e) => setFormData(prev => ({ ...prev, nombre: e.target.value }))}
-                    placeholder="Tu nombre completo"
-                    required
-                    error={errors.nombre}
-                    style={{ paddingLeft: '2.5rem' }}
-                  />
-                </div>
-              </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-4">
+              <Input
+                label="Nombre completo"
+                value={formData.nombre}
+                onChange={(e) => setFormData(prev => ({ ...prev, nombre: e.target.value }))}
+                placeholder="Tu nombre completo"
+                required
+                error={errors.nombre}
+              />
 
-              <div>
-                <div className="relative">
-                  <Phone size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none z-10" />
-                  <Input
-                    label="Teléfono"
-                    value={formData.telefono}
-                    onChange={(e) => setFormData(prev => ({ ...prev, telefono: e.target.value }))}
-                    placeholder="+54 11 1234-5678"
-                    error={errors.telefono}
-                    style={{ paddingLeft: '2.5rem' }}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <div className="relative">
-                  <Shield size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none z-10" />
-                  <Input
-                    label="DNI"
-                    value={formData.dni}
-                    onChange={(e) => setFormData(prev => ({ ...prev, dni: e.target.value }))}
-                    placeholder="12345678"
-                    error={errors.dni}
-                    style={{ paddingLeft: '2.5rem' }}
-                  />
-                </div>
-              </div>
+              <Input
+                label="Teléfono"
+                value={formData.telefono}
+                onChange={(e) => setFormData(prev => ({ ...prev, telefono: e.target.value }))}
+                placeholder="+54 11 1234-5678"
+                error={errors.telefono}
+              />
             </div>
 
-            <div className="space-y-6">
-              <div>
-                <Input
-                  label="Dirección"
-                  value={formData.direccion}
-                  onChange={(e) => setFormData(prev => ({ ...prev, direccion: e.target.value }))}
-                  placeholder="Tu dirección completa"
-                />
-              </div>
+            <div className="space-y-4">
+              <Input
+                label="DNI"
+                value={formData.dni}
+                onChange={(e) => setFormData(prev => ({ ...prev, dni: e.target.value }))}
+                placeholder="12345678"
+                error={errors.dni}
+              />
 
-              <div>
-                <Input
-                  label="Fecha de nacimiento"
-                  type="date"
-                  value={formData.fechaNacimiento}
-                  onChange={(e) => setFormData(prev => ({ ...prev, fechaNacimiento: e.target.value }))}
-                />
-              </div>
+              <Input
+                label="Dirección"
+                value={formData.direccion}
+                onChange={(e) => setFormData(prev => ({ ...prev, direccion: e.target.value }))}
+                placeholder="Tu dirección completa"
+              />
+            </div>
 
-              {/* Info Card */}
-              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-4 border border-blue-200">
-                <div className="flex items-start gap-3">
-                  <div className="w-8 h-8 bg-blue-500 rounded-xl flex items-center justify-center flex-shrink-0">
-                    <AlertCircle size={16} className="text-white" />
-                  </div>
-                  <div>
-                    <h4 className="font-bold text-blue-900 text-sm">Información importante</h4>
-                    <p className="text-blue-700 text-xs mt-1">
-                      Mantén tu información actualizada para recibir beneficios y comunicaciones importantes.
-                    </p>
-                  </div>
+            <div className="md:col-span-2">
+              <Input
+                label="Fecha de nacimiento"
+                type="date"
+                value={formData.fechaNacimiento}
+                onChange={(e) => setFormData(prev => ({ ...prev, fechaNacimiento: e.target.value }))}
+              />
+            </div>
+
+            {/* Info Card */}
+            <div className="md:col-span-2 bg-blue-50 rounded-xl p-4 border border-blue-200">
+              <div className="flex items-start gap-3">
+                <AlertCircle size={16} className="text-blue-500 mt-0.5" />
+                <div>
+                  <h4 className="font-semibold text-blue-900 text-sm">Información importante</h4>
+                  <p className="text-blue-700 text-xs mt-1">
+                    Mantén tu información actualizada para recibir beneficios y comunicaciones importantes.
+                  </p>
                 </div>
               </div>
             </div>
           </div>
 
-          <DialogFooter className="flex gap-3 pt-6">
+          <DialogFooter className="flex gap-2">
             <Button
               variant="outline"
               onClick={handleCloseEditModal}
               disabled={updating}
-              leftIcon={<X size={16} />}
-              className="flex-1 md:flex-none"
+              className="flex-1"
             >
+              <X size={16} className="mr-2" />
               Cancelar
             </Button>
             <Button 
               onClick={handleSaveProfile}
               loading={updating}
-              leftIcon={<Save size={16} />}
-              className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 flex-1 md:flex-none"
+              className="bg-blue-500 hover:bg-blue-600 flex-1"
             >
-              Guardar Cambios
+              <Save size={16} className="mr-2" />
+              Guardar
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1078,4 +952,3 @@ export const SocioProfile: React.FC = () => {
 };
 
 export default SocioProfile;
-

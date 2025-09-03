@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { motion } from 'framer-motion';
 import { toast } from 'react-hot-toast';
 import { 
   QrCode,
@@ -10,13 +9,10 @@ import {
   Zap,
   Shield,
   Smartphone,
-  Wifi,
-  Battery,
-  Signal,
-  Clock,
   Camera,
-  Sparkles,
   Target,
+  CheckCircle,
+  Sparkles,
   Award
 } from 'lucide-react';
 import { QRScannerButton } from '@/components/socio/QRScannerButton';
@@ -25,32 +21,6 @@ import { useAuth } from '@/hooks/useAuth';
 import { validacionesService } from '@/services/validaciones.service';
 import { ValidacionResponse } from '@/types/validacion';
 import { cn } from '@/lib/utils';
-
-// Animation variants
-const containerVariants = {
-  hidden: { opacity: 0 },
-  visible: {
-    opacity: 1,
-    transition: {
-      staggerChildren: 0.1,
-      delayChildren: 0.2
-    }
-  }
-};
-
-const itemVariants = {
-  hidden: { opacity: 0, y: 30, scale: 0.95 },
-  visible: { 
-    opacity: 1, 
-    y: 0, 
-    scale: 1,
-    transition: {
-      type: 'spring' as const,
-      stiffness: 100,
-      damping: 15
-    }
-  }
-};
 
 export const SocioValidar: React.FC = () => {
   const { user } = useAuth();
@@ -284,22 +254,13 @@ export const SocioValidar: React.FC = () => {
 
   if (!isReady) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-sky-50 via-white to-violet-50 relative overflow-hidden">
-        <div className="absolute inset-0 bg-grid-pattern opacity-20" />
-        <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-bl from-violet-100/30 to-transparent rounded-full blur-3xl animate-pulse" />
-        
-        <div className="relative z-10 flex items-center justify-center min-h-screen p-4">
-          <motion.div 
-            className="text-center"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-          >
-            <div className="w-24 h-24 bg-gradient-to-r from-sky-500 to-violet-600 rounded-3xl flex items-center justify-center mx-auto mb-8 shadow-2xl">
-              <RefreshCw size={40} className="text-white animate-spin" />
-            </div>
-            <h3 className="text-3xl font-black text-gray-900 mb-4">Cargando escáner...</h3>
-            <p className="text-gray-600 text-lg">Preparando tu experiencia de validación</p>
-          </motion.div>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="text-center">
+          <div className="w-16 h-16 bg-blue-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <RefreshCw size={32} className="text-blue-500 animate-spin" />
+          </div>
+          <h3 className="text-xl font-semibold text-gray-900 mb-2">Cargando escáner...</h3>
+          <p className="text-gray-600">Preparando tu experiencia de validación</p>
         </div>
       </div>
     );
@@ -307,254 +268,190 @@ export const SocioValidar: React.FC = () => {
 
   return (
     <>
-      <div className="min-h-screen bg-gradient-to-br from-sky-50 via-white to-violet-50 relative overflow-hidden">
-        {/* Enhanced background decorations */}
-        <div className="absolute inset-0 bg-grid-pattern opacity-20" />
-        <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-gradient-to-bl from-violet-100/40 to-transparent rounded-full blur-3xl animate-pulse" />
-        <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-gradient-to-tr from-sky-100/40 to-transparent rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-gradient-to-r from-purple-50/20 to-blue-50/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }} />
-        
-        {/* Floating elements */}
-        <div className="absolute top-20 right-20 w-4 h-4 bg-violet-400/60 rounded-full animate-bounce" />
-        <div className="absolute top-40 left-16 w-3 h-3 bg-sky-400/60 rounded-full animate-ping" />
-        <div className="absolute bottom-32 right-32 w-5 h-5 bg-purple-400/60 rounded-full animate-pulse" />
-        <div className="absolute top-60 right-60 w-2 h-2 bg-pink-400/60 rounded-full animate-bounce" style={{ animationDelay: '0.5s' }} />
+      <div className="min-h-screen bg-gray-50 pb-20 lg:pb-0">
+        {/* Mobile Header */}
+        <div className="lg:hidden bg-white border-b border-gray-200 px-4 py-4 sticky top-0 z-30">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center">
+                <QrCode size={20} className="text-white" />
+              </div>
+              <div>
+                <h1 className="text-xl font-bold text-gray-900">Escanear QR</h1>
+                <p className="text-sm text-gray-600">Valida tus beneficios</p>
+              </div>
+            </div>
+            
+            {/* Status indicator */}
+            <div className="flex items-center gap-2 px-3 py-1 bg-green-50 rounded-full">
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+              <span className="text-xs font-medium text-green-700">Listo</span>
+            </div>
+          </div>
+        </div>
 
-        <motion.div
-          className="relative z-10 p-4 sm:p-6 lg:p-8 max-w-4xl mx-auto"
-          variants={containerVariants}
-          initial="hidden"
-          animate="visible"
-        >
-          {/* Header */}
-          <motion.div className="text-center mb-12" variants={itemVariants}>
-            <div className="flex items-center justify-center gap-6 mb-8">
-              <motion.div 
-                className="w-20 h-20 bg-gradient-to-r from-sky-500 to-violet-600 rounded-3xl flex items-center justify-center shadow-2xl"
-                whileHover={{ scale: 1.05, rotate: 5 }}
-                transition={{ type: "spring", stiffness: 300 }}
-              >
-                <QrCode size={36} className="text-white" />
-              </motion.div>
+        <div className="max-w-4xl mx-auto p-4 space-y-6">
+          {/* Desktop Header */}
+          <div className="hidden lg:block text-center mb-8">
+            <div className="flex items-center justify-center gap-4 mb-6">
+              <div className="w-16 h-16 bg-blue-500 rounded-2xl flex items-center justify-center">
+                <QrCode size={32} className="text-white" />
+              </div>
               <div className="text-left">
-                <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black bg-gradient-to-r from-sky-600 via-violet-600 to-purple-700 bg-clip-text text-transparent mb-2 leading-tight">
-                  Validar Beneficios
-                </h1>
-                <p className="text-lg sm:text-xl text-gray-600 font-semibold max-w-2xl">
-                  Escanea códigos QR para acceder a tus beneficios exclusivos
-                </p>
+                <h1 className="text-4xl font-bold text-gray-900 mb-2">Validar Beneficios</h1>
+                <p className="text-lg text-gray-600">Escanea códigos QR para acceder a tus beneficios exclusivos</p>
               </div>
             </div>
 
             {/* Status indicators */}
-            <div className="flex flex-wrap items-center justify-center gap-4 mb-8">
-              <motion.div 
-                className="flex items-center gap-2 px-4 py-2 bg-white/80 backdrop-blur-xl rounded-2xl border border-white/30 shadow-lg"
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                transition={{ delay: 0.3 }}
-              >
+            <div className="flex items-center justify-center gap-4">
+              <div className="flex items-center gap-2 px-4 py-2 bg-white rounded-lg border shadow-sm">
                 <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-                <span className="text-sm font-bold text-gray-700">En línea</span>
-                <div className="w-px h-4 bg-gray-300 mx-2" />
-                <div className="flex items-center gap-1">
-                  <Wifi size={14} className="text-gray-500" />
-                  <Signal size={14} className="text-gray-500" />
-                  <Battery size={14} className="text-gray-500" />
-                </div>
-              </motion.div>
+                <span className="text-sm font-medium text-gray-700">En línea</span>
+              </div>
 
-              <motion.div 
-                className={cn(
-                  "flex items-center gap-2 px-4 py-2 rounded-2xl text-sm font-bold shadow-lg backdrop-blur-xl border",
-                  user?.asociacionId 
-                    ? 'bg-gradient-to-r from-blue-50/80 to-indigo-50/80 text-blue-800 border-blue-200/50' 
-                    : 'bg-gradient-to-r from-emerald-50/80 to-green-50/80 text-emerald-800 border-emerald-200/50'
-                )}
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                transition={{ delay: 0.4 }}
-              >
+              <div className={cn(
+                "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium shadow-sm border",
+                user?.asociacionId 
+                  ? 'bg-blue-50 text-blue-800 border-blue-200' 
+                  : 'bg-emerald-50 text-emerald-800 border-emerald-200'
+              )}>
                 <Award size={16} />
                 <span>{user?.asociacionId ? 'Socio con Asociación' : 'Socio Independiente'}</span>
-                <div className={cn(
-                  "w-2 h-2 rounded-full animate-pulse",
-                  user?.asociacionId ? 'bg-blue-500' : 'bg-emerald-500'
-                )} />
-              </motion.div>
+              </div>
             </div>
-          </motion.div>
+          </div>
 
           {/* Main Scanner Card */}
-          <motion.div
-            className="bg-gradient-to-br from-white/90 via-white/80 to-white/70 backdrop-blur-xl rounded-3xl p-8 lg:p-12 border border-white/30 shadow-2xl relative overflow-hidden mb-8"
-            variants={itemVariants}
-          >
-            {/* Card background effects */}
-            <div className="absolute inset-0 bg-gradient-to-br from-sky-500/5 to-violet-600/5" />
-            <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-violet-200/20 to-transparent rounded-full blur-2xl" />
-            
-            <div className="relative z-10 text-center">
-              <motion.div 
-                className="w-32 h-32 bg-gradient-to-r from-sky-500 to-violet-600 rounded-3xl flex items-center justify-center mx-auto mb-8 shadow-2xl"
-                whileHover={{ scale: 1.05, rotate: 5 }}
-                transition={{ type: "spring", stiffness: 300 }}
-              >
-                <Scan size={48} className="text-white" />
-              </motion.div>
+          <div className="bg-white rounded-2xl p-6 lg:p-8 shadow-sm border">
+            <div className="text-center">
+              {/* Scanner Icon - Mobile Optimized */}
+              <div className="w-20 h-20 lg:w-24 lg:h-24 bg-gradient-to-r from-blue-500 to-purple-500 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg">
+                <Scan size={32} className="text-white lg:w-10 lg:h-10" />
+              </div>
 
-              <h2 className="text-3xl lg:text-4xl font-black text-gray-900 mb-6">Escanear Código QR</h2>
-              <p className="text-gray-600 max-w-2xl mx-auto text-lg lg:text-xl leading-relaxed mb-12">
-                Apunta tu cámara al código QR del comercio para validar y acceder a tus beneficios exclusivos de forma instantánea y segura
+              <h2 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-4">Escanear Código QR</h2>
+              <p className="text-gray-600 max-w-2xl mx-auto text-base lg:text-lg leading-relaxed mb-8">
+                Apunta tu cámara al código QR del comercio para validar y acceder a tus beneficios de forma instantánea
               </p>
 
-              {/* Scanner Button - Volviendo al componente original pero mejorado */}
-              <div className="max-w-md mx-auto mb-12">
+              {/* Scanner Button */}
+              <div className="max-w-sm mx-auto mb-8">
                 <QRScannerButton
                   onScan={handleQRScan}
                   loading={scannerLoading}
                 />
               </div>
 
-              {/* Instructions */}
-              <div className="bg-gradient-to-r from-sky-50/80 to-violet-50/80 backdrop-blur-xl rounded-2xl p-8 border border-sky-200/50 relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-bl from-violet-200/30 to-transparent rounded-full blur-xl" />
-                
-                <div className="relative z-10">
-                  <div className="flex items-center justify-center gap-3 mb-6">
-                    <div className="w-12 h-12 bg-gradient-to-r from-sky-500 to-violet-600 rounded-2xl flex items-center justify-center shadow-lg">
-                      <Sparkles size={20} className="text-white" />
+              {/* Instructions - Mobile Optimized */}
+              <div className="bg-blue-50 rounded-xl p-6 border border-blue-200">
+                <div className="flex items-center justify-center gap-2 mb-4">
+                  <Sparkles size={20} className="text-blue-500" />
+                  <h3 className="font-bold text-gray-900 text-lg">¿Cómo funciona?</h3>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-left">
+                  <div className="flex items-start gap-3">
+                    <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center flex-shrink-0 text-white font-bold text-sm">
+                      1
                     </div>
-                    <h3 className="font-black text-gray-900 text-xl">¿Cómo funciona?</h3>
+                    <div>
+                      <h4 className="font-semibold text-gray-900 mb-1">Solicita el QR</h4>
+                      <p className="text-sm text-gray-700">Pide al comercio que muestre su código QR</p>
+                    </div>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="flex items-start gap-4">
-                      <div className="w-8 h-8 bg-sky-500 rounded-xl flex items-center justify-center flex-shrink-0 text-white font-bold text-sm">
-                        1
-                      </div>
-                      <div>
-                        <h4 className="font-bold text-gray-900 mb-2">Solicita el QR</h4>
-                        <p className="text-sm text-gray-700">Pide al comercio que muestre su código QR de beneficios</p>
-                      </div>
+                  <div className="flex items-start gap-3">
+                    <div className="w-8 h-8 bg-purple-500 rounded-lg flex items-center justify-center flex-shrink-0 text-white font-bold text-sm">
+                      2
                     </div>
-
-                    <div className="flex items-start gap-4">
-                      <div className="w-8 h-8 bg-violet-500 rounded-xl flex items-center justify-center flex-shrink-0 text-white font-bold text-sm">
-                        2
-                      </div>
-                      <div>
-                        <h4 className="font-bold text-gray-900 mb-2">Escanea</h4>
-                        <p className="text-sm text-gray-700">Presiona el botón y permite el acceso a la cámara</p>
-                      </div>
+                    <div>
+                      <h4 className="font-semibold text-gray-900 mb-1">Escanea</h4>
+                      <p className="text-sm text-gray-700">Presiona el botón y permite acceso a la cámara</p>
                     </div>
+                  </div>
 
-                    <div className="flex items-start gap-4">
-                      <div className="w-8 h-8 bg-purple-500 rounded-xl flex items-center justify-center flex-shrink-0 text-white font-bold text-sm">
-                        3
-                      </div>
-                      <div>
-                        <h4 className="font-bold text-gray-900 mb-2">Apunta</h4>
-                        <p className="text-sm text-gray-700">Enfoca la cámara al código hasta que se detecte</p>
-                      </div>
+                  <div className="flex items-start gap-3">
+                    <div className="w-8 h-8 bg-indigo-500 rounded-lg flex items-center justify-center flex-shrink-0 text-white font-bold text-sm">
+                      3
                     </div>
+                    <div>
+                      <h4 className="font-semibold text-gray-900 mb-1">Apunta</h4>
+                      <p className="text-sm text-gray-700">Enfoca la cámara al código hasta detectarlo</p>
+                    </div>
+                  </div>
 
-                    <div className="flex items-start gap-4">
-                      <div className="w-8 h-8 bg-pink-500 rounded-xl flex items-center justify-center flex-shrink-0 text-white font-bold text-sm">
-                        4
-                      </div>
-                      <div>
-                        <h4 className="font-bold text-gray-900 mb-2">¡Disfruta!</h4>
-                        <p className="text-sm text-gray-700">Accede a tu beneficio validado al instante</p>
-                      </div>
+                  <div className="flex items-start gap-3">
+                    <div className="w-8 h-8 bg-green-500 rounded-lg flex items-center justify-center flex-shrink-0 text-white font-bold text-sm">
+                      4
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-gray-900 mb-1">¡Disfruta!</h4>
+                      <p className="text-sm text-gray-700">Accede a tu beneficio al instante</p>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-          </motion.div>
+          </div>
 
-          {/* Performance Metrics */}
-          <motion.div 
-            className="grid grid-cols-1 sm:grid-cols-3 gap-6"
-            variants={containerVariants}
-          >
-            <motion.div 
-              className="text-center p-6 bg-gradient-to-r from-emerald-50 to-green-50 rounded-2xl border border-emerald-200 shadow-lg"
-              variants={itemVariants}
-            >
-              <div className="w-12 h-12 bg-emerald-500 rounded-xl flex items-center justify-center mx-auto mb-4">
+          {/* Features Grid - Mobile Optimized */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="text-center p-4 bg-white rounded-xl border shadow-sm">
+              <div className="w-12 h-12 bg-emerald-500 rounded-xl flex items-center justify-center mx-auto mb-3">
                 <Zap size={20} className="text-white" />
               </div>
-              <div className="text-2xl font-black text-emerald-700 mb-2">&lt; 2s</div>
-              <div className="text-sm text-emerald-600 font-semibold">Detección Instantánea</div>
-              <div className="text-xs text-emerald-500 mt-1">Tecnología avanzada de reconocimiento</div>
-            </motion.div>
+              <div className="text-lg font-bold text-emerald-700 mb-1">&lt; 2s</div>
+              <div className="text-sm text-emerald-600 font-medium">Detección Instantánea</div>
+            </div>
             
-            <motion.div 
-              className="text-center p-6 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl border border-blue-200 shadow-lg"
-              variants={itemVariants}
-            >
-              <div className="w-12 h-12 bg-blue-500 rounded-xl flex items-center justify-center mx-auto mb-4">
+            <div className="text-center p-4 bg-white rounded-xl border shadow-sm">
+              <div className="w-12 h-12 bg-blue-500 rounded-xl flex items-center justify-center mx-auto mb-3">
                 <Shield size={20} className="text-white" />
               </div>
-              <div className="text-2xl font-black text-blue-700 mb-2">100%</div>
-              <div className="text-sm text-blue-600 font-semibold">Seguro y Privado</div>
-              <div className="text-xs text-blue-500 mt-1">Encriptación de extremo a extremo</div>
-            </motion.div>
+              <div className="text-lg font-bold text-blue-700 mb-1">100%</div>
+              <div className="text-sm text-blue-600 font-medium">Seguro y Privado</div>
+            </div>
             
-            <motion.div 
-              className="text-center p-6 bg-gradient-to-r from-purple-50 to-pink-50 rounded-2xl border border-purple-200 shadow-lg"
-              variants={itemVariants}
-            >
-              <div className="w-12 h-12 bg-purple-500 rounded-xl flex items-center justify-center mx-auto mb-4">
+            <div className="text-center p-4 bg-white rounded-xl border shadow-sm">
+              <div className="w-12 h-12 bg-purple-500 rounded-xl flex items-center justify-center mx-auto mb-3">
                 <Smartphone size={20} className="text-white" />
               </div>
-              <div className="text-2xl font-black text-purple-700 mb-2">24/7</div>
-              <div className="text-sm text-purple-600 font-semibold">Siempre Disponible</div>
-              <div className="text-xs text-purple-500 mt-1">Funciona en cualquier momento</div>
-            </motion.div>
-          </motion.div>
+              <div className="text-lg font-bold text-purple-700 mb-1">24/7</div>
+              <div className="text-sm text-purple-600 font-medium">Siempre Disponible</div>
+            </div>
+          </div>
 
-          {/* Tips Section */}
-          <motion.div 
-            className="mt-12 bg-gradient-to-r from-violet-500 to-purple-600 rounded-3xl p-8 text-white shadow-2xl relative overflow-hidden"
-            variants={itemVariants}
-            initial={{ scale: 0, rotate: -10 }}
-            animate={{ scale: 1, rotate: 0 }}
-            transition={{ type: "spring", stiffness: 200, delay: 0.8 }}
-          >
-            <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent" />
-            <div className="absolute top-0 right-0 w-40 h-40 bg-gradient-to-bl from-white/20 to-transparent rounded-full blur-2xl" />
-            
-            <div className="relative z-10 text-center">
-              <div className="flex items-center justify-center gap-3 mb-6">
+          {/* Tips Section - Mobile Optimized */}
+          <div className="bg-gradient-to-r from-violet-500 to-purple-600 rounded-2xl p-6 text-white">
+            <div className="text-center mb-6">
+              <div className="flex items-center justify-center gap-2 mb-3">
                 <Target size={24} className="text-yellow-300" />
-                <h3 className="text-2xl font-black">Consejos para un Escaneo Perfecto</h3>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="bg-white/10 rounded-2xl p-6 backdrop-blur-sm border border-white/20">
-                  <Camera size={24} className="text-yellow-300 mx-auto mb-3" />
-                  <h4 className="font-bold mb-2">Iluminación</h4>
-                  <p className="text-sm text-violet-100">Asegúrate de tener buena luz para una detección óptima</p>
-                </div>
-
-                <div className="bg-white/10 rounded-2xl p-6 backdrop-blur-sm border border-white/20">
-                  <Target size={24} className="text-yellow-300 mx-auto mb-3" />
-                  <h4 className="font-bold mb-2">Estabilidad</h4>
-                  <p className="text-sm text-violet-100">Mantén el teléfono estable durante el escaneo</p>
-                </div>
-
-                <div className="bg-white/10 rounded-2xl p-6 backdrop-blur-sm border border-white/20">
-                  <Clock size={24} className="text-yellow-300 mx-auto mb-3" />
-                  <h4 className="font-bold mb-2">Paciencia</h4>
-                  <p className="text-sm text-violet-100">Espera unos segundos para la detección automática</p>
-                </div>
+                <h3 className="text-xl font-bold">Consejos para un Escaneo Perfecto</h3>
               </div>
             </div>
-          </motion.div>
-        </motion.div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="bg-white/10 rounded-xl p-4 backdrop-blur-sm border border-white/20">
+                <Camera size={20} className="text-yellow-300 mx-auto mb-2" />
+                <h4 className="font-semibold mb-2 text-center">Iluminación</h4>
+                <p className="text-sm text-violet-100 text-center">Asegúrate de tener buena luz</p>
+              </div>
+
+              <div className="bg-white/10 rounded-xl p-4 backdrop-blur-sm border border-white/20">
+                <Target size={20} className="text-yellow-300 mx-auto mb-2" />
+                <h4 className="font-semibold mb-2 text-center">Estabilidad</h4>
+                <p className="text-sm text-violet-100 text-center">Mantén el teléfono estable</p>
+              </div>
+
+              <div className="bg-white/10 rounded-xl p-4 backdrop-blur-sm border border-white/20">
+                <CheckCircle size={20} className="text-yellow-300 mx-auto mb-2" />
+                <h4 className="font-semibold mb-2 text-center">Paciencia</h4>
+                <p className="text-sm text-violet-100 text-center">Espera la detección automática</p>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Modal de Resultado de Validación */}
