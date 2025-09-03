@@ -2,11 +2,16 @@ import {
   createUserWithEmailAndPassword, 
   updateProfile,
   signOut as firebaseSignOut,
+  getAuth
 } from 'firebase/auth';
+import { 
+  initializeApp,
+  deleteApp
+} from 'firebase/app';
 import { 
   doc, 
   serverTimestamp,
-  writeBatch 
+  writeBatch,
 } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import { COLLECTIONS, USER_STATES } from '@/lib/constants';
@@ -23,39 +28,65 @@ type ComercioDocData = { [key: string]: unknown };
 
 class ComercioAuthService {
   /**
-   * Crea una cuenta de Firebase Auth para un comercio
+   * Crea una cuenta de Firebase Auth para un comercio usando una instancia secundaria
+   * para mantener la sesión de la asociación activa
    */
   async createComercioAuthAccount(
     comercioData: ComercioFormData & { password: string },
     asociacionId: string
   ): Promise<CreateComercioAuthAccountResult> {
-    // Guardar el usuario actual (admin) antes de crear la nueva cuenta
+    // Verificar que hay un usuario actual (asociación) autenticado
     const currentUser = auth.currentUser;
+    if (!currentUser) {
+      throw new Error('No hay una sesión de asociación activa');
+    }
+
+    let secondaryApp;
     
     try {
       console.log('🔐 Creando cuenta de Firebase Auth para comercio:', comercioData.email);
+      console.log('🔐 Manteniendo sesión activa de asociación:', currentUser.email);
 
       // Validar que se proporcione una contraseña
       if (!comercioData.password || comercioData.password.length < 6) {
         throw new Error('Se requiere una contraseña de al menos 6 caracteres');
       }
 
-      // Crear la cuenta de Firebase Auth
+      // Crear una instancia secundaria de Firebase para crear el usuario
+      // sin afectar la sesión principal
+      const firebaseConfig = {
+        apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+        authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+        projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+        storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+        messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+        appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID
+      };
+
+      // Crear una instancia temporal de Firebase
+      const tempAppName = `temp-app-${Date.now()}`;
+      secondaryApp = initializeApp(firebaseConfig, tempAppName);
+      const secondaryAuth = getAuth(secondaryApp);
+
+      console.log('🔧 Instancia secundaria de Firebase creada');
+
+      // Crear la cuenta de Firebase Auth usando la instancia secundaria
       const userCredential = await createUserWithEmailAndPassword(
-        auth,
+        secondaryAuth,
         comercioData.email.toLowerCase().trim(),
         comercioData.password
       );
 
       const newUser = userCredential.user;
-      console.log('✅ Cuenta de Firebase Auth creada:', newUser.uid);
+      console.log('✅ Cuenta de Firebase Auth creada para comercio:', newUser.uid);
 
-      // Actualizar el perfil del usuario con el nombre
+      // Actualizar el perfil del comercio
       await updateProfile(newUser, {
         displayName: comercioData.nombreComercio
       });
 
-      // Crear los documentos en Firestore usando batch
+      // Crear los documentos en Firestore usando la instancia principal (no la secundaria)
+      // para mantener consistencia con el resto de la aplicación
       const batch = writeBatch(db);
 
       // Documento en la colección users - ACTIVO desde el inicio
@@ -124,18 +155,26 @@ class ComercioAuthService {
 
       batch.set(comercioDocRef, comercioDocData);
 
-      // Ejecutar el batch
+      // Ejecutar el batch para crear los documentos
       await batch.commit();
       console.log('✅ Documentos de Firestore creados exitosamente');
 
-      // IMPORTANTE: Cerrar la sesión del comercio recién creado para restaurar la del admin
-      await firebaseSignOut(auth);
-      console.log('🔐 Sesión del comercio cerrada');
+      // Cerrar la sesión en la instancia secundaria
+      await firebaseSignOut(secondaryAuth);
+      console.log('🔐 Sesión del comercio cerrada en instancia secundaria');
 
-      // Esperar un momento para que Firebase procese el sign out
-      await new Promise(resolve => setTimeout(resolve, 100));
+      // Limpiar la instancia secundaria
+      await deleteApp(secondaryApp);
+      console.log('🧹 Instancia secundaria de Firebase eliminada');
 
-      console.log('✅ Cuenta de comercio creada exitosamente');
+      // Verificar que la sesión principal sigue activa
+      if (auth.currentUser && auth.currentUser.uid === currentUser.uid) {
+        console.log('✅ Sesión de la asociación mantenida correctamente');
+      } else {
+        console.warn('⚠️ La sesión de la asociación pudo haberse visto afectada');
+      }
+
+      console.log('✅ Comercio creado exitosamente sin afectar la sesión de la asociación');
 
       return {
         success: true,
@@ -145,13 +184,13 @@ class ComercioAuthService {
     } catch (error) {
       console.error('❌ Error creando cuenta de comercio:', error);
       
-      // Si se creó el usuario pero falló algo después, intentar limpiarlo
-      if (auth.currentUser && auth.currentUser !== currentUser) {
+      // Limpiar la instancia secundaria en caso de error
+      if (secondaryApp) {
         try {
-          await auth.currentUser.delete();
-          console.log('🧹 Usuario de Firebase Auth limpiado después del error');
+          await deleteApp(secondaryApp);
+          console.log('🧹 Instancia secundaria limpiada después del error');
         } catch (cleanupError) {
-          console.error('❌ Error limpiando usuario después del fallo:', cleanupError);
+          console.error('❌ Error limpiando instancia secundaria:', cleanupError);
         }
       }
 
@@ -193,15 +232,28 @@ class ComercioAuthService {
    * Verifica si un email ya está registrado en Firebase Auth
    */
   async checkEmailExists(email: string): Promise<boolean> {
+    let secondaryApp;
+    
     try {
-      // Intentar crear un usuario temporal para verificar si el email existe
-      // Este es un método indirecto ya que Firebase no tiene una API directa para esto
-      // en el cliente
+      // Crear una instancia temporal para verificar el email
+      const firebaseConfig = {
+        apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+        authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+        projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+        storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+        messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+        appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID
+      };
+
+      const tempAppName = `temp-check-${Date.now()}`;
+      secondaryApp = initializeApp(firebaseConfig, tempAppName);
+      const secondaryAuth = getAuth(secondaryApp);
+
       const tempPassword = this.generateSecurePassword();
       
       try {
         await createUserWithEmailAndPassword(
-          auth,
+          secondaryAuth,
           email.toLowerCase().trim(),
           tempPassword
         );
@@ -209,16 +261,16 @@ class ComercioAuthService {
         // Si se creó el usuario temporal, entonces el email NO existe en auth.
         // Limpiar el usuario temporal creado para no dejar cuentas huérfanas.
         try {
-          if (auth.currentUser) {
-            await auth.currentUser.delete();
+          if (secondaryAuth.currentUser) {
+            await secondaryAuth.currentUser.delete();
           }
         } catch (cleanupError) {
           console.warn('Advertencia al limpiar usuario temporal:', cleanupError);
         }
 
-        // Asegurarse de cerrar sesión del usuario temporal
+        // Cerrar sesión en la instancia temporal
         try {
-          await firebaseSignOut(auth);
+          await firebaseSignOut(secondaryAuth);
         } catch (signOutError) {
           console.warn('Advertencia al cerrar sesión del usuario temporal:', signOutError);
         }
@@ -234,6 +286,15 @@ class ComercioAuthService {
       console.error('Error verificando email:', error);
       // En caso de error, asumir que el email podría existir para ser conservadores
       return true;
+    } finally {
+      // Limpiar la instancia temporal
+      if (secondaryApp) {
+        try {
+          await deleteApp(secondaryApp);
+        } catch (cleanupError) {
+          console.error('Error limpiando instancia temporal:', cleanupError);
+        }
+      }
     }
   }
 }

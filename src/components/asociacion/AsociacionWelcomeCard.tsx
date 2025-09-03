@@ -94,46 +94,6 @@ const StatCard = memo<{
 
 StatCard.displayName = 'StatCard';
 
-// Componente de acción rápida
-const QuickActionButton = memo<{
-  icon: React.ComponentType<{ className?: string }>;
-  label: string;
-  description: string;
-  color: string;
-  onClick: () => void;
-}>(({ icon: Icon, label, description, color, onClick }) => (
-  <motion.button
-    whileHover={{ scale: 1.02, y: -1 }}
-    whileTap={{ scale: 0.98 }}
-    onClick={onClick}
-    className={`
-      group relative overflow-hidden bg-gradient-to-br ${color} 
-      rounded-2xl p-4 text-left transition-all duration-300
-      border border-white/20 shadow-lg hover:shadow-xl
-      backdrop-blur-sm
-    `}
-  >
-    <div className="relative z-10">
-      <div className="flex items-center gap-3 mb-2">
-        <div className="p-2 bg-white/20 rounded-xl">
-          <Icon className="w-5 h-5 text-white" />
-        </div>
-        <div className="flex-1">
-          <div className="text-white font-semibold text-sm">{label}</div>
-          <div className="text-white/70 text-xs">{description}</div>
-        </div>
-      </div>
-    </div>
-    
-    {/* Hover effect */}
-    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent 
-                    opacity-0 group-hover:opacity-100 transition-opacity duration-300 
-                    transform -skew-x-12 group-hover:animate-pulse" />
-  </motion.button>
-));
-
-QuickActionButton.displayName = 'QuickActionButton';
-
 export const AsociacionWelcomeCard: React.FC<AsociacionWelcomeCardProps> = memo(({
   user,
   asociacion,
@@ -142,9 +102,6 @@ export const AsociacionWelcomeCard: React.FC<AsociacionWelcomeCardProps> = memo(
   onViewProfile,
   onLogout
 }) => {
-  // Formatear números grandes
-
-
   // Calcular cambios porcentuales (simulados para demo)
   const sociosChange = useMemo(() => Math.random() * 20 - 10, []);
   const comerciosChange = useMemo(() => Math.random() * 15 - 5, []);
@@ -286,38 +243,6 @@ export const AsociacionWelcomeCard: React.FC<AsociacionWelcomeCardProps> = memo(
             value={stats.ingresosMensuales}
             color="from-orange-500 to-orange-600"
             onClick={() => onQuickAction('analytics')}
-          />
-        </div>
-
-        {/* Quick Actions */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <QuickActionButton
-            icon={Users}
-            label="Gestionar Socios"
-            description="Agregar y administrar miembros"
-            color="from-blue-500 to-blue-600"
-            onClick={() => onQuickAction('socios')}
-          />
-          <QuickActionButton
-            icon={Store}
-            label="Red de Comercios"
-            description="Administrar comercios afiliados"
-            color="from-purple-500 to-purple-600"
-            onClick={() => onQuickAction('comercios')}
-          />
-          <QuickActionButton
-            icon={Bell}
-            label="Notificaciones"
-            description="Centro de comunicaciones"
-            color="from-red-500 to-red-600"
-            onClick={() => onQuickAction('notificaciones')}
-          />
-          <QuickActionButton
-            icon={TrendingUp}
-            label="Dashboard"
-            description="Vista general del sistema"
-            color="from-emerald-500 to-emerald-600"
-            onClick={() => onQuickAction('dashboard')}
           />
         </div>
 

@@ -70,7 +70,7 @@ export const useComercios = () => {
     }
   }, [asociacionId]);
 
-  // Create new comercio
+  // Create new comercio - Sesión se mantiene activa
   const createComercio = useCallback(async (data: ComercioFormData & { password: string }): Promise<boolean> => {
     if (!asociacionId) {
       toast.error('No se pudo identificar la asociación');
@@ -83,7 +83,10 @@ export const useComercios = () => {
       
       if (comercioId) {
         toast.success('¡Comercio creado exitosamente! Ya puede acceder con sus credenciales.');
-        await loadComercios(); // Reload the list
+        
+        // Recargar la lista de comercios inmediatamente
+        await loadComercios();
+        
         return true;
       } else {
         toast.error('Error al crear el comercio');

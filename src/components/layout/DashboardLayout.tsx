@@ -3,7 +3,10 @@
 import React, { useState, useEffect, useCallback, useMemo, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { DashboardSidebar } from './DashboardSidebar';
-import { ArrowUp, X, Menu } from 'lucide-react';
+import { SimpleSocioSidebar } from './SimpleSocioSidebar';
+import { ArrowUp, X, Menu, QrCode } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
+import { useDeviceDetection } from '@/hooks/useDeviceDetection';
 import SmoothPageTransition from './SmoothPageTransition';
 
 interface SidebarProps {
@@ -60,9 +63,10 @@ MemoizedMainContent.displayName = 'MemoizedMainContent';
 const FloatingButtons = memo<{
   showScrollTop: boolean;
   isMobile: boolean;
+  isSocio: boolean;
   onScrollTop: () => void;
-  onQuickAction: () => void;
-}>(({ showScrollTop, isMobile, onScrollTop, onQuickAction }) => (
+  onQuickScan: () => void;
+}>(({ showScrollTop, isMobile, isSocio, onScrollTop, onQuickScan }) => (
   <div className="fixed bottom-6 right-6 flex flex-col space-y-3 z-20">
     {/* Scroll to Top Button */}
     <AnimatePresence>
@@ -81,21 +85,22 @@ const FloatingButtons = memo<{
       )}
     </AnimatePresence>
 
-    {/* Quick Action Button (Mobile) */}
-    {isMobile && (
+    {/* Quick Scan Button (Solo para socios en móvil) */}
+    {isMobile && isSocio && (
       <motion.button
         initial={{ opacity: 0, scale: 0 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ delay: 0.2 }}
         whileHover={{ scale: 1.1, y: -2 }}
         whileTap={{ scale: 0.95 }}
-        onClick={onQuickAction}
-        className="w-14 h-14 bg-gradient-to-br from-purple-500 to-purple-600 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center relative overflow-hidden"
+        onClick={onQuickScan}
+        className="w-16 h-16 bg-gradient-to-br from-blue-500 via-purple-500 to-purple-600 rounded-full shadow-xl hover:shadow-2xl transition-all duration-300 flex items-center justify-center relative overflow-hidden group"
       >
         <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-pulse"></div>
-        <svg className="w-7 h-7 text-white relative z-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
+        <QrCode className="w-8 h-8 text-white relative z-10 group-hover:scale-110 transition-transform" />
+        
+        {/* Pulse effect */}
+        <div className="absolute inset-0 rounded-full bg-blue-400 animate-ping opacity-20"></div>
       </motion.button>
     )}
   </div>
@@ -107,15 +112,36 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   children,
   activeSection = 'overview',
   onSectionChange,
-  sidebarComponent: SidebarComponent = DashboardSidebar,
+  sidebarComponent: CustomSidebarComponent,
   onLogout,
   enableTransitions = true
 }) => {
+  const { user } = useAuth();
+  const { isMobile, isTablet } = useDeviceDetection();
+  
   // Estados estables que no cambian con las pestañas
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
+
+  // Determinar si es socio
+  const isSocio = user?.role === 'socio';
+
+  // Determinar qué sidebar usar basado en el rol y dispositivo
+  const SidebarComponent = useMemo(() => {
+    // Si se proporciona un componente personalizado, usarlo
+    if (CustomSidebarComponent) {
+      return CustomSidebarComponent;
+    }
+    
+    // Para socios en móvil/tablet, usar sidebar simplificado
+    if (isSocio && (isMobile || isTablet)) {
+      return SimpleSocioSidebar;
+    }
+    
+    // Para todo lo demás, usar sidebar completo
+    return DashboardSidebar;
+  }, [CustomSidebarComponent, isSocio, isMobile, isTablet]);
 
   // Memoizar handlers para evitar re-renders del sidebar
   const handleSidebarToggle = useCallback(() => {
@@ -145,17 +171,17 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
 
-  const handleQuickAction = useCallback(() => {
-    handleMenuClick('validaciones');
-  }, [handleMenuClick]);
+  // Quick scan para socios - navegar a validar QR
+  const handleQuickScan = useCallback(() => {
+    if (isSocio) {
+      handleMenuClick('validar');
+    }
+  }, [handleMenuClick, isSocio]);
 
   // Handle responsive breakpoints (solo una vez)
   useEffect(() => {
     const handleResize = () => {
       const width = window.innerWidth;
-      const mobile = width < 1024;
-      
-      setIsMobile(mobile);
       
       // Auto-open sidebar on desktop, closed on mobile/tablet
       if (width >= 1024) {
@@ -279,8 +305,9 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
       <FloatingButtons
         showScrollTop={showScrollTop}
         isMobile={isMobile}
+        isSocio={isSocio}
         onScrollTop={scrollToTop}
-        onQuickAction={handleQuickAction}
+        onQuickScan={handleQuickScan}
       />
 
       {/* Development Indicator */}
@@ -288,9 +315,13 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
         <div className="fixed bottom-4 left-4 z-10 bg-black/80 backdrop-blur-sm text-white text-xs px-3 py-2 rounded-lg border border-white/20">
           <div className="flex items-center space-x-2">
             <div className={`w-2 h-2 rounded-full ${
-              isMobile ? 'bg-red-400' : 'bg-green-400'
+              isMobile ? 'bg-red-400' : isTablet ? 'bg-yellow-400' : 'bg-green-400'
             }`}></div>
-            <span>{isMobile ? 'Mobile' : 'Desktop'}</span>
+            <span>{isMobile ? 'Mobile' : isTablet ? 'Tablet' : 'Desktop'}</span>
+            <span className="text-gray-400">|</span>
+            <span className={isSocio ? 'text-blue-400' : 'text-gray-400'}>
+              {user?.role || 'Unknown'}
+            </span>
             <span className="text-gray-400">|</span>
             <span className={enableTransitions ? 'text-green-400' : 'text-gray-400'}>
               Transitions: {enableTransitions ? 'ON' : 'OFF'}

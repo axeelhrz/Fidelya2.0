@@ -6,10 +6,12 @@ import { useRouter } from 'next/navigation';
 import { toast } from 'react-hot-toast';
 import { LogoutModal } from '@/components/ui/LogoutModal';
 import { OptimizedSocioTabSystem } from '@/components/layout/OptimizedSocioTabSystem';
+import { SimpleSocioTabSystem } from '@/components/layout/SimpleSocioTabSystem';
 import { SocioWelcomeCard } from '@/components/socio/SocioWelcomeCard';
 import { useAuth } from '@/hooks/useAuth';
 import { useSocioProfile } from '@/hooks/useSocioProfile';
 import { useBeneficios } from '@/hooks/useBeneficios';
+import { useDeviceDetection } from '@/hooks/useDeviceDetection';
 
 // Optimized loading component
 const OptimizedLoadingState = memo(() => (
@@ -55,11 +57,15 @@ export default function OptimizedSocioDashboard() {
   const { user, loading: authLoading, signOut } = useAuth();
   const { socio, estadisticas, loading: socioLoading } = useSocioProfile();
   const { estadisticasRapidas, beneficiosActivos, loading: beneficiosLoading } = useBeneficios();
+  const { isMobile, isTablet } = useDeviceDetection();
   
   // State management - optimized to prevent unnecessary re-renders
   const [logoutModalOpen, setLogoutModalOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
-  const [currentSection, setCurrentSection] = useState('dashboard');
+  const [currentSection, setCurrentSection] = useState('validar'); // Cambiar default a 'validar' para móviles
+
+  // Determinar qué sistema de tabs usar
+  const useSimpleTabSystem = isMobile || isTablet;
 
   // Memoized consolidated stats
   const consolidatedStats = useMemo(() => {
@@ -151,30 +157,51 @@ export default function OptimizedSocioDashboard() {
     <>
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100">
         <div className="p-3 sm:p-4 lg:p-6 xl:p-8 space-y-4 sm:space-y-6 lg:space-y-8 max-w-7xl mx-auto">
-          {/* Optimized Welcome Card */}
-          <SocioWelcomeCard
-            user={user ?? {}}
-            socio={socio ?? undefined}
-            stats={consolidatedStats}
-            onQuickScan={handleQuickScan}
-            onViewProfile={handleViewProfile}
-            onLogout={handleLogoutClick}
-          />
+          {/* Welcome Card - Solo mostrar en desktop o cuando no esté en la sección de validar en móvil */}
+          {(!useSimpleTabSystem || currentSection !== 'validar') && (
+            <SocioWelcomeCard
+              user={user ?? {}}
+              socio={socio ?? undefined}
+              stats={consolidatedStats}
+              onQuickScan={handleQuickScan}
+              onViewProfile={handleViewProfile}
+              onLogout={handleLogoutClick}
+            />
+          )}
 
-          {/* Ultra Optimized Tab System */}
+          {/* Tab System - Usar versión simplificada en móvil/tablet */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
+            transition={{ delay: useSimpleTabSystem ? 0.1 : 0.3 }}
           >
-            <OptimizedSocioTabSystem
-              onNavigate={handleNavigate}
-              onQuickScan={handleQuickScan}
-              initialTab={currentSection}
-              stats={consolidatedStats}
-            />
+            {useSimpleTabSystem ? (
+              <SimpleSocioTabSystem
+                onNavigate={handleNavigate}
+                onQuickScan={handleQuickScan}
+                initialTab={currentSection}
+                stats={consolidatedStats}
+              />
+            ) : (
+              <OptimizedSocioTabSystem
+                onNavigate={handleNavigate}
+                onQuickScan={handleQuickScan}
+                initialTab={currentSection}
+                stats={consolidatedStats}
+              />
+            )}
           </motion.div>
         </div>
+
+        {/* Indicador de modo simplificado (solo en desarrollo) */}
+        {process.env.NODE_ENV === 'development' && useSimpleTabSystem && (
+          <div className="fixed top-4 right-4 z-10 bg-blue-500 text-white text-xs px-3 py-2 rounded-lg shadow-lg">
+            <div className="flex items-center space-x-2">
+              <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
+              <span>Modo Simplificado</span>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Enhanced Logout Modal */}

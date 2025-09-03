@@ -31,57 +31,70 @@ export const EmailVerification: React.FC<EmailVerificationProps> = ({
     return () => clearTimeout(timer);
   }, []);
 
-  const handleResendVerification = async () => {
-    if (isResending) return;
+// En src/components/auth/EmailVerification.tsx
 
-    setIsResending(true);
-    try {
-      // First try without password
-      const response = await resendVerification();
-      
-      // If it requires password, show password field
-      if (!response.success && response.error?.includes('contraseña')) {
+// Reemplaza la función handleResendVerification con esta versión corregida:
+const handleResendVerification = async () => {
+  if (isResending) return;
+
+  setIsResending(true);
+  try {
+    console.log('🔐 Attempting to resend verification email...');
+    
+    // Llamar directamente a la función de reenvío
+    const response = await resendVerification();
+    
+    console.log('🔐 Resend response:', response);
+    
+    if (response.success) {
+      setLastSent(new Date());
+      setShowPasswordField(false);
+      setPassword('');
+      toast.success('Email de verificación enviado exitosamente');
+    } else {
+      // Si el error indica que necesita contraseña, mostrar el campo
+      if (response.error?.includes('contraseña') || response.error?.includes('password')) {
         setShowPasswordField(true);
-        setIsResending(false);
-        return;
-      }
-      
-      if (response.success) {
-        setLastSent(new Date());
-        setShowPasswordField(false);
-        setPassword('');
-        toast.success('Email de verificación enviado');
+        toast.error('Necesitas proporcionar tu contraseña para reenviar la verificación');
       } else {
-        toast.error(response.error || 'Error al enviar email');
+        toast.error(response.error || 'Error al enviar email de verificación');
       }
-    } catch {
-      toast.error('Error al enviar email de verificación');
-    } finally {
-      setIsResending(false);
     }
-  };
+  } catch (error) {
+    console.error('🔐 Error in handleResendVerification:', error);
+    toast.error('Error al enviar email de verificación');
+  } finally {
+    setIsResending(false);
+  }
+};
 
-  const handleResendWithPassword = async () => {
-    if (isResending || !password.trim()) return;
+// Y también corrige la función handleResendWithPassword:
+const handleResendWithPassword = async () => {
+  if (isResending || !password.trim()) return;
 
-    setIsResending(true);
-    try {
-      const response = await resendVerification(password);
-      
-      if (response.success) {
-        setLastSent(new Date());
-        setShowPasswordField(false);
-        setPassword('');
-        toast.success('Email de verificación enviado');
-      } else {
-        toast.error(response.error || 'Error al enviar email');
-      }
-    } catch {
-      toast.error('Error al enviar email de verificación');
-    } finally {
-      setIsResending(false);
+  setIsResending(true);
+  try {
+    console.log('🔐 Attempting to resend verification email with password...');
+    
+    const response = await resendVerification(password);
+    
+    console.log('🔐 Resend with password response:', response);
+    
+    if (response.success) {
+      setLastSent(new Date());
+      setShowPasswordField(false);
+      setPassword('');
+      toast.success('Email de verificación enviado exitosamente');
+    } else {
+      toast.error(response.error || 'Error al enviar email de verificación');
     }
-  };
+  } catch (error) {
+    console.error('🔐 Error in handleResendWithPassword:', error);
+    toast.error('Error al enviar email de verificación');
+  } finally {
+    setIsResending(false);
+  }
+};
 
   const handleCheckVerification = async () => {
     setIsCheckingVerification(true);
