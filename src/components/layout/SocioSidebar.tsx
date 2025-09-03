@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo, useCallback, useRef, memo } from 'react';
+import React, { useMemo, useCallback, memo } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { 
   QrCode, 

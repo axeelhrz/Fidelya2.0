@@ -8,7 +8,6 @@ import {
   Gift, 
   History,
   Scan,
-  Sparkles,
   Smartphone,
   Monitor
 } from 'lucide-react';

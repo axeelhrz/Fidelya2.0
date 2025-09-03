@@ -298,9 +298,9 @@ export default function ComercioNotificacionesPage() {
                   size="sm"
                   leftIcon={<Users size={16} />}
                   onClick={() => {
-                    // Navigate to clients tab
-                    if (window.navigateToSocioTab) {
-                      window.navigateToSocioTab('clientes');
+                    // Navigate to clients tab - Fixed to use correct function
+                    if (window.navigateToComercioTab) {
+                      window.navigateToComercioTab('clientes');
                     }
                   }}
                 >
