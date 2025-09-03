@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback, useMemo, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { DashboardSidebar } from './DashboardSidebar';
-import { SimpleSocioSidebar } from './SimpleSocioSidebar';
+import { SocioSidebar } from './SocioSidebar';
 import { ArrowUp, X, Menu, QrCode } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useDeviceDetection } from '@/hooks/useDeviceDetection';
@@ -127,21 +127,21 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   // Determinar si es socio
   const isSocio = user?.role === 'socio';
 
-  // Determinar qué sidebar usar basado en el rol y dispositivo
+  // Determinar qué sidebar usar - SIEMPRE usar SocioSidebar para socios
   const SidebarComponent = useMemo(() => {
     // Si se proporciona un componente personalizado, usarlo
     if (CustomSidebarComponent) {
       return CustomSidebarComponent;
     }
     
-    // Para socios en móvil/tablet, usar sidebar simplificado
-    if (isSocio && (isMobile || isTablet)) {
-      return SimpleSocioSidebar;
+    // Para socios, SIEMPRE usar el sidebar simplificado
+    if (isSocio) {
+      return SocioSidebar;
     }
     
-    // Para todo lo demás, usar sidebar completo
+    // Para otros roles, usar sidebar completo
     return DashboardSidebar;
-  }, [CustomSidebarComponent, isSocio, isMobile, isTablet]);
+  }, [CustomSidebarComponent, isSocio]);
 
   // Memoizar handlers para evitar re-renders del sidebar
   const handleSidebarToggle = useCallback(() => {
@@ -319,7 +319,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
             }`}></div>
             <span>{isMobile ? 'Mobile' : isTablet ? 'Tablet' : 'Desktop'}</span>
             <span className="text-gray-400">|</span>
-            <span className={isSocio ? 'text-blue-400' : 'text-gray-400'}>
+            <span className={isSocio ? 'bg-blue-500 px-2 py-1 rounded text-white' : 'text-gray-400'}>
               {user?.role || 'Unknown'}
             </span>
             <span className="text-gray-400">|</span>

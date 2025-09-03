@@ -6,8 +6,6 @@ import { useRouter } from 'next/navigation';
 import { toast } from 'react-hot-toast';
 import { LogoutModal } from '@/components/ui/LogoutModal';
 import { OptimizedSocioTabSystem } from '@/components/layout/OptimizedSocioTabSystem';
-import { SimpleSocioTabSystem } from '@/components/layout/SimpleSocioTabSystem';
-import { SocioWelcomeCard } from '@/components/socio/SocioWelcomeCard';
 import { useAuth } from '@/hooks/useAuth';
 import { useSocioProfile } from '@/hooks/useSocioProfile';
 import { useBeneficios } from '@/hooks/useBeneficios';
@@ -35,7 +33,7 @@ const OptimizedLoadingState = memo(() => (
         transition={{ delay: 0.2 }}
         className="text-3xl font-bold bg-gradient-to-r from-slate-900 to-blue-700 bg-clip-text text-transparent mb-3"
       >
-        Inicializando Dashboard
+        Cargando Dashboard
       </motion.h2>
       <motion.p 
         initial={{ opacity: 0, y: 10 }}
@@ -43,7 +41,7 @@ const OptimizedLoadingState = memo(() => (
         transition={{ delay: 0.3 }}
         className="text-slate-600 text-lg"
       >
-        Cargando tu panel de beneficios...
+        Preparando tu experiencia simplificada...
       </motion.p>
     </motion.div>
   </div>
@@ -52,22 +50,22 @@ const OptimizedLoadingState = memo(() => (
 OptimizedLoadingState.displayName = 'OptimizedLoadingState';
 
 // Main component
-export default function OptimizedSocioDashboard() {
+export default function SimplifiedSocioDashboard() {
   const router = useRouter();
   const { user, loading: authLoading, signOut } = useAuth();
   const { socio, estadisticas, loading: socioLoading } = useSocioProfile();
   const { estadisticasRapidas, beneficiosActivos, loading: beneficiosLoading } = useBeneficios();
-  const { isMobile, isTablet } = useDeviceDetection();
+  const { isMobile } = useDeviceDetection();
   
-  // State management - optimized to prevent unnecessary re-renders
+  // State management - ultra-simplificado
   const [logoutModalOpen, setLogoutModalOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
-  const [currentSection, setCurrentSection] = useState('validar'); // Cambiar default a 'validar' para móviles
+  const [currentSection, setCurrentSection] = useState(() => {
+    // Tab inicial basado en dispositivo
+    return isMobile ? 'validar' : 'beneficios';
+  });
 
-  // Determinar qué sistema de tabs usar
-  const useSimpleTabSystem = isMobile || isTablet;
-
-  // Memoized consolidated stats
+  // Memoized consolidated stats - solo lo esencial
   const consolidatedStats = useMemo(() => {
     const now = new Date();
     const currentMonth = now.getMonth();
@@ -79,7 +77,7 @@ export default function OptimizedSocioDashboard() {
       return year === currentYear && month === currentMonth + 1;
     })?.validaciones || 0;
 
-    // Filtrar beneficios activos y válidos (igual que en BeneficiosList)
+    // Filtrar beneficios activos y válidos
     const beneficiosValidos = beneficiosActivos.filter(beneficio => {
       const fechaFin = beneficio.fechaFin.toDate();
       const fechaInicio = beneficio.fechaInicio.toDate();
@@ -96,9 +94,8 @@ export default function OptimizedSocioDashboard() {
     });
 
     return {
-      totalBeneficios: beneficiosValidos.length, // Beneficios realmente disponibles y válidos
-      beneficiosUsados: estadisticasRapidas.usados || 0, // Beneficios que ya ha usado
-      asociacionesActivas: 1, // Por ahora asumimos 1 asociación
+      totalBeneficios: beneficiosValidos.length,
+      beneficiosUsados: estadisticasRapidas.usados || 0,
       beneficiosEstesMes
     };
   }, [beneficiosActivos, estadisticasRapidas, estadisticas]);
@@ -137,11 +134,6 @@ export default function OptimizedSocioDashboard() {
     setCurrentSection('validar');
   }, []);
 
-  // View profile handler
-  const handleViewProfile = useCallback(() => {
-    setCurrentSection('perfil');
-  }, []);
-
   // Redirect if not authenticated or not socio
   if (!authLoading && (!user || user.role !== 'socio')) {
     router.push('/auth/login');
@@ -157,48 +149,74 @@ export default function OptimizedSocioDashboard() {
     <>
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100">
         <div className="p-3 sm:p-4 lg:p-6 xl:p-8 space-y-4 sm:space-y-6 lg:space-y-8 max-w-7xl mx-auto">
-          {/* Welcome Card - Solo mostrar en desktop o cuando no esté en la sección de validar en móvil */}
-          {(!useSimpleTabSystem || currentSection !== 'validar') && (
-            <SocioWelcomeCard
-              user={user ?? {}}
-              socio={socio ?? undefined}
-              stats={consolidatedStats}
-              onQuickScan={handleQuickScan}
-              onViewProfile={handleViewProfile}
-              onLogout={handleLogoutClick}
-            />
+          {/* Bienvenida simplificada - Solo mostrar en desktop o cuando no esté en validar */}
+          {(!isMobile || currentSection !== 'validar') && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="bg-white/90 backdrop-blur-xl rounded-3xl border border-white/20 shadow-xl p-6"
+            >
+              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                <div className="flex items-center gap-4">
+                  <div className="w-16 h-16 bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 rounded-2xl flex items-center justify-center shadow-lg">
+                    <span className="text-white font-black text-2xl">
+                      {(socio?.nombre || user?.nombre)?.charAt(0).toUpperCase() || 'S'}
+                    </span>
+                  </div>
+                  <div>
+                    <h1 className="text-2xl lg:text-3xl font-black text-slate-900">
+                      ¡Hola, {socio?.nombre || user?.nombre || 'Socio'}!
+                    </h1>
+                    <p className="text-slate-600 text-lg">
+                      {isMobile ? 'Escanea QR y ahorra al instante' : 'Explora tus beneficios disponibles'}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Stats rápidas */}
+                <div className="flex gap-4">
+                  <div className="text-center">
+                    <div className="text-2xl font-black text-blue-600">
+                      {consolidatedStats.totalBeneficios}
+                    </div>
+                    <div className="text-xs text-slate-600 font-medium">
+                      Disponibles
+                    </div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-black text-emerald-600">
+                      {consolidatedStats.beneficiosUsados}
+                    </div>
+                    <div className="text-xs text-slate-600 font-medium">
+                      Utilizados
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
           )}
 
-          {/* Tab System - Usar versión simplificada en móvil/tablet */}
+          {/* Sistema de tabs ultra-simplificado */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: useSimpleTabSystem ? 0.1 : 0.3 }}
+            transition={{ delay: 0.2 }}
           >
-            {useSimpleTabSystem ? (
-              <SimpleSocioTabSystem
-                onNavigate={handleNavigate}
-                onQuickScan={handleQuickScan}
-                initialTab={currentSection}
-                stats={consolidatedStats}
-              />
-            ) : (
-              <OptimizedSocioTabSystem
-                onNavigate={handleNavigate}
-                onQuickScan={handleQuickScan}
-                initialTab={currentSection}
-                stats={consolidatedStats}
-              />
-            )}
+            <OptimizedSocioTabSystem
+              onNavigate={handleNavigate}
+              onQuickScan={handleQuickScan}
+              initialTab={currentSection}
+              stats={consolidatedStats}
+            />
           </motion.div>
         </div>
 
         {/* Indicador de modo simplificado (solo en desarrollo) */}
-        {process.env.NODE_ENV === 'development' && useSimpleTabSystem && (
-          <div className="fixed top-4 right-4 z-10 bg-blue-500 text-white text-xs px-3 py-2 rounded-lg shadow-lg">
+        {process.env.NODE_ENV === 'development' && (
+          <div className="fixed top-4 right-4 z-10 bg-green-500 text-white text-xs px-3 py-2 rounded-lg shadow-lg">
             <div className="flex items-center space-x-2">
               <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
-              <span>Modo Simplificado</span>
+              <span>Modo Ultra-Simplificado</span>
             </div>
           </div>
         )}

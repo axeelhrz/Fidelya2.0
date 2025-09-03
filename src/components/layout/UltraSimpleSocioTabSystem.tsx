@@ -8,6 +8,7 @@ import {
   Gift, 
   History,
   Scan,
+  Sparkles,
   Smartphone,
   Monitor
 } from 'lucide-react';
@@ -32,8 +33,8 @@ const SocioHistorial = lazy(() =>
   }))
 );
 
-// Tab configuration simplificada
-interface TabConfig {
+// Tab configuration ultra-simplificada
+interface UltraSimpleTabConfig {
   id: string;
   label: string;
   icon: React.ComponentType<{ className?: string }>;
@@ -46,7 +47,7 @@ interface TabConfig {
 }
 
 // Loading component optimizado
-const TabLoadingState = memo<{ tabId: string }>(({ tabId }) => {
+const UltraSimpleLoadingState = memo<{ tabId: string }>(({ tabId }) => {
   const loadingConfigs = {
     validar: { color: 'blue', text: 'Preparando Escáner', icon: QrCode },
     beneficios: { color: 'purple', text: 'Cargando Beneficios', icon: Gift },
@@ -83,16 +84,16 @@ const TabLoadingState = memo<{ tabId: string }>(({ tabId }) => {
   );
 });
 
-TabLoadingState.displayName = 'TabLoadingState';
+UltraSimpleLoadingState.displayName = 'UltraSimpleLoadingState';
 
-// Tab button simplificado
-const TabButton = memo<{
-  tab: TabConfig;
+// Tab button ultra-simplificado
+const UltraSimpleTabButton = memo<{
+  tab: UltraSimpleTabConfig;
   isActive: boolean;
   onClick: () => void;
   isMobile: boolean;
 }>(({ tab, isActive, onClick, isMobile }) => {
-  // Si es desktop y el tab está deshabilitado para desktop, mostrar deshabilitado
+  // Si es desktop y el tab está deshabilitado para desktop, no mostrar
   if (!isMobile && tab.desktopDisabled) {
     return (
       <div className="flex-1 flex items-center justify-center gap-3 px-6 py-4 rounded-2xl bg-gray-100 text-gray-400 cursor-not-allowed">
@@ -119,6 +120,7 @@ const TabButton = memo<{
           ? `bg-gradient-to-r ${tab.gradient} text-white shadow-xl scale-105` 
           : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50 hover:scale-102'
         }
+        ${tab.mobileOnly && !isMobile ? 'opacity-50' : ''}
       `}
       whileHover={{ scale: isActive ? 1.05 : 1.02 }}
       whileTap={{ scale: 0.98 }}
@@ -127,7 +129,7 @@ const TabButton = memo<{
       {/* Background glow for active tab */}
       {isActive && (
         <motion.div
-          layoutId="activeTabGlow"
+          layoutId="activeUltraSimpleTabGlow"
           className={`absolute inset-0 bg-gradient-to-r ${tab.gradient} rounded-2xl blur-lg opacity-40`}
           transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
         />
@@ -159,6 +161,7 @@ const TabButton = memo<{
           isActive ? 'text-white/80' : 'text-slate-500'
         }`}>
           {tab.description}
+          {tab.mobileOnly && !isMobile && ' (Solo móvil)'}
         </span>
       </div>
 
@@ -181,10 +184,10 @@ const TabButton = memo<{
   );
 });
 
-TabButton.displayName = 'TabButton';
+UltraSimpleTabButton.displayName = 'UltraSimpleTabButton';
 
 // Main component
-interface OptimizedSocioTabSystemProps {
+interface UltraSimpleSocioTabSystemProps {
   onNavigate?: (section: string) => void;
   onQuickScan?: () => void;
   initialTab?: string;
@@ -195,7 +198,7 @@ interface OptimizedSocioTabSystemProps {
   };
 }
 
-const OptimizedSocioTabSystemComponent: React.FC<OptimizedSocioTabSystemProps> = ({ 
+const UltraSimpleSocioTabSystemComponent: React.FC<UltraSimpleSocioTabSystemProps> = ({ 
   onNavigate, 
   onQuickScan,
   initialTab,
@@ -221,8 +224,8 @@ const OptimizedSocioTabSystemComponent: React.FC<OptimizedSocioTabSystemProps> =
     }
   }, [searchParams, activeTab, isMobile]);
 
-  // Tab configuration simplificada - Solo 3 tabs esenciales
-  const tabs = useMemo<TabConfig[]>(() => [
+  // Tab configuration ultra-simplificada - Solo 3 tabs esenciales
+  const tabs = useMemo<UltraSimpleTabConfig[]>(() => [
     {
       id: 'validar',
       label: 'Escanear QR',
@@ -300,7 +303,7 @@ const OptimizedSocioTabSystemComponent: React.FC<OptimizedSocioTabSystemProps> =
 
   return (
     <div className="space-y-6">
-      {/* Header simplificado */}
+      {/* Header ultra-simplificado */}
       <div className="bg-white/90 backdrop-blur-xl rounded-3xl border border-white/20 shadow-xl p-6">
         {/* Título dinámico */}
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
@@ -341,7 +344,7 @@ const OptimizedSocioTabSystemComponent: React.FC<OptimizedSocioTabSystemProps> =
         {/* Tab buttons - Layout responsivo */}
         <div className="flex flex-col sm:flex-row gap-3">
           {tabs.map((tab) => (
-            <TabButton
+            <UltraSimpleTabButton
               key={tab.id}
               tab={tab}
               isActive={activeTab === tab.id}
@@ -380,7 +383,7 @@ const OptimizedSocioTabSystemComponent: React.FC<OptimizedSocioTabSystemProps> =
               transition={{ duration: 0.2, ease: "easeInOut" }}
               className="p-6"
             >
-              <Suspense fallback={<TabLoadingState tabId={activeTab} />}>
+              <Suspense fallback={<UltraSimpleLoadingState tabId={activeTab} />}>
                 <currentTab.component {...componentProps} />
               </Suspense>
             </motion.div>
@@ -391,8 +394,8 @@ const OptimizedSocioTabSystemComponent: React.FC<OptimizedSocioTabSystemProps> =
   );
 };
 
-export const OptimizedSocioTabSystem = memo(OptimizedSocioTabSystemComponent);
+export const UltraSimpleSocioTabSystem = memo(UltraSimpleSocioTabSystemComponent);
 
-OptimizedSocioTabSystem.displayName = 'OptimizedSocioTabSystem';
+UltraSimpleSocioTabSystem.displayName = 'UltraSimpleSocioTabSystem';
 
-export default OptimizedSocioTabSystem;
+export default UltraSimpleSocioTabSystem;
