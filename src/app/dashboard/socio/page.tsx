@@ -11,45 +11,24 @@ import { useSocioProfile } from '@/hooks/useSocioProfile';
 import { useBeneficios } from '@/hooks/useBeneficios';
 import { useDeviceDetection } from '@/hooks/useDeviceDetection';
 
-// Optimized loading component
+// Loading component ultra-compacto
 const OptimizedLoadingState = memo(() => (
-  <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 flex items-center justify-center">
-    <motion.div 
-      initial={{ opacity: 0, scale: 0.9 }}
-      animate={{ opacity: 1, scale: 1 }}
-      className="text-center"
-    >
-      <div className="relative mb-8">
-        <div className="w-20 h-20 border-4 border-slate-200 border-t-slate-600 rounded-full animate-spin mx-auto" />
-        <motion.div
-          animate={{ rotate: -360 }}
-          transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
-          className="absolute inset-0 w-20 h-20 border-4 border-transparent border-t-blue-500 rounded-full mx-auto"
-        />
-      </div>
-      <motion.h2 
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2 }}
-        className="text-3xl font-bold bg-gradient-to-r from-slate-900 to-blue-700 bg-clip-text text-transparent mb-3"
-      >
+  <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+    <div className="text-center">
+      <div className="w-12 h-12 border-2 border-gray-200 border-t-blue-500 rounded-full animate-spin mx-auto mb-4" />
+      <h2 className="text-lg font-semibold text-gray-900 mb-2">
         Cargando Dashboard
-      </motion.h2>
-      <motion.p 
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.3 }}
-        className="text-slate-600 text-lg"
-      >
-        Preparando tu experiencia simplificada...
-      </motion.p>
-    </motion.div>
+      </h2>
+      <p className="text-gray-600">
+        Preparando tu experiencia...
+      </p>
+    </div>
   </div>
 ));
 
 OptimizedLoadingState.displayName = 'OptimizedLoadingState';
 
-// Main component
+// Main component ultra-responsivo
 export default function SimplifiedSocioDashboard() {
   const router = useRouter();
   const { user, loading: authLoading, signOut } = useAuth();
@@ -57,35 +36,29 @@ export default function SimplifiedSocioDashboard() {
   const { estadisticasRapidas, beneficiosActivos, loading: beneficiosLoading } = useBeneficios();
   const { isMobile } = useDeviceDetection();
   
-  // State management - ultra-simplificado
+  // State management ultra-simplificado
   const [logoutModalOpen, setLogoutModalOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
   const [currentSection, setCurrentSection] = useState(() => {
-    // Tab inicial basado en dispositivo
     return isMobile ? 'validar' : 'beneficios';
   });
 
-  // Memoized consolidated stats - solo lo esencial
+  // Stats consolidadas ultra-compactas
   const consolidatedStats = useMemo(() => {
     const now = new Date();
     const currentMonth = now.getMonth();
     const currentYear = now.getFullYear();
 
-    // Calcular beneficios del mes actual
     const beneficiosEstesMes = estadisticas?.validacionesPorMes?.find(mes => {
       const [year, month] = mes.mes.split('-').map(Number);
       return year === currentYear && month === currentMonth + 1;
     })?.validaciones || 0;
 
-    // Filtrar beneficios activos y válidos
     const beneficiosValidos = beneficiosActivos.filter(beneficio => {
       const fechaFin = beneficio.fechaFin.toDate();
       const fechaInicio = beneficio.fechaInicio.toDate();
       
-      // Verificar que esté dentro del rango de fechas válido
       if (fechaFin <= now || fechaInicio > now) return false;
-      
-      // Verificar límite total si existe
       if (beneficio.limiteTotal && beneficio.usosActuales >= beneficio.limiteTotal) {
         return false;
       }
@@ -100,16 +73,20 @@ export default function SimplifiedSocioDashboard() {
     };
   }, [beneficiosActivos, estadisticasRapidas, estadisticas]);
 
-  // Optimized logout handlers
+  // Handlers optimizados
+  const handleLogoutClick = useCallback(() => {
+    setLogoutModalOpen(true);
+  }, []);
+
   const handleLogoutConfirm = useCallback(async () => {
     setLoggingOut(true);
     try {
       await signOut();
-      toast.success('Sesión cerrada correctamente');
+      toast.success('Sesión cerrada');
       router.push('/auth/login');
     } catch (error) {
       console.error('Error al cerrar sesión:', error);
-      toast.error('Error al cerrar sesión. Inténtalo de nuevo.');
+      toast.error('Error al cerrar sesión');
     } finally {
       setLoggingOut(false);
       setLogoutModalOpen(false);
@@ -120,12 +97,10 @@ export default function SimplifiedSocioDashboard() {
     setLogoutModalOpen(false);
   }, []);
 
-  // Optimized navigation handler
   const handleNavigate = useCallback((section: string) => {
     setCurrentSection(section);
   }, []);
 
-  // Quick scan handler
   const handleQuickScan = useCallback(() => {
     setCurrentSection('validar');
   }, []);
@@ -143,48 +118,48 @@ export default function SimplifiedSocioDashboard() {
 
   return (
     <>
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100">
-        <div className="p-3 sm:p-4 lg:p-6 xl:p-8 space-y-4 sm:space-y-6 lg:space-y-8 max-w-7xl mx-auto">
-          {/* Bienvenida simplificada - Solo mostrar en desktop o cuando no esté en validar */}
+      <div className="min-h-screen bg-gray-50">
+        <div className="p-3 sm:p-4 lg:p-6 max-w-6xl mx-auto">
+          {/* Header ultra-compacto - Solo mostrar cuando no esté en validar en móvil */}
           {(!isMobile || currentSection !== 'validar') && (
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="bg-white/90 backdrop-blur-xl rounded-3xl border border-white/20 shadow-xl p-6"
+              className="bg-white rounded-xl shadow-sm border p-4 mb-4"
             >
-              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-                <div className="flex items-center gap-4">
-                  <div className="w-16 h-16 bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 rounded-2xl flex items-center justify-center shadow-lg">
-                    <span className="text-white font-black text-2xl">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-500 rounded-lg flex items-center justify-center shadow-sm">
+                    <span className="text-white font-bold text-sm">
                       {(socio?.nombre || user?.nombre)?.charAt(0).toUpperCase() || 'S'}
                     </span>
                   </div>
                   <div>
-                    <h1 className="text-2xl lg:text-3xl font-black text-slate-900">
-                      ¡Hola, {socio?.nombre || user?.nombre || 'Socio'}!
+                    <h1 className="text-lg font-bold text-gray-900">
+                      {socio?.nombre || user?.nombre || 'Socio'}
                     </h1>
-                    <p className="text-slate-600 text-lg">
-                      {isMobile ? 'Escanea QR y ahorra al instante' : 'Explora tus beneficios disponibles'}
+                    <p className="text-sm text-gray-600">
+                      {isMobile ? 'Escanea y ahorra' : 'Explora tus beneficios'}
                     </p>
                   </div>
                 </div>
 
-                {/* Stats rápidas */}
-                <div className="flex gap-4">
-                  <div className="text-center">
-                    <div className="text-2xl font-black text-blue-600">
+                {/* Stats ultra-compactas */}
+                <div className="flex gap-4 text-center">
+                  <div>
+                    <div className="text-lg font-bold text-blue-600">
                       {consolidatedStats.totalBeneficios}
                     </div>
-                    <div className="text-xs text-slate-600 font-medium">
+                    <div className="text-xs text-gray-500">
                       Disponibles
                     </div>
                   </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-black text-emerald-600">
+                  <div>
+                    <div className="text-lg font-bold text-green-600">
                       {consolidatedStats.beneficiosUsados}
                     </div>
-                    <div className="text-xs text-slate-600 font-medium">
-                      Utilizados
+                    <div className="text-xs text-gray-500">
+                      Usados
                     </div>
                   </div>
                 </div>
@@ -192,11 +167,11 @@ export default function SimplifiedSocioDashboard() {
             </motion.div>
           )}
 
-          {/* Sistema de tabs ultra-simplificado */}
+          {/* Sistema de tabs ultra-responsivo */}
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
+            transition={{ delay: 0.1 }}
           >
             <OptimizedSocioTabSystem
               onNavigate={handleNavigate}
@@ -206,19 +181,9 @@ export default function SimplifiedSocioDashboard() {
             />
           </motion.div>
         </div>
-
-        {/* Indicador de modo simplificado (solo en desarrollo) */}
-        {process.env.NODE_ENV === 'development' && (
-          <div className="fixed top-4 right-4 z-10 bg-green-500 text-white text-xs px-3 py-2 rounded-lg shadow-lg">
-            <div className="flex items-center space-x-2">
-              <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
-              <span>Modo Ultra-Simplificado</span>
-            </div>
-          </div>
-        )}
       </div>
 
-      {/* Enhanced Logout Modal */}
+      {/* Modal de logout ultra-compacto */}
       <LogoutModal
         isOpen={logoutModalOpen}
         isLoading={loggingOut}

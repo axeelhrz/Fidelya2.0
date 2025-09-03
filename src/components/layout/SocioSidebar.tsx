@@ -7,12 +7,10 @@ import {
   Gift, 
   History,
   LogOut,
-  ChevronRight,
   Menu,
-  Sparkles,
+  X,
   Smartphone,
-  Monitor,
-  X
+  Monitor
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useSocioProfile } from '@/hooks/useSocioProfile';
@@ -33,12 +31,11 @@ interface MenuItem {
   icon: React.ComponentType<{ className?: string }>;
   route: string;
   badge?: number;
-  description?: string;
   mobileOnly?: boolean;
   desktopDisabled?: boolean;
 }
 
-// Componente de elemento de menú memoizado
+// Componente de elemento de menú ultra-compacto
 const MenuItemComponent = memo<{
   item: MenuItem;
   isActive: boolean;
@@ -50,20 +47,14 @@ const MenuItemComponent = memo<{
   if (!isMobile && item.desktopDisabled) {
     return (
       <div className={`
-        w-full flex items-center space-x-3 px-3 py-3 rounded-2xl text-left bg-gray-100 text-gray-400 cursor-not-allowed
+        w-full flex items-center space-x-2 px-3 py-2 rounded-lg bg-gray-50 text-gray-400 cursor-not-allowed text-sm
         ${!isOpen && 'lg:justify-center lg:px-2'}
       `}>
-        <div className="flex items-center justify-center w-8 h-8 rounded-xl bg-gray-200">
-          <item.icon className="w-5 h-5 text-gray-400" />
-        </div>
-        
+        <item.icon className="w-4 h-4" />
         {isOpen && (
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center space-x-2">
-              <span className="font-bold truncate">{item.label}</span>
-              <Monitor className="w-3 h-3 text-gray-400" />
-            </div>
-            <p className="text-xs text-gray-400 truncate font-medium">Solo móvil</p>
+          <div className="flex-1 flex items-center justify-between">
+            <span className="text-xs">{item.label}</span>
+            <Monitor className="w-3 h-3" />
           </div>
         )}
       </div>
@@ -74,49 +65,31 @@ const MenuItemComponent = memo<{
     <button
       onClick={onClick}
       className={`
-        group w-full flex items-center space-x-3 px-3 py-3 rounded-2xl text-left transition-all duration-300
+        group w-full flex items-center space-x-2 px-3 py-2 rounded-lg text-left transition-all duration-200 text-sm
         ${isActive 
-          ? 'bg-gradient-to-r from-blue-50 to-purple-50 text-blue-700 border border-blue-200/50 shadow-lg transform scale-[1.02]' 
-          : 'text-gray-700 hover:bg-gradient-to-r hover:from-gray-50 hover:to-gray-100 hover:text-gray-900 hover:shadow-md hover:scale-[1.01]'
+          ? 'bg-blue-500 text-white shadow-sm' 
+          : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
         }
         ${!isOpen && 'lg:justify-center lg:px-2'}
       `}
     >
-      <div className={`
-        flex items-center justify-center w-8 h-8 rounded-xl transition-all duration-300
-        ${isActive 
-          ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg' 
-          : 'text-gray-500 group-hover:bg-gradient-to-r group-hover:from-blue-100 group-hover:to-purple-100 group-hover:text-blue-600'
-        }
-      `}>
-        <item.icon className="w-5 h-5" />
-      </div>
+      <item.icon className="w-4 h-4 flex-shrink-0" />
       
       {isOpen && (
-        <>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center space-x-2">
-              <span className="font-bold truncate">{item.label}</span>
-              {item.mobileOnly && (
-                <Smartphone className="w-3 h-3 text-blue-500" />
-              )}
-            </div>
-            {item.description && (
-              <p className="text-xs text-gray-500 truncate font-medium">{item.description}</p>
-            )}
-          </div>
-          
-          <div className="flex items-center space-x-2">
+        <div className="flex-1 flex items-center justify-between min-w-0">
+          <span className="font-medium truncate">{item.label}</span>
+          <div className="flex items-center gap-1">
             {item.badge !== undefined && item.badge > 0 && (
-              <span className="inline-flex items-center justify-center px-2 py-1 text-xs font-black text-white bg-gradient-to-r from-blue-500 to-purple-500 rounded-full min-w-[20px] shadow-lg">
+              <span className={`
+                px-1.5 py-0.5 text-xs rounded-full min-w-[18px] text-center
+                ${isActive ? 'bg-white/20 text-white' : 'bg-blue-500 text-white'}
+              `}>
                 {item.badge > 99 ? '99+' : item.badge}
               </span>
             )}
-            <ChevronRight className={`w-4 h-4 transition-all duration-300 ${
-              isActive ? 'text-blue-600 transform rotate-90' : 'text-gray-400 group-hover:text-blue-500'
-            }`} />
+            {item.mobileOnly && <Smartphone className="w-3 h-3" />}
           </div>
-        </>
+        </div>
       )}
     </button>
   );
@@ -124,7 +97,7 @@ const MenuItemComponent = memo<{
 
 MenuItemComponent.displayName = 'MenuItemComponent';
 
-// Header del sidebar memoizado
+// Header ultra-compacto
 const SidebarHeader = memo<{
   userInfo: {
     name: string;
@@ -134,25 +107,20 @@ const SidebarHeader = memo<{
   isMobile: boolean;
   onToggle: () => void;
 }>(({ userInfo, isOpen, isMobile, onToggle }) => (
-  <div className="px-4 py-4 border-b border-gray-100/50 flex-shrink-0">
+  <div className="px-3 py-3 border-b border-gray-100 flex-shrink-0">
     <div className="flex items-center justify-between">
-      <div className="flex items-center space-x-3">
-        <div className="relative">
-          <div className="w-12 h-12 bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 rounded-2xl flex items-center justify-center shadow-lg">
-            <span className="text-white font-black text-lg">{userInfo.initial}</span>
-          </div>
-          <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-gradient-to-r from-emerald-400 to-green-500 rounded-full border-2 border-white shadow-lg">
-            <div className="w-full h-full bg-emerald-500 rounded-full animate-pulse"></div>
-          </div>
+      <div className="flex items-center space-x-2">
+        <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-500 rounded-lg flex items-center justify-center shadow-sm">
+          <span className="text-white font-bold text-sm">{userInfo.initial}</span>
         </div>
         
         {isOpen && (
           <div className="flex-1 min-w-0">
-            <h2 className="text-lg font-black text-gray-900 truncate">
+            <h2 className="text-sm font-bold text-gray-900 truncate">
               {userInfo.name}
             </h2>
-            <p className="text-sm text-blue-600 font-bold">
-              Socio Activo
+            <p className="text-xs text-blue-600 font-medium">
+              Socio
             </p>
           </div>
         )}
@@ -160,9 +128,9 @@ const SidebarHeader = memo<{
       
       <button
         onClick={onToggle}
-        className="lg:hidden p-2 rounded-xl hover:bg-gray-100 transition-colors duration-200"
+        className="lg:hidden p-1.5 rounded-lg hover:bg-gray-100 transition-colors duration-200"
       >
-        {isMobile && isOpen ? <X className="w-5 h-5 text-gray-500" /> : <Menu className="w-5 h-5 text-gray-500" />}
+        {isMobile && isOpen ? <X className="w-4 h-4 text-gray-500" /> : <Menu className="w-4 h-4 text-gray-500" />}
       </button>
     </div>
   </div>
@@ -170,52 +138,27 @@ const SidebarHeader = memo<{
 
 SidebarHeader.displayName = 'SidebarHeader';
 
-// Sección de usuario memoizada
+// Sección de usuario ultra-compacta
 const UserSection = memo<{
-  userInfo: {
-    name: string;
-    initial: string;
-  };
   isOpen: boolean;
   onLogoutClick: () => void;
-}>(({ userInfo, isOpen, onLogoutClick }) => (
-  <div className="px-3 py-4 border-t border-gray-100/50 flex-shrink-0">
+}>(({ isOpen, onLogoutClick }) => (
+  <div className="px-3 py-3 border-t border-gray-100 flex-shrink-0">
     {isOpen ? (
-      <div className="space-y-3">
-        <div className="flex items-center space-x-3 p-3 bg-gradient-to-r from-gray-50 to-gray-100 rounded-2xl border border-gray-200/50">
-          <div className="w-10 h-10 bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 rounded-xl flex items-center justify-center shadow-lg">
-            <span className="text-white font-black text-sm">
-              {userInfo.initial}
-            </span>
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-bold text-gray-900 truncate">
-              {userInfo.name}
-            </p>
-            <p className="text-xs text-gray-500 truncate font-medium">
-              Socio Activo
-            </p>
-          </div>
-          <div className="flex items-center space-x-1">
-            <Sparkles className="w-4 h-4 text-blue-400" />
-          </div>
-        </div>
-        
-        <button
-          onClick={onLogoutClick}
-          className="w-full flex items-center justify-center space-x-2 px-4 py-3 text-red-600 hover:bg-gradient-to-r hover:from-red-50 hover:to-rose-50 rounded-2xl transition-all duration-300 border border-red-200/50 hover:border-red-300 hover:shadow-lg font-bold"
-        >
-          <LogOut className="w-5 h-5" />
-          <span>Cerrar Sesión</span>
-        </button>
-      </div>
+      <button
+        onClick={onLogoutClick}
+        className="w-full flex items-center justify-center space-x-2 px-3 py-2 text-red-600 hover:bg-red-50 rounded-lg transition-all duration-200 font-medium text-sm"
+      >
+        <LogOut className="w-4 h-4" />
+        <span>Salir</span>
+      </button>
     ) : (
       <button
         onClick={onLogoutClick}
-        className="w-full flex items-center justify-center p-3 text-red-600 hover:bg-gradient-to-r hover:from-red-50 hover:to-rose-50 rounded-2xl transition-all duration-300 hover:shadow-lg"
+        className="w-full flex items-center justify-center p-2 text-red-600 hover:bg-red-50 rounded-lg transition-all duration-200"
         title="Cerrar Sesión"
       >
-        <LogOut className="w-5 h-5" />
+        <LogOut className="w-4 h-4" />
       </button>
     )}
   </div>
@@ -237,32 +180,29 @@ const SocioSidebar: React.FC<SocioSidebarProps> = ({
   const { estadisticasRapidas } = useBeneficios();
   const { isMobile } = useDeviceDetection();
 
-  // Elementos del menú ultra-simplificado - Solo 3 opciones esenciales
+  // Elementos del menú ultra-simplificado
   const menuItems: MenuItem[] = useMemo(() => [
     {
       id: 'validar',
       label: 'Escanear QR',
       icon: QrCode,
       route: '/dashboard/socio/validar',
-      description: 'Validar beneficios',
       mobileOnly: true,
       desktopDisabled: true
     },
     {
       id: 'beneficios',
-      label: 'Mis Beneficios',
+      label: 'Beneficios',
       icon: Gift,
       route: '/dashboard/socio/beneficios',
-      badge: estadisticasRapidas.disponibles,
-      description: 'Ver ofertas disponibles'
+      badge: estadisticasRapidas.disponibles
     },
     {
       id: 'historial',
       label: 'Historial',
       icon: History,
       route: '/dashboard/socio/historial',
-      badge: estadisticasRapidas.usados,
-      description: 'Beneficios utilizados'
+      badge: estadisticasRapidas.usados
     }
   ], [estadisticasRapidas.disponibles, estadisticasRapidas.usados]);
 
@@ -289,26 +229,26 @@ const SocioSidebar: React.FC<SocioSidebarProps> = ({
     return pathname === item.route || activeSection === item.id;
   }, [pathname, activeSection]);
 
-  // Información del usuario memoizada
+  // Información del usuario
   const userInfo = useMemo(() => ({
     name: socio?.nombre || user?.nombre || 'Socio',
     initial: (socio?.nombre || user?.nombre)?.charAt(0).toUpperCase() || 'S'
   }), [socio?.nombre, user?.nombre]);
 
-  // Loading skeleton optimizado
+  // Loading skeleton ultra-compacto
   if (socioLoading) {
     return (
       <div className={`
-        fixed left-0 top-0 h-full bg-white/95 backdrop-blur-md border-r border-gray-200/50 shadow-2xl z-40 transition-all duration-300
-        ${open ? 'w-80' : 'w-0 lg:w-20'}
+        fixed left-0 top-0 h-full bg-white border-r border-gray-200 shadow-lg z-40 transition-all duration-300
+        ${open ? 'w-64' : 'w-0 lg:w-16'}
         lg:relative lg:translate-x-0
       `}>
-        <div className="p-4 space-y-4">
+        <div className="p-3 space-y-2">
           <div className="animate-pulse">
-            <div className="h-12 bg-gradient-to-r from-gray-200 to-gray-300 rounded-2xl mb-4"></div>
-            <div className="space-y-3">
+            <div className="h-8 bg-gray-200 rounded-lg mb-3"></div>
+            <div className="space-y-2">
               {[1, 2, 3].map(i => (
-                <div key={i} className="h-10 bg-gradient-to-r from-gray-200 to-gray-300 rounded-xl"></div>
+                <div key={i} className="h-8 bg-gray-200 rounded-lg"></div>
               ))}
             </div>
           </div>
@@ -322,18 +262,18 @@ const SocioSidebar: React.FC<SocioSidebarProps> = ({
       {/* Backdrop móvil */}
       {open && (
         <div 
-          className="fixed inset-0 bg-black/30 backdrop-blur-sm z-30 lg:hidden transition-all duration-300"
+          className="fixed inset-0 bg-black/20 z-30 lg:hidden transition-all duration-300"
           onClick={onToggle}
         />
       )}
 
-      {/* Sidebar principal */}
+      {/* Sidebar principal ultra-compacto */}
       <div className={`
-        fixed left-0 top-0 h-full bg-white/95 backdrop-blur-md border-r border-gray-200/50 shadow-2xl z-40 transition-all duration-300
-        ${open ? 'w-80' : 'w-0 lg:w-20'}
+        fixed left-0 top-0 h-full bg-white border-r border-gray-200 shadow-lg z-40 transition-all duration-300
+        ${open ? 'w-64' : 'w-0 lg:w-16'}
         lg:relative lg:translate-x-0 flex flex-col
       `}>
-        {/* Header memoizado */}
+        {/* Header */}
         <SidebarHeader
           userInfo={userInfo}
           isOpen={open}
@@ -341,31 +281,8 @@ const SocioSidebar: React.FC<SocioSidebarProps> = ({
           onToggle={onToggle}
         />
 
-        {/* Mensaje informativo simplificado */}
-        {open && (
-          <div className="px-4 py-3 bg-gradient-to-r from-blue-50 to-purple-50 border-b border-blue-100/50">
-            <div className="flex items-center gap-2">
-              {isMobile ? (
-                <>
-                  <QrCode className="w-4 h-4 text-blue-600" />
-                  <p className="text-sm font-bold text-blue-800">
-                    ¡Escanea y ahorra al instante!
-                  </p>
-                </>
-              ) : (
-                <>
-                  <Gift className="w-4 h-4 text-purple-600" />
-                  <p className="text-sm font-bold text-purple-800">
-                    Explora tus beneficios disponibles
-                  </p>
-                </>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Navegación ultra-simplificada */}
-        <nav className="flex-1 px-3 py-4 space-y-2 overflow-y-auto min-h-0">
+        {/* Navegación ultra-compacta */}
+        <nav className="flex-1 px-3 py-2 space-y-1 overflow-y-auto min-h-0">
           {menuItems.map((item) => (
             <MenuItemComponent
               key={item.id}
@@ -378,42 +295,33 @@ const SocioSidebar: React.FC<SocioSidebarProps> = ({
           ))}
         </nav>
 
-        {/* Estadística rápida */}
+        {/* Stats ultra-compactas */}
         {open && estadisticasRapidas.disponibles > 0 && (
-          <div className="px-4 py-3 border-t border-gray-100/50">
-            <div className="bg-gradient-to-r from-emerald-50 to-green-50 rounded-xl p-3 border border-emerald-200/50">
+          <div className="px-3 py-2 border-t border-gray-100">
+            <div className="bg-green-50 rounded-lg p-2">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Gift className="w-4 h-4 text-emerald-600" />
-                  <span className="text-sm font-bold text-emerald-800">
-                    {estadisticasRapidas.disponibles} beneficios
-                  </span>
-                </div>
-                <span className="text-xs text-emerald-600 font-medium">
-                  disponibles
+                <span className="text-xs font-medium text-green-800">
+                  {estadisticasRapidas.disponibles} disponibles
                 </span>
+                <Gift className="w-3 h-3 text-green-600" />
               </div>
             </div>
           </div>
         )}
 
-        {/* Mensaje informativo para desktop */}
+        {/* Mensaje informativo para desktop - ultra-compacto */}
         {!isMobile && open && (
-          <div className="px-4 py-3 border-t border-gray-100/50">
-            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
-              <div className="flex items-center gap-2 text-amber-800">
-                <Monitor className="w-4 h-4" />
-                <span className="text-xs font-medium">
-                  Escaneo QR disponible solo en móvil
-                </span>
-              </div>
+          <div className="px-3 py-2 border-t border-gray-100">
+            <div className="bg-amber-50 rounded-lg p-2">
+              <p className="text-xs text-amber-700 text-center">
+                📱 QR solo en móvil
+              </p>
             </div>
           </div>
         )}
 
-        {/* Sección de usuario memoizada */}
+        {/* Sección de usuario */}
         <UserSection
-          userInfo={userInfo}
           isOpen={open}
           onLogoutClick={onLogoutClick}
         />

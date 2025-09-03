@@ -27,7 +27,7 @@ interface DashboardLayoutProps {
   enableTransitions?: boolean;
 }
 
-// Componente de sidebar memoizado para evitar re-renders
+// Componente de sidebar memoizado
 const MemoizedSidebar = memo<{
   SidebarComponent: React.ComponentType<SidebarProps>;
   sidebarProps: SidebarProps;
@@ -59,7 +59,7 @@ const MemoizedMainContent = memo<{
 
 MemoizedMainContent.displayName = 'MemoizedMainContent';
 
-// Componente de botones flotantes memoizado
+// Botones flotantes ultra-compactos
 const FloatingButtons = memo<{
   showScrollTop: boolean;
   isMobile: boolean;
@@ -67,20 +67,20 @@ const FloatingButtons = memo<{
   onScrollTop: () => void;
   onQuickScan: () => void;
 }>(({ showScrollTop, isMobile, isSocio, onScrollTop, onQuickScan }) => (
-  <div className="fixed bottom-6 right-6 flex flex-col space-y-3 z-20">
+  <div className="fixed bottom-4 right-4 flex flex-col space-y-2 z-20">
     {/* Scroll to Top Button */}
     <AnimatePresence>
       {showScrollTop && (
         <motion.button
-          initial={{ opacity: 0, scale: 0, y: 20 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0, y: 20 }}
-          whileHover={{ scale: 1.1, y: -2 }}
+          initial={{ opacity: 0, scale: 0 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0 }}
+          whileHover={{ scale: 1.1 }}
           whileTap={{ scale: 0.95 }}
           onClick={onScrollTop}
-          className="w-12 h-12 bg-white border border-gray-200 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center group"
+          className="w-10 h-10 bg-white border border-gray-200 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center"
         >
-          <ArrowUp className="w-5 h-5 text-gray-600 group-hover:text-purple-600 transition-colors" />
+          <ArrowUp className="w-4 h-4 text-gray-600" />
         </motion.button>
       )}
     </AnimatePresence>
@@ -90,16 +90,13 @@ const FloatingButtons = memo<{
       <motion.button
         initial={{ opacity: 0, scale: 0 }}
         animate={{ opacity: 1, scale: 1 }}
-        transition={{ delay: 0.2 }}
-        whileHover={{ scale: 1.1, y: -2 }}
+        transition={{ delay: 0.1 }}
+        whileHover={{ scale: 1.1 }}
         whileTap={{ scale: 0.95 }}
         onClick={onQuickScan}
-        className="w-16 h-16 bg-gradient-to-br from-blue-500 via-purple-500 to-purple-600 rounded-full shadow-xl hover:shadow-2xl transition-all duration-300 flex items-center justify-center relative overflow-hidden group"
+        className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center relative overflow-hidden"
       >
-        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-pulse"></div>
-        <QrCode className="w-8 h-8 text-white relative z-10 group-hover:scale-110 transition-transform" />
-        
-        {/* Pulse effect */}
+        <QrCode className="w-6 h-6 text-white relative z-10" />
         <div className="absolute inset-0 rounded-full bg-blue-400 animate-ping opacity-20"></div>
       </motion.button>
     )}
@@ -117,9 +114,9 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   enableTransitions = true
 }) => {
   const { user } = useAuth();
-  const { isMobile, isTablet } = useDeviceDetection();
+  const { isMobile } = useDeviceDetection();
   
-  // Estados estables que no cambian con las pestañas
+  // Estados optimizados
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
@@ -127,9 +124,8 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   // Determinar si es socio
   const isSocio = user?.role === 'socio';
 
-  // Determinar qué sidebar usar - SIEMPRE usar SocioSidebar para socios
+  // Determinar qué sidebar usar
   const SidebarComponent = useMemo(() => {
-    // Si se proporciona un componente personalizado, usarlo
     if (CustomSidebarComponent) {
       return CustomSidebarComponent;
     }
@@ -139,11 +135,10 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
       return SocioSidebar;
     }
     
-    // Para otros roles, usar sidebar completo
     return DashboardSidebar;
   }, [CustomSidebarComponent, isSocio]);
 
-  // Memoizar handlers para evitar re-renders del sidebar
+  // Handlers memoizados
   const handleSidebarToggle = useCallback(() => {
     setSidebarOpen(prev => !prev);
   }, []);
@@ -162,7 +157,6 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
     if (onLogout) {
       onLogout();
     } else {
-      // Default logout behavior - redirect to login
       window.location.href = '/auth/login';
     }
   }, [onLogout]);
@@ -171,19 +165,17 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
 
-  // Quick scan para socios - navegar a validar QR
   const handleQuickScan = useCallback(() => {
     if (isSocio) {
       handleMenuClick('validar');
     }
   }, [handleMenuClick, isSocio]);
 
-  // Handle responsive breakpoints (solo una vez)
+  // Handle responsive breakpoints
   useEffect(() => {
     const handleResize = () => {
       const width = window.innerWidth;
       
-      // Auto-open sidebar on desktop, closed on mobile/tablet
       if (width >= 1024) {
         setSidebarOpen(true);
       } else {
@@ -200,14 +192,14 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   // Handle scroll to top button visibility
   useEffect(() => {
     const handleScroll = () => {
-      setShowScrollTop(window.scrollY > 400);
+      setShowScrollTop(window.scrollY > 300);
     };
 
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Memoizar props del sidebar para evitar re-renders
+  // Props del sidebar memoizadas
   const sidebarProps = useMemo<SidebarProps>(() => ({
     open: sidebarOpen,
     onToggle: handleSidebarToggle,
@@ -217,13 +209,13 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
     isMobile: isMobile,
   }), [sidebarOpen, handleSidebarToggle, handleMenuClick, activeSection, handleLogout, isMobile]);
 
-  // Don't render until initialized to prevent hydration issues
+  // Loading state ultra-compacto
   if (!isInitialized) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="w-8 h-8 border-4 border-gray-200 border-t-gray-600 rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-gray-600">Cargando...</p>
+          <div className="w-8 h-8 border-2 border-gray-200 border-t-blue-500 rounded-full animate-spin mx-auto mb-3" />
+          <p className="text-gray-600 text-sm">Cargando...</p>
         </div>
       </div>
     );
@@ -231,7 +223,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Mobile Menu Button */}
+      {/* Mobile Menu Button ultra-compacto */}
       {isMobile && (
         <motion.button
           initial={{ opacity: 0, scale: 0 }}
@@ -240,9 +232,9 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
           onClick={handleSidebarToggle}
-          className="fixed top-4 left-4 z-50 w-12 h-12 bg-white border border-gray-200 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center lg:hidden"
+          className="fixed top-3 left-3 z-50 w-10 h-10 bg-white border border-gray-200 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center lg:hidden"
         >
-          <Menu className="w-6 h-6 text-gray-600" />
+          <Menu className="w-5 h-5 text-gray-600" />
         </motion.button>
       )}
 
@@ -255,34 +247,34 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 lg:hidden"
+              className="fixed inset-0 bg-black/20 z-40 lg:hidden"
               onClick={handleSidebarToggle}
             />
           )}
         </AnimatePresence>
 
-        {/* Sidebar Container - OPTIMIZADO PARA NO RE-RENDERIZAR */}
+        {/* Sidebar Container ultra-compacto */}
         <div className={`
           ${isMobile ? 'fixed inset-y-0 left-0 z-50' : 'relative'}
           ${isMobile && !sidebarOpen ? '-translate-x-full' : 'translate-x-0'}
-          ${!isMobile && !sidebarOpen ? 'w-20' : 'w-80'}
+          ${!isMobile && !sidebarOpen ? 'w-16' : 'w-64'}
           transition-all duration-300 ease-in-out
-          bg-white border-r border-gray-200 shadow-lg
+          bg-white border-r border-gray-200 shadow-sm
           ${isMobile ? 'lg:relative lg:translate-x-0 lg:shadow-none' : ''}
         `}>
           {/* Mobile Close Button */}
           {isMobile && sidebarOpen && (
-            <div className="absolute top-4 right-4 z-10 lg:hidden">
+            <div className="absolute top-3 right-3 z-10 lg:hidden">
               <button
                 onClick={handleSidebarToggle}
-                className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
               >
-                <X className="w-5 h-5 text-gray-600" />
+                <X className="w-4 h-4 text-gray-600" />
               </button>
             </div>
           )}
           
-          {/* Sidebar Content Memoizado */}
+          {/* Sidebar Content */}
           <div className="h-full">
             <MemoizedSidebar 
               SidebarComponent={SidebarComponent}
@@ -291,7 +283,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
           </div>
         </div>
 
-        {/* Main Content Area - OPTIMIZADO PARA NO RE-RENDERIZAR */}
+        {/* Main Content Area */}
         <div className="flex-1 flex flex-col min-h-screen overflow-hidden">
           <MemoizedMainContent 
             enableTransitions={enableTransitions}
@@ -301,7 +293,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
         </div>
       </div>
 
-      {/* Floating Action Buttons - MEMOIZADO */}
+      {/* Floating Action Buttons */}
       <FloatingButtons
         showScrollTop={showScrollTop}
         isMobile={isMobile}
@@ -309,26 +301,6 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
         onScrollTop={scrollToTop}
         onQuickScan={handleQuickScan}
       />
-
-      {/* Development Indicator */}
-      {process.env.NODE_ENV === 'development' && (
-        <div className="fixed bottom-4 left-4 z-10 bg-black/80 backdrop-blur-sm text-white text-xs px-3 py-2 rounded-lg border border-white/20">
-          <div className="flex items-center space-x-2">
-            <div className={`w-2 h-2 rounded-full ${
-              isMobile ? 'bg-red-400' : isTablet ? 'bg-yellow-400' : 'bg-green-400'
-            }`}></div>
-            <span>{isMobile ? 'Mobile' : isTablet ? 'Tablet' : 'Desktop'}</span>
-            <span className="text-gray-400">|</span>
-            <span className={isSocio ? 'bg-blue-500 px-2 py-1 rounded text-white' : 'text-gray-400'}>
-              {user?.role || 'Unknown'}
-            </span>
-            <span className="text-gray-400">|</span>
-            <span className={enableTransitions ? 'text-green-400' : 'text-gray-400'}>
-              Transitions: {enableTransitions ? 'ON' : 'OFF'}
-            </span>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
