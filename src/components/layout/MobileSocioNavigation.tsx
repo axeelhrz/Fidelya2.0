@@ -18,10 +18,12 @@ import { useSocioProfile } from '@/hooks/useSocioProfile';
 import { useBeneficios } from '@/hooks/useBeneficios';
 import { cn } from '@/lib/utils';
 
+import type { LucideIcon } from 'lucide-react';
+
 interface NavigationItem {
   id: string;
   label: string;
-  icon: React.ComponentType<{ size?: number; className?: string }>;
+  icon: LucideIcon;
   route: string;
   badge?: number;
 }
