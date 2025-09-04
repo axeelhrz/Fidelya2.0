@@ -8,7 +8,8 @@ import {
   Gift, 
   History,
   Smartphone,
-  Monitor
+  Monitor,
+  Sparkles
 } from 'lucide-react';
 import { useDeviceDetection } from '@/hooks/useDeviceDetection';
 
@@ -19,9 +20,9 @@ const SocioValidar = lazy(() =>
   }))
 );
 
-const SocioBeneficios = lazy(() => 
-  import('@/components/socio/SocioBeneficios').then(module => ({ 
-    default: module.SocioBeneficios 
+const BeneficiosSimple = lazy(() => 
+  import('@/components/socio/BeneficiosSimple').then(module => ({ 
+    default: module.BeneficiosSimple 
   }))
 );
 
@@ -40,21 +41,40 @@ interface TabConfig {
   badge?: number;
   mobileOnly?: boolean;
   desktopDisabled?: boolean;
+  gradient?: string;
 }
 
-// Loading component ultra-minimalista
-const TabLoadingState = memo<{ tabId: string }>(({  }) => (
-  <div className="flex items-center justify-center min-h-[300px]">
-    <div className="flex flex-col items-center gap-3">
-      <div className="w-8 h-8 border-2 border-blue-200 border-t-blue-500 rounded-full animate-spin" />
-      <p className="text-sm text-gray-500">Cargando...</p>
-    </div>
+// Enhanced loading component
+const TabLoadingState = memo<{ tabId: string }>(({ tabId }) => (
+  <div className="flex items-center justify-center min-h-[400px] bg-gradient-to-br from-white via-blue-50 to-white rounded-3xl border border-blue-200/50">
+    <motion.div 
+      initial={{ opacity: 0, scale: 0.9 }}
+      animate={{ opacity: 1, scale: 1 }}
+      className="text-center"
+    >
+      <div className="relative mb-6">
+        <div className="w-12 h-12 border-3 border-blue-200 border-t-blue-500 rounded-full animate-spin mx-auto" />
+        <motion.div
+          animate={{ rotate: -360 }}
+          transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
+          className="absolute inset-0 w-12 h-12 border-3 border-transparent border-t-purple-500 rounded-full mx-auto"
+        />
+      </div>
+      <motion.p 
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2 }}
+        className="text-slate-600 font-medium"
+      >
+        Cargando {tabId}...
+      </motion.p>
+    </motion.div>
   </div>
 ));
 
 TabLoadingState.displayName = 'TabLoadingState';
 
-// Tab button ultra-responsivo y minimalista
+// Enhanced tab button
 const TabButton = memo<{
   tab: TabConfig;
   isActive: boolean;
@@ -64,37 +84,54 @@ const TabButton = memo<{
   // Si es desktop y el tab está deshabilitado, mostrar deshabilitado
   if (!isMobile && tab.desktopDisabled) {
     return (
-      <div className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-gray-50 text-gray-400 cursor-not-allowed text-sm">
+      <div className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-2xl bg-slate-100 text-slate-400 cursor-not-allowed text-sm border border-slate-200">
         <tab.icon className="w-4 h-4" />
-        <span className="hidden sm:inline">{tab.label}</span>
+        <span className="hidden sm:inline font-medium">{tab.label}</span>
         <Monitor className="w-3 h-3" />
       </div>
     );
   }
 
   return (
-    <button
+    <motion.button
       onClick={onClick}
+      whileHover={{ scale: 1.02 }}
+      whileTap={{ scale: 0.98 }}
       className={`
-        flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg font-medium text-sm transition-all duration-200
+        flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-2xl font-medium text-sm transition-all duration-300 relative overflow-hidden
         ${isActive 
-          ? 'bg-blue-500 text-white shadow-sm' 
-          : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+          ? `bg-gradient-to-r ${tab.gradient || 'from-blue-500 to-indigo-500'} text-white shadow-lg border border-white/20` 
+          : 'text-slate-600 hover:text-slate-900 hover:bg-white/80 border border-slate-200 bg-white/60 backdrop-blur-sm'
         }
       `}
     >
-      <tab.icon className="w-4 h-4" />
-      <span className="hidden sm:inline">{tab.label}</span>
-      {tab.badge !== undefined && tab.badge > 0 && (
-        <span className={`
-          px-1.5 py-0.5 text-xs rounded-full min-w-[18px] text-center
-          ${isActive ? 'bg-white/20 text-white' : 'bg-blue-500 text-white'}
-        `}>
-          {tab.badge > 99 ? '99+' : tab.badge}
-        </span>
+      {/* Background effect for active tab */}
+      {isActive && (
+        <motion.div
+          layoutId="activeTab"
+          className="absolute inset-0 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-2xl"
+          transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+        />
       )}
-      {tab.mobileOnly && <Smartphone className="w-3 h-3" />}
-    </button>
+      
+      <div className="relative z-10 flex items-center gap-2">
+        <tab.icon className="w-4 h-4" />
+        <span className="hidden sm:inline">{tab.label}</span>
+        {tab.badge !== undefined && tab.badge > 0 && (
+          <motion.span 
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            className={`
+              px-2 py-0.5 text-xs rounded-full min-w-[20px] text-center font-bold
+              ${isActive ? 'bg-white/20 text-white' : 'bg-blue-500 text-white'}
+            `}
+          >
+            {tab.badge > 99 ? '99+' : tab.badge}
+          </motion.span>
+        )}
+        {tab.mobileOnly && <Smartphone className="w-3 h-3" />}
+      </div>
+    </motion.button>
   );
 });
 
@@ -138,7 +175,7 @@ const OptimizedSocioTabSystemComponent: React.FC<OptimizedSocioTabSystemProps> =
     }
   }, [searchParams, activeTab, isMobile]);
 
-  // Tab configuration ultra-simplificada
+  // Enhanced tab configuration
   const tabs = useMemo<TabConfig[]>(() => [
     {
       id: 'validar',
@@ -146,21 +183,24 @@ const OptimizedSocioTabSystemComponent: React.FC<OptimizedSocioTabSystemProps> =
       icon: QrCode,
       component: SocioValidar as React.LazyExoticComponent<React.ComponentType<Record<string, unknown>>>,
       mobileOnly: true,
-      desktopDisabled: true
+      desktopDisabled: true,
+      gradient: 'from-emerald-500 to-teal-500'
     },
     {
       id: 'beneficios',
       label: 'Beneficios',
       icon: Gift,
-      component: SocioBeneficios as React.LazyExoticComponent<React.ComponentType<Record<string, unknown>>>,
-      badge: stats?.totalBeneficios || 0
+      component: BeneficiosSimple as React.LazyExoticComponent<React.ComponentType<Record<string, unknown>>>,
+      badge: stats?.totalBeneficios || 0,
+      gradient: 'from-blue-500 to-indigo-500'
     },
     {
       id: 'historial',
       label: 'Historial',
       icon: History,
       component: SocioHistorial as React.LazyExoticComponent<React.ComponentType<Record<string, unknown>>>,
-      badge: stats?.beneficiosUsados || 0
+      badge: stats?.beneficiosUsados || 0,
+      gradient: 'from-purple-500 to-pink-500'
     }
   ], [stats]);
 
@@ -210,48 +250,77 @@ const OptimizedSocioTabSystemComponent: React.FC<OptimizedSocioTabSystemProps> =
   }, [isMobile, activeTab]);
 
   return (
-    <div className="w-full max-w-4xl mx-auto">
-      {/* Header ultra-compacto */}
-      <div className="bg-white rounded-xl shadow-sm border p-4 mb-4">
-        {/* Tab buttons compactos */}
-        <div className="flex gap-1 p-1 bg-gray-50 rounded-lg">
-          {tabs.map((tab) => (
-            <TabButton
-              key={tab.id}
-              tab={tab}
-              isActive={activeTab === tab.id}
-              onClick={() => handleTabChange(tab.id)}
-              isMobile={isMobile}
-            />
-          ))}
+    <div className="w-full max-w-6xl mx-auto">
+      {/* Enhanced Header */}
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-gradient-to-br from-white via-slate-50 to-white rounded-3xl shadow-xl border border-slate-200/50 p-6 mb-6 overflow-hidden relative"
+      >
+        {/* Background Pattern */}
+        <div className="absolute inset-0 opacity-5">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full -translate-y-16 translate-x-16" />
         </div>
 
-        {/* Mensaje informativo para desktop - ultra-compacto */}
-        {!isMobile && (
-          <div className="mt-3 p-2 bg-amber-50 border border-amber-200 rounded-lg">
-            <p className="text-xs text-amber-700 text-center">
-              📱 Escaneo QR disponible solo en móvil
-            </p>
+        <div className="relative z-10">
+          {/* Tab buttons mejorados */}
+          <div className="flex gap-2 p-2 bg-slate-100/50 rounded-2xl backdrop-blur-sm">
+            {tabs.map((tab) => (
+              <TabButton
+                key={tab.id}
+                tab={tab}
+                isActive={activeTab === tab.id}
+                onClick={() => handleTabChange(tab.id)}
+                isMobile={isMobile}
+              />
+            ))}
           </div>
-        )}
-      </div>
 
-      {/* Content Area ultra-limpio */}
-      <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={activeTab}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.15 }}
-          >
-            <Suspense fallback={<TabLoadingState tabId={activeTab} />}>
-              <currentTab.component {...componentProps} />
-            </Suspense>
-          </motion.div>
-        </AnimatePresence>
-      </div>
+          {/* Enhanced mensaje informativo para desktop */}
+          {!isMobile && (
+            <motion.div 
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+              className="mt-4 p-3 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-2xl"
+            >
+              <div className="flex items-center justify-center gap-2">
+                <Sparkles className="w-4 h-4 text-amber-600" />
+                <p className="text-sm text-amber-700 font-medium">
+                  📱 El escáner QR está optimizado para dispositivos móviles
+                </p>
+              </div>
+            </motion.div>
+          )}
+        </div>
+      </motion.div>
+
+      {/* Enhanced Content Area */}
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+        className="relative"
+      >
+        {/* Background decoration */}
+        <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 via-purple-500/5 to-indigo-500/5 rounded-3xl -z-10" />
+        
+        <div className="bg-gradient-to-br from-white via-slate-50 to-white rounded-3xl shadow-xl border border-slate-200/50 overflow-hidden">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={activeTab}
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.3, ease: "easeInOut" }}
+            >
+              <Suspense fallback={<TabLoadingState tabId={activeTab} />}>
+                <currentTab.component {...componentProps} />
+              </Suspense>
+            </motion.div>
+          </AnimatePresence>
+        </div>
+      </motion.div>
     </div>
   );
 };

@@ -23,6 +23,9 @@ export const useBeneficiosSocio = () => {
     }
 
     console.log('🚀 Cargando beneficios para socio:', user.uid);
+    console.log('📱 User Agent:', navigator.userAgent);
+    console.log('📱 Viewport:', window.innerWidth, 'x', window.innerHeight);
+    
     setLoading(true);
     setError(null);
 
@@ -42,42 +45,29 @@ export const useBeneficiosSocio = () => {
         );
       }
 
-      console.log('📦 Beneficios obtenidos:', beneficiosData.length);
+      console.log('📦 Beneficios RAW obtenidos:', beneficiosData.length);
+      console.log('📦 Beneficios RAW:', beneficiosData.map(b => ({
+        id: b.id,
+        titulo: b.titulo,
+        estado: b.estado,
+        fechaInicio: b.fechaInicio?.toDate ? b.fechaInicio.toDate().toISOString() : b.fechaInicio,
+        fechaFin: b.fechaFin?.toDate ? b.fechaFin.toDate().toISOString() : b.fechaFin,
+        limiteTotal: b.limiteTotal,
+        usosActuales: b.usosActuales
+      })));
       
-      // Filtrar solo beneficios válidos
-      const now = new Date();
-      const beneficiosValidos = beneficiosData.filter(beneficio => {
-        // Solo beneficios activos
-        if (beneficio.estado !== 'activo') return false;
-        
-        // Verificar fechas
-        try {
-          const fechaFin = (beneficio.fechaFin && typeof beneficio.fechaFin.toDate === 'function')
-            ? beneficio.fechaFin.toDate()
-            : (typeof beneficio.fechaFin === 'string' || typeof beneficio.fechaFin === 'number')
-              ? new Date(beneficio.fechaFin)
-              : beneficio.fechaFin;
-          const fechaInicio = (beneficio.fechaInicio && typeof beneficio.fechaInicio.toDate === 'function')
-            ? beneficio.fechaInicio.toDate()
-            : (typeof beneficio.fechaInicio === 'string' || typeof beneficio.fechaInicio === 'number')
-              ? new Date(beneficio.fechaInicio)
-              : beneficio.fechaInicio;
-          
-          if (fechaFin <= now || fechaInicio > now) return false;
-        } catch (error) {
-          console.warn('Error procesando fechas del beneficio:', beneficio.id, error);
-          return false;
-        }
-        
-        // Verificar límites
-        if (beneficio.limiteTotal && beneficio.usosActuales >= beneficio.limiteTotal) {
-          return false;
-        }
-        
-        return true;
-      });
-
-      console.log('✅ Beneficios válidos:', beneficiosValidos.length);
+      // Aplicar filtros básicos usando el método del servicio
+      const beneficiosValidos = BeneficiosService.aplicarFiltrosBasicos(beneficiosData);
+      
+      console.log('✅ Beneficios válidos después de filtros:', beneficiosValidos.length);
+      console.log('✅ Beneficios válidos:', beneficiosValidos.map(b => ({
+        id: b.id,
+        titulo: b.titulo,
+        estado: b.estado,
+        fechaInicio: b.fechaInicio?.toDate ? b.fechaInicio.toDate().toISOString() : b.fechaInicio,
+        fechaFin: b.fechaFin?.toDate ? b.fechaFin.toDate().toISOString() : b.fechaFin
+      })));
+      
       setBeneficios(beneficiosValidos);
       
     } catch (err) {
@@ -176,6 +166,16 @@ export const useBeneficiosSocio = () => {
     usados: beneficiosUsados.length,
     ahorroTotal: beneficiosUsados.reduce((total, uso) => total + (uso.montoDescuento || 0), 0)
   };
+
+  // Debug log para verificar el estado
+  useEffect(() => {
+    console.log('🔍 Estado actual del hook:');
+    console.log('  - Loading:', loading);
+    console.log('  - Error:', error);
+    console.log('  - Beneficios disponibles:', beneficios.length);
+    console.log('  - Beneficios usados:', beneficiosUsados.length);
+    console.log('  - Estadísticas:', estadisticas);
+  }, [loading, error, beneficios.length, beneficiosUsados.length, estadisticas]);
 
   return {
     beneficios,

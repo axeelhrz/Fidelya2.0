@@ -32,7 +32,7 @@ export const SocioOverviewDashboard: React.FC<SocioOverviewDashboardProps> = ({
 }) => {
   const { socio, refreshData } = useSocioProfile();
   const { beneficiosUsados, estadisticasRapidas, refrescar } = useBeneficios();
-  const [showWelcome, setShowWelcome] = useState(true);
+  const [showWelcome,] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   // Calculate enhanced stats
@@ -106,9 +106,12 @@ export const SocioOverviewDashboard: React.FC<SocioOverviewDashboardProps> = ({
         {/* Welcome Card */}
         {showWelcome && (
           <SocioWelcomeCard
+            user={{
+              nombre: socio?.nombre || 'Socio',
+              numeroSocio: socio?.numeroSocio,
+              avatar: socio?.avatar || undefined
+            }}
             onLogout={onLogout}
-            onDismiss={() => setShowWelcome(false)}
-            showDismiss={true}
           />
         )}
 

@@ -46,7 +46,6 @@ import { Cliente, ClienteFormData } from '@/types/cliente';
 import { Button } from '@/components/ui/Button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/Dialog';
 import { Input } from '@/components/ui/Input';
-import { QuickClienteCreator } from '../clientes/QuickClienteCreator';
 import { toast } from 'react-hot-toast';
 
 // Componente de métrica avanzada mejorado
@@ -190,10 +189,11 @@ const EmptyState: React.FC<{ onCreateSocio: () => void }> = ({ onCreateSocio }) 
   </div>
 );
 
-// Componente de tarjeta de socio SIMPLIFICADO - SIN botones ni acciones
+// Componente de tarjeta de socio CON botón de eliminar
 const SocioCard: React.FC<{
   cliente: Cliente;
-}> = ({ cliente }) => {
+  onDelete: (cliente: Cliente) => void;
+}> = ({ cliente, onDelete }) => {
   const getEstadoColor = (estado: string) => {
     switch (estado) {
       case 'activo': return 'text-emerald-600 bg-emerald-100 border-emerald-200';
@@ -216,8 +216,24 @@ const SocioCard: React.FC<{
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm"
+      className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm relative group"
     >
+      {/* Botón de eliminar - aparece en hover */}
+      <motion.button
+        initial={{ opacity: 0, scale: 0.8 }}
+        animate={{ opacity: 1, scale: 1 }}
+        whileHover={{ scale: 1.1 }}
+        whileTap={{ scale: 0.9 }}
+        onClick={(e) => {
+          e.stopPropagation();
+          onDelete(cliente);
+        }}
+        className="absolute top-4 right-4 w-8 h-8 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-200 shadow-lg z-10"
+        title="Eliminar socio"
+      >
+        <Trash2 size={14} />
+      </motion.button>
+
       {/* Avatar y información básica */}
       <div className="flex items-start gap-4 mb-4">
         <div className="relative">
@@ -242,11 +258,14 @@ const SocioCard: React.FC<{
           </div>
         </div>
 
-        <div className="flex-1 min-w-0">
+        <div className="flex-1 min-w-0 pr-8">
           <h3 className="text-lg font-bold text-slate-900 truncate">
             {cliente.nombre}
           </h3>
           <p className="text-sm text-slate-600 truncate">{cliente.email}</p>
+          {cliente.dni && (
+            <p className="text-xs text-slate-500 truncate">DNI: {cliente.dni}</p>
+          )}
           <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border mt-2 ${getEstadoColor(cliente.estado)}`}>
             {getEstadoIcon(cliente.estado)}
             {cliente.estado.charAt(0).toUpperCase() + cliente.estado.slice(1)}
@@ -432,6 +451,12 @@ export function SocioAnalytics() {
     }
   };
 
+  // Función para manejar la eliminación desde la tarjeta
+  const handleDeleteFromCard = (cliente: Cliente) => {
+    setSelectedCliente(cliente);
+    setShowDeleteModal(true);
+  };
+
   const handleDeleteSocio = async () => {
     if (!selectedCliente) return;
 
@@ -596,12 +621,12 @@ export function SocioAnalytics() {
           {/* Barra de búsqueda y filtros mejorada */}
           <div className="bg-white rounded-3xl shadow-sm border border-slate-200 p-8">
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 mb-6">
-              {/* Search mejorado */}
+              {/* Search mejorado - ACTUALIZADO PARA INCLUIR DNI */}
               <div className="relative flex-1 max-w-md">
                 <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5" />
                 <input
                   type="text"
-                  placeholder="Buscar socios por nombre, email, teléfono..."
+                  placeholder="Buscar socios por nombre, email, teléfono o DNI..."
                   value={searchTerm}
                   onChange={(e) => handleSearch(e.target.value)}
                   className="w-full pl-12 pr-4 py-4 border border-slate-300 rounded-2xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all text-lg"
@@ -638,6 +663,9 @@ export function SocioAnalytics() {
                             <div className="flex-1">
                               <p className="font-semibold text-slate-900">{cliente.nombre}</p>
                               <p className="text-sm text-slate-500">{cliente.email}</p>
+                              {cliente.dni && (
+                                <p className="text-xs text-slate-400">DNI: {cliente.dni}</p>
+                              )}
                             </div>
                             <div className="text-sm text-slate-400">
                               ${(cliente.montoTotalGastado || 0).toLocaleString()}
@@ -814,6 +842,7 @@ export function SocioAnalytics() {
                     <SocioCard
                       key={cliente.id}
                       cliente={cliente}
+                      onDelete={handleDeleteFromCard}
                     />
                   ))}
                 </div>
@@ -948,10 +977,10 @@ export function SocioAnalytics() {
             </div>
           )}
 
-          {/* Gráficos y análisis adicionales */}
+          {/* Gráficos y análisis adicionales - SIN RESUMEN FINANCIERO */}
           {advancedMetrics && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              {/* Distribución por estado */}
+            <div className="grid grid-cols-1 lg:grid-cols-1 gap-8">
+              {/* Solo distribución por estado */}
               <div className="bg-white rounded-3xl border border-slate-200 p-8 shadow-sm">
                 <h3 className="text-xl font-bold text-slate-900 mb-6 flex items-center gap-3">
                   <Activity className="text-blue-600" size={24} />
@@ -996,52 +1025,6 @@ export function SocioAnalytics() {
                       <div className="text-sm text-slate-500">
                         {advancedMetrics.totalSocios > 0 ? ((advancedMetrics.sociosConCompras / advancedMetrics.totalSocios) * 100).toFixed(1) : 0}%
                       </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Resumen financiero */}
-              <div className="bg-white rounded-3xl border border-slate-200 p-8 shadow-sm">
-                <h3 className="text-xl font-bold text-slate-900 mb-6 flex items-center gap-3">
-                  <DollarSign className="text-emerald-600" size={24} />
-                  Resumen Financiero
-                </h3>
-                <div className="space-y-6">
-                  <div className="flex items-center justify-between">
-                    <span className="text-slate-600">Ingresos Totales</span>
-                    <span className="text-2xl font-bold text-emerald-600">
-                      ${advancedMetrics.totalGastado.toLocaleString()}
-                    </span>
-                  </div>
-                  
-                  <div className="flex items-center justify-between">
-                    <span className="text-slate-600">Promedio por Socio</span>
-                    <span className="text-xl font-semibold text-slate-900">
-                      ${advancedMetrics.promedioGastoPorSocio.toLocaleString()}
-                    </span>
-                  </div>
-                  
-                  <div className="flex items-center justify-between">
-                    <span className="text-slate-600">Ticket Promedio</span>
-                    <span className="text-xl font-semibold text-slate-900">
-                      ${advancedMetrics.ticketPromedio.toLocaleString()}
-                    </span>
-                  </div>
-                  
-                  <div className="flex items-center justify-between">
-                    <span className="text-slate-600">Valor Vida Socio</span>
-                    <span className="text-xl font-semibold text-purple-600">
-                      ${advancedMetrics.clv.toLocaleString()}
-                    </span>
-                  </div>
-                  
-                  <div className="pt-4 border-t border-slate-200">
-                    <div className="flex items-center justify-between">
-                      <span className="text-slate-600">Total Transacciones</span>
-                      <span className="text-lg font-medium text-slate-900">
-                        {advancedMetrics.totalCompras.toLocaleString()}
-                      </span>
                     </div>
                   </div>
                 </div>
@@ -1175,21 +1158,9 @@ export function SocioAnalytics() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      {/* Componente de creación rápida flotante */}
-      <QuickClienteCreator
-        onCreateCliente={async (clienteData) => {
-          const result = await createCliente(clienteData);
-          if (result) {
-            await loadClientes();
-            await updateDashboardStats();
-          }
-          return result;
-        }}
-        loading={loading}
-      />
     </div>
   );
 }
 
 export default SocioAnalytics;
+

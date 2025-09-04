@@ -6,44 +6,66 @@ import { useRouter } from 'next/navigation';
 import { toast } from 'react-hot-toast';
 import { LogoutModal } from '@/components/ui/LogoutModal';
 import { OptimizedSocioTabSystem } from '@/components/layout/OptimizedSocioTabSystem';
+import { SocioWelcomeCard } from '@/components/socio/SocioWelcomeCard';
 import { useAuth } from '@/hooks/useAuth';
 import { useSocioProfile } from '@/hooks/useSocioProfile';
 import { useBeneficios } from '@/hooks/useBeneficios';
 import { useDeviceDetection } from '@/hooks/useDeviceDetection';
 
-// Loading component ultra-compacto
+// Enhanced loading component with modern design
 const OptimizedLoadingState = memo(() => (
-  <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-    <div className="text-center">
-      <div className="w-12 h-12 border-2 border-gray-200 border-t-blue-500 rounded-full animate-spin mx-auto mb-4" />
-      <h2 className="text-lg font-semibold text-gray-900 mb-2">
+  <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-100 flex items-center justify-center">
+    <motion.div 
+      initial={{ opacity: 0, scale: 0.9 }}
+      animate={{ opacity: 1, scale: 1 }}
+      className="text-center"
+    >
+      <div className="relative mb-8">
+        <div className="w-20 h-20 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mx-auto" />
+        <motion.div
+          animate={{ rotate: -360 }}
+          transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
+          className="absolute inset-0 w-20 h-20 border-4 border-transparent border-t-purple-500 rounded-full mx-auto"
+        />
+      </div>
+      <motion.h2 
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2 }}
+        className="text-3xl font-bold bg-gradient-to-r from-blue-900 to-purple-700 bg-clip-text text-transparent mb-3"
+      >
         Cargando Dashboard
-      </h2>
-      <p className="text-gray-600">
-        Preparando tu experiencia...
-      </p>
-    </div>
+      </motion.h2>
+      <motion.p 
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.3 }}
+        className="text-slate-600 text-lg"
+      >
+        Preparando tu experiencia como socio...
+      </motion.p>
+    </motion.div>
   </div>
 ));
 
 OptimizedLoadingState.displayName = 'OptimizedLoadingState';
 
-// Main component ultra-responsivo
-export default function SimplifiedSocioDashboard() {
+// Main component with enhanced design
+export default function EnhancedSocioDashboard() {
   const router = useRouter();
   const { user, loading: authLoading, signOut } = useAuth();
   const { socio, estadisticas, loading: socioLoading } = useSocioProfile();
   const { estadisticasRapidas, beneficiosActivos, loading: beneficiosLoading } = useBeneficios();
   const { isMobile } = useDeviceDetection();
   
-  // State management ultra-simplificado
+  // State management optimized
   const [logoutModalOpen, setLogoutModalOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
   const [currentSection, setCurrentSection] = useState(() => {
     return isMobile ? 'validar' : 'beneficios';
   });
 
-  // Stats consolidadas ultra-compactas
+  // Enhanced consolidated stats
   const consolidatedStats = useMemo(() => {
     const now = new Date();
     const currentMonth = now.getMonth();
@@ -69,21 +91,26 @@ export default function SimplifiedSocioDashboard() {
     return {
       totalBeneficios: beneficiosValidos.length,
       beneficiosUsados: estadisticasRapidas.usados || 0,
-      beneficiosEstesMes
+      beneficiosEstesMes,
+      ahorroTotal: estadisticasRapidas.ahorroTotal || 0,
+      asociacionesVinculadas: socio?.asociaciones?.length || 0
     };
-  }, [beneficiosActivos, estadisticasRapidas, estadisticas]);
+  }, [beneficiosActivos, estadisticasRapidas, estadisticas, socio]);
 
-  // Handlers optimizados
+  // Enhanced handlers
+  const handleLogout = useCallback(() => {
+    setLogoutModalOpen(true);
+  }, []);
 
   const handleLogoutConfirm = useCallback(async () => {
     setLoggingOut(true);
     try {
       await signOut();
-      toast.success('Sesión cerrada');
+      toast.success('Sesión cerrada correctamente');
       router.push('/auth/login');
     } catch (error) {
       console.error('Error al cerrar sesión:', error);
-      toast.error('Error al cerrar sesión');
+      toast.error('Error al cerrar sesión. Inténtalo de nuevo.');
     } finally {
       setLoggingOut(false);
       setLogoutModalOpen(false);
@@ -102,6 +129,8 @@ export default function SimplifiedSocioDashboard() {
     setCurrentSection('validar');
   }, []);
 
+
+
   // Redirect if not authenticated or not socio
   if (!authLoading && (!user || user.role !== 'socio')) {
     router.push('/auth/login');
@@ -115,61 +144,57 @@ export default function SimplifiedSocioDashboard() {
 
   return (
     <>
-      <div className="min-h-screen bg-gray-50">
-        <div className="p-3 sm:p-4 lg:p-6 max-w-6xl mx-auto">
-          {/* Header ultra-compacto - Solo mostrar cuando no esté en validar en móvil */}
-          {(!isMobile || currentSection !== 'validar') && (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="bg-white rounded-xl shadow-sm border p-4 mb-4"
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-500 rounded-lg flex items-center justify-center shadow-sm">
-                    <span className="text-white font-bold text-sm">
-                      {(socio?.nombre || user?.nombre)?.charAt(0).toUpperCase() || 'S'}
-                    </span>
-                  </div>
-                  <div>
-                    <h1 className="text-lg font-bold text-gray-900">
-                      {socio?.nombre || user?.nombre || 'Socio'}
-                    </h1>
-                    <p className="text-sm text-gray-600">
-                      {isMobile ? 'Escanea y ahorra' : 'Explora tus beneficios'}
-                    </p>
-                  </div>
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-100">
+        {/* Enhanced header for mobile */}
+        <div className="lg:hidden bg-white/80 backdrop-blur-xl border-b border-white/20 sticky top-0 z-40">
+          <div className="px-4 py-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-500 rounded-2xl flex items-center justify-center shadow-lg">
+                  <span className="text-white font-bold text-sm">
+                    {(socio?.nombre || user?.nombre)?.charAt(0).toUpperCase() || 'S'}
+                  </span>
                 </div>
-
-                {/* Stats ultra-compactas */}
-                <div className="flex gap-4 text-center">
-                  <div>
-                    <div className="text-lg font-bold text-blue-600">
-                      {consolidatedStats.totalBeneficios}
-                    </div>
-                    <div className="text-xs text-gray-500">
-                      Disponibles
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-lg font-bold text-green-600">
-                      {consolidatedStats.beneficiosUsados}
-                    </div>
-                    <div className="text-xs text-gray-500">
-                      Usados
-                    </div>
-                  </div>
+                <div>
+                  <h1 className="text-lg font-bold text-slate-900">
+                    Panel de Socio
+                  </h1>
+                  <p className="text-sm text-slate-600">
+                    {isMobile ? 'Escanea y ahorra' : 'Explora tus beneficios'}
+                  </p>
                 </div>
               </div>
-            </motion.div>
-          )}
+            </div>
+          </div>
+        </div>
 
-          {/* Sistema de tabs ultra-responsivo */}
+        <div className="p-3 sm:p-4 lg:p-6 xl:p-8 space-y-4 sm:space-y-6 lg:space-y-8 max-w-7xl mx-auto">
+          {/* Enhanced Welcome Card */}
           <motion.div
-            initial={{ opacity: 0, y: 10 }}
+            initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
+            transition={{ duration: 0.6 }}
           >
+            <SocioWelcomeCard
+              user={{
+                nombre: socio?.nombre || user?.nombre || 'Socio',
+                numeroSocio: socio?.numeroSocio || user?.uid?.slice(-6) || '000000',
+                avatar: socio?.avatar || user?.avatar
+              }}
+              onLogout={handleLogout}
+            />
+          </motion.div>
+
+          {/* Enhanced Tab System */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3, duration: 0.6 }}
+            className="relative"
+          >
+            {/* Background decoration */}
+            <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 via-purple-500/5 to-indigo-500/5 rounded-3xl -z-10" />
+            
             <OptimizedSocioTabSystem
               onNavigate={handleNavigate}
               onQuickScan={handleQuickScan}
@@ -180,7 +205,7 @@ export default function SimplifiedSocioDashboard() {
         </div>
       </div>
 
-      {/* Modal de logout ultra-compacto */}
+      {/* Enhanced Logout Modal */}
       <LogoutModal
         isOpen={logoutModalOpen}
         isLoading={loggingOut}

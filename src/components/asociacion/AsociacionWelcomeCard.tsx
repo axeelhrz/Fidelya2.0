@@ -1,6 +1,6 @@
 'use client';
 
-import React, { memo, useMemo } from 'react';
+import React, { memo } from 'react';
 import { motion } from 'framer-motion';
 import { 
   Building2, 
@@ -57,10 +57,9 @@ const StatCard = memo<{
   icon: React.ComponentType<{ className?: string }>;
   label: string;
   value: number;
-  change?: number;
   color: string;
   onClick?: () => void;
-}>(({ icon: Icon, label, value, change, color, onClick }) => (
+}>(({ icon: Icon, label, value, color, onClick }) => (
   <motion.div
     whileHover={{ scale: 1.02, y: -2 }}
     whileTap={{ scale: 0.98 }}
@@ -75,13 +74,6 @@ const StatCard = memo<{
       <div className="p-2 bg-white/20 rounded-xl">
         <Icon className="w-5 h-5 text-white" />
       </div>
-      {change !== undefined && (
-        <div className={`text-xs font-medium px-2 py-1 rounded-full ${
-          change >= 0 ? 'bg-green-500/20 text-green-100' : 'bg-red-500/20 text-red-100'
-        }`}>
-          {change >= 0 ? '+' : ''}{change.toFixed(1)}%
-        </div>
-      )}
     </div>
     <div className="text-2xl font-bold text-white mb-1">
       {value.toLocaleString()}
@@ -102,10 +94,6 @@ export const AsociacionWelcomeCard: React.FC<AsociacionWelcomeCardProps> = memo(
   onViewProfile,
   onLogout
 }) => {
-  // Calcular cambios porcentuales (simulados para demo)
-  const sociosChange = useMemo(() => Math.random() * 20 - 10, []);
-  const comerciosChange = useMemo(() => Math.random() * 15 - 5, []);
-
   // Obtener saludo basado en la hora
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -218,7 +206,6 @@ export const AsociacionWelcomeCard: React.FC<AsociacionWelcomeCardProps> = memo(
             icon={Users}
             label="Socios Totales"
             value={stats.totalSocios}
-            change={sociosChange}
             color="from-blue-500 to-blue-600"
             onClick={() => onQuickAction('socios')}
           />
@@ -233,7 +220,6 @@ export const AsociacionWelcomeCard: React.FC<AsociacionWelcomeCardProps> = memo(
             icon={Store}
             label="Comercios"
             value={stats.comerciosActivos}
-            change={comerciosChange}
             color="from-purple-500 to-purple-600"
             onClick={() => onQuickAction('comercios')}
           />

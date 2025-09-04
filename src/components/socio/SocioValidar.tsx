@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { motion } from 'framer-motion';
 import { toast } from 'react-hot-toast';
 import { 
   QrCode,
@@ -13,7 +14,7 @@ import {
   Target,
   CheckCircle,
   Sparkles,
-  Award
+  Award,
 } from 'lucide-react';
 import { QRScannerButton } from '@/components/socio/QRScannerButton';
 import { ValidationResultModal } from '@/components/socio/ValidationResultModal';
@@ -254,27 +255,37 @@ export const SocioValidar: React.FC = () => {
 
   if (!isReady) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <div className="text-center">
-          <div className="w-16 h-16 bg-blue-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <RefreshCw size={32} className="text-blue-500 animate-spin" />
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-100 flex items-center justify-center p-4">
+        <motion.div 
+          className="text-center"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+        >
+          <div className="w-20 h-20 bg-gradient-to-r from-blue-500 to-purple-500 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg">
+            <RefreshCw size={32} className="text-white animate-spin" />
           </div>
-          <h3 className="text-xl font-semibold text-gray-900 mb-2">Cargando escáner...</h3>
-          <p className="text-gray-600">Preparando tu experiencia de validación</p>
-        </div>
+          <h3 className="text-2xl font-bold text-gray-900 mb-3">Preparando Escáner</h3>
+          <p className="text-gray-600 max-w-md mx-auto">Configurando tu experiencia de validación de beneficios</p>
+        </motion.div>
       </div>
     );
   }
 
   return (
     <>
-      <div className="min-h-screen bg-gray-50 pb-20 lg:pb-0">
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-100 pb-20 lg:pb-0">
         {/* Mobile Header */}
-        <div className="lg:hidden bg-white border-b border-gray-200 px-4 py-4 sticky top-0 z-30">
-          <div className="flex items-center justify-between">
+        <div className="lg:hidden bg-white/80 backdrop-blur-xl border-b border-gray-200/50 px-4 py-4 sticky top-0 z-30">
+          <motion.div 
+            className="flex items-center justify-between"
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+          >
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center">
-                <QrCode size={20} className="text-white" />
+              <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-500 rounded-xl flex items-center justify-center shadow-lg">
+                <QrCode size={24} className="text-white" />
               </div>
               <div>
                 <h1 className="text-xl font-bold text-gray-900">Escanear QR</h1>
@@ -282,175 +293,229 @@ export const SocioValidar: React.FC = () => {
               </div>
             </div>
             
-            {/* Status indicator */}
-            <div className="flex items-center gap-2 px-3 py-1 bg-green-50 rounded-full">
-              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-              <span className="text-xs font-medium text-green-700">Listo</span>
+            {/* Status indicators */}
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1 px-2 py-1 bg-green-50 rounded-full">
+                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                <span className="text-xs font-medium text-green-700">Listo</span>
+              </div>
             </div>
-          </div>
+          </motion.div>
         </div>
 
         <div className="max-w-4xl mx-auto p-4 space-y-6">
           {/* Desktop Header */}
-          <div className="hidden lg:block text-center mb-8">
-            <div className="flex items-center justify-center gap-4 mb-6">
-              <div className="w-16 h-16 bg-blue-500 rounded-2xl flex items-center justify-center">
-                <QrCode size={32} className="text-white" />
+          <motion.div 
+            className="hidden lg:block text-center mb-8"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+          >
+            <div className="flex items-center justify-center gap-6 mb-8">
+              <div className="w-20 h-20 bg-gradient-to-r from-blue-500 to-purple-500 rounded-2xl flex items-center justify-center shadow-xl">
+                <QrCode size={40} className="text-white" />
               </div>
               <div className="text-left">
-                <h1 className="text-4xl font-bold text-gray-900 mb-2">Validar Beneficios</h1>
-                <p className="text-lg text-gray-600">Escanea códigos QR para acceder a tus beneficios exclusivos</p>
+                <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">
+                  Validar Beneficios
+                </h1>
+                <p className="text-xl text-gray-600">Escanea códigos QR para acceder a tus beneficios exclusivos</p>
               </div>
             </div>
 
             {/* Status indicators */}
-            <div className="flex items-center justify-center gap-4">
-              <div className="flex items-center gap-2 px-4 py-2 bg-white rounded-lg border shadow-sm">
-                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-                <span className="text-sm font-medium text-gray-700">En línea</span>
-              </div>
+            <div className="flex items-center justify-center gap-6">
+              <motion.div 
+                className="flex items-center gap-3 px-6 py-3 bg-white/80 backdrop-blur-sm rounded-xl border border-gray-200/50 shadow-lg"
+                whileHover={{ scale: 1.02 }}
+                transition={{ type: "spring", stiffness: 300 }}
+              >
+                <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse" />
+                <span className="font-medium text-gray-700">Sistema Activo</span>
+              </motion.div>
 
-              <div className={cn(
-                "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium shadow-sm border",
-                user?.asociacionId 
-                  ? 'bg-blue-50 text-blue-800 border-blue-200' 
-                  : 'bg-emerald-50 text-emerald-800 border-emerald-200'
-              )}>
-                <Award size={16} />
-                <span>{user?.asociacionId ? 'Socio con Asociación' : 'Socio Independiente'}</span>
-              </div>
+              <motion.div 
+                className={cn(
+                  "flex items-center gap-3 px-6 py-3 rounded-xl shadow-lg backdrop-blur-sm border",
+                  user?.asociacionId 
+                    ? 'bg-blue-50/80 text-blue-800 border-blue-200/50' 
+                    : 'bg-emerald-50/80 text-emerald-800 border-emerald-200/50'
+                )}
+                whileHover={{ scale: 1.02 }}
+                transition={{ type: "spring", stiffness: 300 }}
+              >
+                <Award size={20} />
+                <span className="font-medium">
+                  {user?.asociacionId ? 'Socio con Asociación' : 'Socio Independiente'}
+                </span>
+              </motion.div>
             </div>
-          </div>
+          </motion.div>
 
           {/* Main Scanner Card */}
-          <div className="bg-white rounded-2xl p-6 lg:p-8 shadow-sm border">
+          <motion.div 
+            className="bg-white/80 backdrop-blur-xl rounded-3xl p-8 lg:p-12 shadow-xl border border-gray-200/50"
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.2 }}
+          >
             <div className="text-center">
-              {/* Scanner Icon - Mobile Optimized */}
-              <div className="w-20 h-20 lg:w-24 lg:h-24 bg-gradient-to-r from-blue-500 to-purple-500 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg">
-                <Scan size={32} className="text-white lg:w-10 lg:h-10" />
-              </div>
+              {/* Scanner Icon */}
+              <motion.div 
+                className="w-24 h-24 lg:w-32 lg:h-32 bg-gradient-to-r from-blue-500 via-purple-500 to-indigo-500 rounded-3xl flex items-center justify-center mx-auto mb-8 shadow-2xl"
+                whileHover={{ scale: 1.05, rotate: 5 }}
+                transition={{ type: "spring", stiffness: 300 }}
+              >
+                <Scan size={40} className="text-white lg:w-16 lg:h-16" />
+              </motion.div>
 
-              <h2 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-4">Escanear Código QR</h2>
-              <p className="text-gray-600 max-w-2xl mx-auto text-base lg:text-lg leading-relaxed mb-8">
+              <h2 className="text-3xl lg:text-4xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent mb-6">
+                Escanear Código QR
+              </h2>
+              <p className="text-gray-600 max-w-2xl mx-auto text-lg lg:text-xl leading-relaxed mb-10">
                 Apunta tu cámara al código QR del comercio para validar y acceder a tus beneficios de forma instantánea
               </p>
 
               {/* Scanner Button */}
-              <div className="max-w-sm mx-auto mb-8">
+              <motion.div 
+                className="max-w-sm mx-auto mb-10"
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.5, delay: 0.4 }}
+              >
                 <QRScannerButton
                   onScan={handleQRScan}
                   loading={scannerLoading}
                 />
-              </div>
+              </motion.div>
 
-              {/* Instructions - Mobile Optimized */}
-              <div className="bg-blue-50 rounded-xl p-6 border border-blue-200">
-                <div className="flex items-center justify-center gap-2 mb-4">
-                  <Sparkles size={20} className="text-blue-500" />
-                  <h3 className="font-bold text-gray-900 text-lg">¿Cómo funciona?</h3>
+              {/* Instructions */}
+              <motion.div 
+                className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-2xl p-8 border border-blue-200/50"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.6 }}
+              >
+                <div className="flex items-center justify-center gap-3 mb-6">
+                  <Sparkles size={24} className="text-blue-500" />
+                  <h3 className="font-bold text-gray-900 text-xl">¿Cómo funciona?</h3>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-left">
-                  <div className="flex items-start gap-3">
-                    <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center flex-shrink-0 text-white font-bold text-sm">
-                      1
-                    </div>
-                    <div>
-                      <h4 className="font-semibold text-gray-900 mb-1">Solicita el QR</h4>
-                      <p className="text-sm text-gray-700">Pide al comercio que muestre su código QR</p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start gap-3">
-                    <div className="w-8 h-8 bg-purple-500 rounded-lg flex items-center justify-center flex-shrink-0 text-white font-bold text-sm">
-                      2
-                    </div>
-                    <div>
-                      <h4 className="font-semibold text-gray-900 mb-1">Escanea</h4>
-                      <p className="text-sm text-gray-700">Presiona el botón y permite acceso a la cámara</p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start gap-3">
-                    <div className="w-8 h-8 bg-indigo-500 rounded-lg flex items-center justify-center flex-shrink-0 text-white font-bold text-sm">
-                      3
-                    </div>
-                    <div>
-                      <h4 className="font-semibold text-gray-900 mb-1">Apunta</h4>
-                      <p className="text-sm text-gray-700">Enfoca la cámara al código hasta detectarlo</p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start gap-3">
-                    <div className="w-8 h-8 bg-green-500 rounded-lg flex items-center justify-center flex-shrink-0 text-white font-bold text-sm">
-                      4
-                    </div>
-                    <div>
-                      <h4 className="font-semibold text-gray-900 mb-1">¡Disfruta!</h4>
-                      <p className="text-sm text-gray-700">Accede a tu beneficio al instante</p>
-                    </div>
-                  </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 text-left">
+                  {[
+                    { step: 1, title: "Solicita el QR", desc: "Pide al comercio que muestre su código QR", color: "blue" },
+                    { step: 2, title: "Escanea", desc: "Presiona el botón y permite acceso a la cámara", color: "purple" },
+                    { step: 3, title: "Apunta", desc: "Enfoca la cámara al código hasta detectarlo", color: "indigo" },
+                    { step: 4, title: "¡Disfruta!", desc: "Accede a tu beneficio al instante", color: "green" }
+                  ].map((item, index) => (
+                    <motion.div 
+                      key={item.step}
+                      className="flex flex-col items-center text-center"
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.3, delay: 0.8 + index * 0.1 }}
+                    >
+                      <div className={cn(
+                        "w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold text-lg mb-4 shadow-lg",
+                        item.color === 'blue' && 'bg-gradient-to-r from-blue-500 to-blue-600',
+                        item.color === 'purple' && 'bg-gradient-to-r from-purple-500 to-purple-600',
+                        item.color === 'indigo' && 'bg-gradient-to-r from-indigo-500 to-indigo-600',
+                        item.color === 'green' && 'bg-gradient-to-r from-green-500 to-green-600'
+                      )}>
+                        {item.step}
+                      </div>
+                      <h4 className="font-bold text-gray-900 mb-2">{item.title}</h4>
+                      <p className="text-sm text-gray-700 leading-relaxed">{item.desc}</p>
+                    </motion.div>
+                  ))}
                 </div>
-              </div>
+              </motion.div>
             </div>
-          </div>
+          </motion.div>
 
-          {/* Features Grid - Mobile Optimized */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="text-center p-4 bg-white rounded-xl border shadow-sm">
-              <div className="w-12 h-12 bg-emerald-500 rounded-xl flex items-center justify-center mx-auto mb-3">
-                <Zap size={20} className="text-white" />
-              </div>
-              <div className="text-lg font-bold text-emerald-700 mb-1">&lt; 2s</div>
-              <div className="text-sm text-emerald-600 font-medium">Detección Instantánea</div>
-            </div>
-            
-            <div className="text-center p-4 bg-white rounded-xl border shadow-sm">
-              <div className="w-12 h-12 bg-blue-500 rounded-xl flex items-center justify-center mx-auto mb-3">
-                <Shield size={20} className="text-white" />
-              </div>
-              <div className="text-lg font-bold text-blue-700 mb-1">100%</div>
-              <div className="text-sm text-blue-600 font-medium">Seguro y Privado</div>
-            </div>
-            
-            <div className="text-center p-4 bg-white rounded-xl border shadow-sm">
-              <div className="w-12 h-12 bg-purple-500 rounded-xl flex items-center justify-center mx-auto mb-3">
-                <Smartphone size={20} className="text-white" />
-              </div>
-              <div className="text-lg font-bold text-purple-700 mb-1">24/7</div>
-              <div className="text-sm text-purple-600 font-medium">Siempre Disponible</div>
-            </div>
-          </div>
+          {/* Features Grid */}
+          <motion.div 
+            className="grid grid-cols-1 sm:grid-cols-3 gap-6"
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.8 }}
+          >
+            {[
+              { icon: Zap, value: "< 2s", label: "Detección Instantánea", color: "emerald" },
+              { icon: Shield, value: "100%", label: "Seguro y Privado", color: "blue" },
+              { icon: Smartphone, value: "24/7", label: "Siempre Disponible", color: "purple" }
+            ].map((feature, index) => (
+              <motion.div 
+                key={feature.label}
+                className="text-center p-6 bg-white/80 backdrop-blur-sm rounded-2xl border border-gray-200/50 shadow-lg"
+                whileHover={{ scale: 1.05, y: -5 }}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, delay: 1.0 + index * 0.1 }}
+              >
+                <div className={cn(
+                  "w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg",
+                  feature.color === 'emerald' && 'bg-gradient-to-r from-emerald-500 to-emerald-600',
+                  feature.color === 'blue' && 'bg-gradient-to-r from-blue-500 to-blue-600',
+                  feature.color === 'purple' && 'bg-gradient-to-r from-purple-500 to-purple-600'
+                )}>
+                  <feature.icon size={24} className="text-white" />
+                </div>
+                <div className={cn(
+                  "text-2xl font-bold mb-2",
+                  feature.color === 'emerald' && 'text-emerald-700',
+                  feature.color === 'blue' && 'text-blue-700',
+                  feature.color === 'purple' && 'text-purple-700'
+                )}>
+                  {feature.value}
+                </div>
+                <div className={cn(
+                  "text-sm font-medium",
+                  feature.color === 'emerald' && 'text-emerald-600',
+                  feature.color === 'blue' && 'text-blue-600',
+                  feature.color === 'purple' && 'text-purple-600'
+                )}>
+                  {feature.label}
+                </div>
+              </motion.div>
+            ))}
+          </motion.div>
 
-          {/* Tips Section - Mobile Optimized */}
-          <div className="bg-gradient-to-r from-violet-500 to-purple-600 rounded-2xl p-6 text-white">
-            <div className="text-center mb-6">
-              <div className="flex items-center justify-center gap-2 mb-3">
-                <Target size={24} className="text-yellow-300" />
-                <h3 className="text-xl font-bold">Consejos para un Escaneo Perfecto</h3>
+          {/* Tips Section */}
+          <motion.div 
+            className="bg-gradient-to-r from-violet-500 via-purple-600 to-indigo-600 rounded-3xl p-8 text-white shadow-2xl"
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 1.0 }}
+          >
+            <div className="text-center mb-8">
+              <div className="flex items-center justify-center gap-3 mb-4">
+                <Target size={28} className="text-yellow-300" />
+                <h3 className="text-2xl font-bold">Consejos para un Escaneo Perfecto</h3>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="bg-white/10 rounded-xl p-4 backdrop-blur-sm border border-white/20">
-                <Camera size={20} className="text-yellow-300 mx-auto mb-2" />
-                <h4 className="font-semibold mb-2 text-center">Iluminación</h4>
-                <p className="text-sm text-violet-100 text-center">Asegúrate de tener buena luz</p>
-              </div>
-
-              <div className="bg-white/10 rounded-xl p-4 backdrop-blur-sm border border-white/20">
-                <Target size={20} className="text-yellow-300 mx-auto mb-2" />
-                <h4 className="font-semibold mb-2 text-center">Estabilidad</h4>
-                <p className="text-sm text-violet-100 text-center">Mantén el teléfono estable</p>
-              </div>
-
-              <div className="bg-white/10 rounded-xl p-4 backdrop-blur-sm border border-white/20">
-                <CheckCircle size={20} className="text-yellow-300 mx-auto mb-2" />
-                <h4 className="font-semibold mb-2 text-center">Paciencia</h4>
-                <p className="text-sm text-violet-100 text-center">Espera la detección automática</p>
-              </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {[
+                { icon: Camera, title: "Iluminación", desc: "Asegúrate de tener buena luz" },
+                { icon: Target, title: "Estabilidad", desc: "Mantén el teléfono estable" },
+                { icon: CheckCircle, title: "Paciencia", desc: "Espera la detección automática" }
+              ].map((tip, index) => (
+                <motion.div 
+                  key={tip.title}
+                  className="bg-white/10 rounded-2xl p-6 backdrop-blur-sm border border-white/20"
+                  whileHover={{ scale: 1.02, y: -2 }}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3, delay: 1.2 + index * 0.1 }}
+                >
+                  <tip.icon size={24} className="text-yellow-300 mx-auto mb-3" />
+                  <h4 className="font-bold mb-3 text-center text-lg">{tip.title}</h4>
+                  <p className="text-sm text-violet-100 text-center leading-relaxed">{tip.desc}</p>
+                </motion.div>
+              ))}
             </div>
-          </div>
+          </motion.div>
         </div>
       </div>
 
