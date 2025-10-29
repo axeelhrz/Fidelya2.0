@@ -101,8 +101,3 @@ export default function SocioRegisterDisabledPage() {
     </div>
   );
 }
-
-// Método OPTIONS para CORS
-export async function OPTIONS() {
-  return new Response(null, { status: 204 });
-}
