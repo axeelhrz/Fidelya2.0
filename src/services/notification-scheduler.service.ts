@@ -548,7 +548,6 @@ class NotificationSchedulerService {
         targetUsers,
         scheduledNotification.notificationData,
         {
-          priority: scheduledNotification.notificationData.priority || 'medium',
           maxAttempts: 3,
         }
       );
@@ -617,7 +616,6 @@ class NotificationSchedulerService {
             trigger.action.notificationData,
             scheduledFor,
             {
-              priority: trigger.execution.priority,
               maxAttempts: 3,
             }
           );
@@ -627,7 +625,6 @@ class NotificationSchedulerService {
             targetUsers,
             trigger.action.notificationData,
             {
-              priority: trigger.execution.priority,
               maxAttempts: 3,
             }
           );

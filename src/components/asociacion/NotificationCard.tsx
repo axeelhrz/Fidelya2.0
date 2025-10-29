@@ -117,8 +117,8 @@ export const NotificationCard: React.FC<NotificationCardProps> = ({
   };
 
   const typeInfo = typeConfig[notification.type];
-  const priority = notification.priority || 'medium'; // Default to medium if not specified
-  const priorityInfo = priorityConfig[priority];
+  // Priority is deprecated in the notification system, using 'medium' as default
+  const priorityInfo = priorityConfig['medium'];
   const isUnread = notification.status === 'unread';
   const isExpired = notification.expiresAt && new Date() > new Date(notification.expiresAt);
 
@@ -362,12 +362,14 @@ export const NotificationCard: React.FC<NotificationCardProps> = ({
           onClose={handleMenuClose}
           transformOrigin={{ horizontal: 'right', vertical: 'top' }}
           anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
-          PaperProps={{
-            sx: {
-              borderRadius: 3,
-              border: '1px solid #f1f5f9',
-              boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
-              minWidth: 180,
+          slotProps={{
+            paper: {
+              sx: {
+                borderRadius: 3,
+                border: '1px solid #f1f5f9',
+                boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
+                minWidth: 180,
+              }
             }
           }}
         >

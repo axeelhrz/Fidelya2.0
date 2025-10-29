@@ -99,17 +99,15 @@ export const RealTimeNotifications: React.FC<RealTimeNotificationsProps> = ({
     }
   }, [onNotificationDismiss]);
 
-  // Auto-dismiss notifications after 10 seconds for non-urgent ones
+  // Auto-dismiss notifications after 10 seconds
   useEffect(() => {
     const timers: NodeJS.Timeout[] = [];
 
     visibleNotifications.forEach(notification => {
-      if (notification.priority !== 'urgent') {
-        const timer = setTimeout(() => {
-          handleDismiss(notification.id);
-        }, 10000);
-        timers.push(timer);
-      }
+      const timer = setTimeout(() => {
+        handleDismiss(notification.id);
+      }, 10000);
+      timers.push(timer);
     });
 
     return () => {
@@ -226,12 +224,6 @@ export const RealTimeNotifications: React.FC<RealTimeNotificationsProps> = ({
                       height: 40,
                       bgcolor: typeInfo.bgcolor,
                       color: typeInfo.color,
-                      animation: notification.priority === 'urgent' ? 'pulse 2s infinite' : 'none',
-                      '@keyframes pulse': {
-                        '0%': { transform: 'scale(1)' },
-                        '50%': { transform: 'scale(1.1)' },
-                        '100%': { transform: 'scale(1)' },
-                      },
                     }}
                   >
                     {typeInfo.icon}
@@ -255,24 +247,6 @@ export const RealTimeNotifications: React.FC<RealTimeNotificationsProps> = ({
                         {notification.title}
                       </Typography>
                       
-                      {notification.priority === 'urgent' && (
-                        <Chip
-                          label="URGENTE"
-                          size="small"
-                          sx={{
-                            bgcolor: alpha('#ef4444', 0.1),
-                            color: '#ef4444',
-                            fontWeight: 700,
-                            fontSize: '0.65rem',
-                            height: 18,
-                            animation: 'blink 1.5s infinite',
-                            '@keyframes blink': {
-                              '0%, 50%': { opacity: 1 },
-                              '51%, 100%': { opacity: 0.5 },
-                            },
-                          }}
-                        />
-                      )}
                     </Box>
                     
                     <Typography
@@ -351,22 +325,20 @@ export const RealTimeNotifications: React.FC<RealTimeNotificationsProps> = ({
                 )}
 
                 {/* Progress bar for auto-dismiss */}
-                {notification.priority !== 'urgent' && (
-                  <Box
-                    sx={{
-                      position: 'absolute',
-                      bottom: 0,
-                      left: 0,
-                      height: 2,
-                      bgcolor: alpha(typeInfo.color, 0.3),
-                      animation: 'shrink 10s linear',
-                      '@keyframes shrink': {
-                        '0%': { width: '100%' },
-                        '100%': { width: '0%' },
-                      },
-                    }}
-                  />
-                )}
+                <Box
+                  sx={{
+                    position: 'absolute',
+                    bottom: 0,
+                    left: 0,
+                    height: 2,
+                    bgcolor: alpha(typeInfo.color, 0.3),
+                    animation: 'shrink 10s linear',
+                    '@keyframes shrink': {
+                      '0%': { width: '100%' },
+                      '100%': { width: '0%' },
+                    },
+                  }}
+                />
               </Paper>
             </motion.div>
           );

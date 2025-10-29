@@ -56,7 +56,6 @@ const convertFirestoreDoc = (doc: DocumentSnapshot): Notification => {
     title: data.title || '',
     message: data.message || '',
     type: data.type || '',
-    priority: data.priority || '',
     category: data.category || '',
     status: data.status || '',
     metadata: data.metadata || {},
@@ -102,9 +101,6 @@ export const getNotifications = async (filters?: NotificationFilters): Promise<N
     }
     if (filters?.type && filters.type.length > 0) {
       constraints.push(where('type', 'in', filters.type));
-    }
-    if (filters?.priority && filters.priority.length > 0) {
-      constraints.push(where('priority', 'in', filters.priority));
     }
     if (filters?.category && filters.category.length > 0) {
       constraints.push(where('category', 'in', filters.category));
@@ -169,10 +165,6 @@ export const subscribeToNotifications = (
 
       if (filters?.type && filters.type.length > 0) {
         notifications = notifications.filter(n => filters.type!.includes(n.type));
-      }
-
-      if (filters?.priority && filters.priority.length > 0) {
-        notifications = notifications.filter(n => n.priority !== undefined && filters.priority!.includes(n.priority));
       }
 
       if (filters?.category && filters.category.length > 0) {
@@ -338,12 +330,6 @@ export const getNotificationStats = async () => {
         warning: notifications.filter(n => n.type === 'warning').length,
         error: notifications.filter(n => n.type === 'error').length,
         announcement: notifications.filter(n => n.type === 'announcement').length,
-      },
-      byPriority: {
-        low: notifications.filter(n => n.priority === 'low').length,
-        medium: notifications.filter(n => n.priority === 'medium').length,
-        high: notifications.filter(n => n.priority === 'high').length,
-        urgent: notifications.filter(n => n.priority === 'urgent').length,
       },
       byCategory: {
         system: notifications.filter(n => n.category === 'system').length,
