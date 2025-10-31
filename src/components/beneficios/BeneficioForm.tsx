@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import Image from 'next/image';
 import {
   Save,
   X,
@@ -58,7 +59,7 @@ export const BeneficioForm: React.FC<BeneficioFormProps> = ({
     asociacionesSeleccionadas: [] as string[]
   });
 
-  const [asociacionesDisponibles, setAsociacionesDisponibles] = useState<Array<{ id: string; nombre: string }>>([]);
+  const [asociacionesDisponibles, setAsociacionesDisponibles] = useState<Array<{ id: string; nombre: string; logo?: string }>>([]);
   const [loadingAsociaciones, setLoadingAsociaciones] = useState(false);
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -68,43 +69,53 @@ export const BeneficioForm: React.FC<BeneficioFormProps> = ({
     return () => setMounted(false);
   }, []);
 
-  // Cargar asociaciones vinculadas al comercio
+  // Cargar TODAS las asociaciones disponibles en Firebase
   useEffect(() => {
     const cargarAsociaciones = async () => {
-      if (!comercioId) return;
-      
       try {
         setLoadingAsociaciones(true);
-        const { comercioService } = await import('@/services/comercio.service');
-        const comercio = await comercioService.getComercioById(comercioId);
+        console.log('🔍 Cargando todas las asociaciones disponibles...');
         
-        if (comercio && comercio.asociacionesVinculadas && comercio.asociacionesVinculadas.length > 0) {
-          // Obtener información de cada asociación
-          const { collection, getDocs, query, where } = await import('firebase/firestore');
-          const { db } = await import('@/lib/firebase');
+        const { collection, getDocs } = await import('firebase/firestore');
+        const { db } = await import('@/lib/firebase');
+        
+        // Obtener TODAS las asociaciones de Firebase (sin orderBy para evitar errores de índice)
+        const asociacionesRef = collection(db, 'asociaciones');
+        
+        const snapshot = await getDocs(asociacionesRef);
+        console.log(`✅ Se encontraron ${snapshot.size} asociaciones en Firebase`);
+        
+        const asociaciones = snapshot.docs.map(doc => {
+          const data = doc.data();
           
-          const asociacionesQuery = query(
-            collection(db, 'asociaciones'),
-            where('__name__', 'in', comercio.asociacionesVinculadas.slice(0, 10)) // Firestore limit
-          );
-          
-          const snapshot = await getDocs(asociacionesQuery);
-          const asociaciones = snapshot.docs.map(doc => ({
+          // LOG DETALLADO para debugging
+          console.log('🔍 Documento de asociación:', {
             id: doc.id,
-            nombre: doc.data().nombre || 'Asociación sin nombre'
-          }));
+            todosLosCampos: data,
+            nombreAsociacion: data.nombreAsociacion,
+            nombre: data.nombreAsociacion,
+            camposDisponibles: Object.keys(data)
+          });
           
-          setAsociacionesDisponibles(asociaciones);
-        }
+          return {
+            id: doc.id,
+            nombre: data.nombreAsociacion || data.nombreAsociacion || 'Asociación sin nombre',
+            logo: data.logo || data.logoUrl || undefined
+          };
+        });
+        
+        setAsociacionesDisponibles(asociaciones);
+        console.log('📋 Asociaciones cargadas (resultado final):', asociaciones);
       } catch (error) {
-        console.error('Error cargando asociaciones:', error);
+        console.error('❌ Error cargando asociaciones:', error);
+        toast.error('Error al cargar las asociaciones');
       } finally {
         setLoadingAsociaciones(false);
       }
     };
     
     cargarAsociaciones();
-  }, [comercioId]);
+  }, []); // Solo se ejecuta una vez al montar el componente
 
   useEffect(() => {
     if (isOpen) {
@@ -671,11 +682,17 @@ export const BeneficioForm: React.FC<BeneficioFormProps> = ({
                             </p>
                           </div>
                         ) : (
-                          <div className="space-y-2 max-h-48 overflow-y-auto">
+                          <div className="space-y-3 max-h-64 overflow-y-auto pr-2">
                             {asociacionesDisponibles.map((asociacion) => (
-                              <label
+                              <motion.label
                                 key={asociacion.id}
-                                className="flex items-center gap-3 p-3 bg-white rounded-lg border border-gray-200 hover:border-purple-300 cursor-pointer transition-colors"
+                                whileHover={{ scale: 1.02 }}
+                                whileTap={{ scale: 0.98 }}
+                                className={`flex items-center gap-4 p-4 bg-white rounded-xl border-2 cursor-pointer transition-all ${
+                                  formData.asociacionesSeleccionadas.includes(asociacion.id)
+                                    ? 'border-purple-500 bg-purple-50 shadow-md'
+                                    : 'border-gray-200 hover:border-purple-300 hover:shadow-sm'
+                                }`}
                               >
                                 <input
                                   type="checkbox"
@@ -683,18 +700,81 @@ export const BeneficioForm: React.FC<BeneficioFormProps> = ({
                                   onChange={() => handleAsociacionToggle(asociacion.id)}
                                   className="w-5 h-5 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
                                 />
-                                <span className="text-sm font-medium text-gray-700">
-                                  {asociacion.nombre}
-                                </span>
-                              </label>
+                                
+                                {/* Logo de la Asociación */}
+                                <div className="flex-shrink-0">
+                                  {asociacion.logo ? (
+                                    <div className="relative w-12 h-12 rounded-lg overflow-hidden border-2 border-gray-200">
+                                      <Image
+                                        src={asociacion.logo}
+                                        alt={asociacion.nombre}
+                                        fill
+                                        className="object-cover"
+                                        sizes="48px"
+                                      />
+                                    </div>
+                                  ) : (
+                                    <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
+                                      <Building2 className="w-6 h-6 text-white" />
+                                    </div>
+                                  )}
+                                </div>
+                                
+                                {/* Nombre de la Asociación */}
+                                <div className="flex-1 min-w-0">
+                                  <span className={`text-sm font-semibold block truncate ${
+                                    formData.asociacionesSeleccionadas.includes(asociacion.id)
+                                      ? 'text-purple-700'
+                                      : 'text-gray-700'
+                                  }`}>
+                                    {asociacion.nombre}
+                                  </span>
+                                  <span className="text-xs text-gray-500">
+                                    ID: {asociacion.id.substring(0, 8)}...
+                                  </span>
+                                </div>
+                                
+                                {/* Indicador de selección */}
+                                {formData.asociacionesSeleccionadas.includes(asociacion.id) && (
+                                  <motion.div
+                                    initial={{ scale: 0 }}
+                                    animate={{ scale: 1 }}
+                                    className="flex-shrink-0"
+                                  >
+                                    <div className="w-8 h-8 bg-purple-500 rounded-full flex items-center justify-center">
+                                      <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                      </svg>
+                                    </div>
+                                  </motion.div>
+                                )}
+                              </motion.label>
                             ))}
                           </div>
                         )}
                         
                         {formData.asociacionesSeleccionadas.length > 0 && (
-                          <p className="mt-2 text-xs text-purple-600">
-                            {formData.asociacionesSeleccionadas.length} asociación(es) seleccionada(s)
-                          </p>
+                          <motion.div
+                            initial={{ opacity: 0, y: -10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="mt-3 p-3 bg-purple-100 rounded-lg border border-purple-300"
+                          >
+                            <div className="flex items-center gap-2">
+                              <div className="w-8 h-8 bg-purple-500 rounded-full flex items-center justify-center">
+                                <span className="text-white font-bold text-sm">
+                                  {formData.asociacionesSeleccionadas.length}
+                                </span>
+                              </div>
+                              <div>
+                                <p className="text-sm font-semibold text-purple-700">
+                                  {formData.asociacionesSeleccionadas.length} asociación(es) seleccionada(s)
+                                </p>
+                                <p className="text-xs text-purple-600">
+                                  Este beneficio estará disponible para los socios de estas asociaciones
+                                </p>
+                              </div>
+                            </div>
+                          </motion.div>
                         )}
                       </div>
                     )}
