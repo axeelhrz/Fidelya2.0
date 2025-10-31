@@ -4,6 +4,7 @@ import React, { useEffect } from 'react';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from '@/hooks/useAuth';
 import { notificationInitService } from '@/lib/notification-init';
+import { AnalyticsTracker } from '@/components/analytics/AnalyticsTracker';
 
 interface ClientLayoutProps {
   children: React.ReactNode;
@@ -34,6 +35,7 @@ export const ClientLayout: React.FC<ClientLayoutProps> = ({ children }) => {
 
   return (
     <AuthProvider>
+      <AnalyticsTracker />
       {children}
       <Toaster
         position="top-right"

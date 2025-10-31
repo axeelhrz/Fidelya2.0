@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from 'next';
 import { Inter, Plus_Jakarta_Sans, Playfair_Display } from 'next/font/google';
 import './globals.css';
 import { ClientLayout } from './ClientLayout';
+import { GoogleAnalytics } from '@/components/analytics/GoogleAnalytics';
+import { GA_MEASUREMENT_ID } from '@/lib/analytics';
 
 // Configuración optimizada de fuentes
 const inter = Inter({ 
@@ -60,6 +62,7 @@ export default function RootLayout({
   return (
     <html lang="es" className="scroll-smooth">
       <body className={`${inter.variable} ${plusJakarta.variable} ${playfair.variable} font-sans antialiased`}>
+        <GoogleAnalytics measurementId={GA_MEASUREMENT_ID} />
         <ClientLayout>
           {children}
         </ClientLayout>

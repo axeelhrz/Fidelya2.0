@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Box,
@@ -49,6 +49,7 @@ import {
   Error,
   Warning,
   Info,
+  Edit,
 } from '@mui/icons-material';
 import { useSimpleNotifications } from '@/hooks/useSimpleNotifications';
 import { 
@@ -56,6 +57,10 @@ import {
   SimpleNotificationChannel, 
   SimpleNotificationType,
 } from '@/types/simple-notification';
+import { 
+  notificationTemplatesService, 
+  NotificationTemplate 
+} from '@/services/notification-templates.service';
 
 const channelIcons = {
   email: <Email />,
@@ -110,6 +115,10 @@ export const SimpleNotificationSender: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedRecipientType, setSelectedRecipientType] = useState<'all' | 'socio' | 'comercio' | 'asociacion'>('all');
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [templates, setTemplates] = useState<NotificationTemplate[]>([]);
+  const [selectedTemplate, setSelectedTemplate] = useState<NotificationTemplate | null>(null);
+  const [templateVariables, setTemplateVariables] = useState<Record<string, string>>({});
+  const [showTemplateDialog, setShowTemplateDialog] = useState(false);
   interface NotificationResult {
     success: boolean;
     sentCount: number;
@@ -118,6 +127,83 @@ export const SimpleNotificationSender: React.FC = () => {
   }
 
   const [lastResult, setLastResult] = useState<NotificationResult | null>(null);
+
+  // Cargar plantillas al montar el componente
+  useEffect(() => {
+    const loadTemplates = async () => {
+      try {
+        const loadedTemplates = await notificationTemplatesService.getTemplates(false);
+        setTemplates(loadedTemplates);
+      } catch (error) {
+        console.error('Error loading templates:', error);
+      }
+    };
+    loadTemplates();
+  }, []);
+
+  // Cuando se selecciona una plantilla, inicializar las variables
+  const handleTemplateSelect = (template: NotificationTemplate) => {
+    setSelectedTemplate(template);
+    
+    // Extraer variables de la plantilla
+    const titleVars = extractVariables(template.title);
+    const messageVars = extractVariables(template.message);
+    const allVars = [...new Set([...titleVars, ...messageVars])];
+    
+    // Inicializar valores de variables vacíos
+    const initialVars: Record<string, string> = {};
+    allVars.forEach(varName => {
+      initialVars[varName] = '';
+    });
+    
+    setTemplateVariables(initialVars);
+    setShowTemplateDialog(true);
+  };
+
+  // Extraer variables de un string ({{variable}})
+  const extractVariables = (text: string): string[] => {
+    const regex = /\{\{(\w+)\}\}/g;
+    const variables: string[] = [];
+    let match;
+    while ((match = regex.exec(text)) !== null) {
+      variables.push(match[1]);
+    }
+    return variables;
+  };
+
+  // Aplicar plantilla con variables
+  const applyTemplate = () => {
+    if (!selectedTemplate) return;
+
+    // Reemplazar variables en título y mensaje
+    let title = selectedTemplate.title;
+    let message = selectedTemplate.message;
+
+    Object.entries(templateVariables).forEach(([key, value]) => {
+      const regex = new RegExp(`\\{\\{${key}\\}\\}`, 'g');
+      title = title.replace(regex, value || `[${key}]`);
+      message = message.replace(regex, value || `[${key}]`);
+    });
+
+    // Actualizar formData
+    setFormData(prev => ({
+      ...prev,
+      title,
+      message,
+      type: selectedTemplate.type as SimpleNotificationType,
+      channels: Object.entries(selectedTemplate.channels)
+        .filter(([, enabled]) => enabled)
+        .map(([channel]) => {
+          if (channel === 'email') return 'email' as const;
+          if (channel === 'whatsapp' || channel === 'sms') return 'whatsapp' as const;
+          return 'app' as const;
+        })
+        .filter((channel, index, array) => array.indexOf(channel) === index)
+    }));
+
+    setShowTemplateDialog(false);
+    setSelectedTemplate(null);
+  };
 
   // Filtrar destinatarios
   const filteredRecipients = recipients.filter(recipient => {
@@ -166,6 +252,7 @@ export const SimpleNotificationSender: React.FC = () => {
           channels: [],
           recipientIds: []
         });
+        setTemplateVariables({});
       }
     }
   };
@@ -306,6 +393,33 @@ export const SimpleNotificationSender: React.FC = () => {
                            type === 'success' ? 'Éxito' :
                            type === 'warning' ? 'Advertencia' : 'Error'}
                         </Typography>
+                      </Box>
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+
+              {/* Selector de Plantilla */}
+              <FormControl fullWidth>
+                <InputLabel>Usar Plantilla (Opcional)</InputLabel>
+                <Select
+                  value=""
+                  onChange={(e) => {
+                    const template = templates.find(t => t.id === e.target.value);
+                    if (template) handleTemplateSelect(template);
+                  }}
+                  sx={{ borderRadius: 3 }}
+                >
+                  <MenuItem value="">
+                    <em>Sin plantilla</em>
+                  </MenuItem>
+                  {templates.map((template) => (
+                    <MenuItem key={template.id} value={template.id}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Box sx={{ color: typeColors[template.type as SimpleNotificationType] || '#6366f1' }}>
+                          {typeIcons[template.type as SimpleNotificationType] || <Info />}
+                        </Box>
+                        <Typography>{template.name}</Typography>
                       </Box>
                     </MenuItem>
                   ))}
@@ -646,6 +760,122 @@ export const SimpleNotificationSender: React.FC = () => {
             disabled={!isFormValid || sending}
           >
             Enviar Ahora
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Dialog de Edición de Variables de Plantilla */}
+      <Dialog
+        open={showTemplateDialog}
+        onClose={() => setShowTemplateDialog(false)}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <Avatar sx={{ bgcolor: '#6366f1' }}>
+              <Edit />
+            </Avatar>
+            Editar Variables de la Plantilla
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          {selectedTemplate && (
+            <Stack spacing={3} sx={{ mt: 2 }}>
+              <Alert severity="info" sx={{ borderRadius: 3 }}>
+                <Typography variant="body2" sx={{ mb: 1 }}>
+                  <strong>Plantilla:</strong> {selectedTemplate.name}
+                </Typography>
+                <Typography variant="caption" sx={{ display: 'block' }}>
+                  Completa los valores de las variables para personalizar la notificación
+                </Typography>
+              </Alert>
+
+              {/* Vista previa de la plantilla original */}
+              <Box>
+                <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
+                  Plantilla Original:
+                </Typography>
+                <Paper sx={{ p: 2, bgcolor: '#f8fafc', borderRadius: 2 }}>
+                  <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
+                    {selectedTemplate.title}
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: '#64748b' }}>
+                    {selectedTemplate.message}
+                  </Typography>
+                </Paper>
+              </Box>
+
+              {/* Campos para editar variables */}
+              {Object.keys(templateVariables).length > 0 && (
+                <Box>
+                  <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 600 }}>
+                    Variables a Reemplazar:
+                  </Typography>
+                  <Stack spacing={2}>
+                    {Object.keys(templateVariables).map((varName) => (
+                      <TextField
+                        key={varName}
+                        fullWidth
+                        label={varName.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                        value={templateVariables[varName]}
+                        onChange={(e) => setTemplateVariables(prev => ({
+                          ...prev,
+                          [varName]: e.target.value
+                        }))}
+                        placeholder={`Ingresa el valor para ${varName}`}
+                        sx={{ '& .MuiOutlinedInput-root': { borderRadius: 3 } }}
+                        helperText={`Variable: {{${varName}}}`}
+                      />
+                    ))}
+                  </Stack>
+                </Box>
+              )}
+
+              {/* Vista previa con variables reemplazadas */}
+              <Box>
+                <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
+                  Vista Previa:
+                </Typography>
+                <Paper sx={{ p: 2, bgcolor: '#f0fdf4', border: '1px solid #86efac', borderRadius: 2 }}>
+                  <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
+                    {(() => {
+                      let title = selectedTemplate.title;
+                      Object.entries(templateVariables).forEach(([key, value]) => {
+                        const regex = new RegExp(`\\{\\{${key}\\}\\}`, 'g');
+                        title = title.replace(regex, value || `[${key}]`);
+                      });
+                      return title;
+                    })()}
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: '#64748b' }}>
+                    {(() => {
+                      let message = selectedTemplate.message;
+                      Object.entries(templateVariables).forEach(([key, value]) => {
+                        const regex = new RegExp(`\\{\\{${key}\\}\\}`, 'g');
+                        message = message.replace(regex, value || `[${key}]`);
+                      });
+                      return message;
+                    })()}
+                  </Typography>
+                </Paper>
+              </Box>
+            </Stack>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setShowTemplateDialog(false)}>
+            Cancelar
+          </Button>
+          <Button
+            onClick={applyTemplate}
+            variant="contained"
+            startIcon={<CheckCircle />}
+            sx={{
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            }}
+          >
+            Aplicar Plantilla
           </Button>
         </DialogActions>
       </Dialog>
