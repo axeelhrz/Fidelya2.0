@@ -16,7 +16,10 @@ import {
   Tag,
   Clock,
   Users,
-  Package
+  Package,
+  Globe,
+  Building2,
+  UserCheck
 } from 'lucide-react';
 import { Timestamp } from 'firebase/firestore';
 import { BeneficiosService } from '@/services/beneficios.service';
@@ -50,8 +53,13 @@ export const BeneficioForm: React.FC<BeneficioFormProps> = ({
     limitePorSocio: '',
     limiteTotal: '',
     condiciones: '',
-    destacado: false
+    destacado: false,
+    tipoAcceso: 'publico' as 'publico' | 'asociacion' | 'directo',
+    asociacionesSeleccionadas: [] as string[]
   });
+
+  const [asociacionesDisponibles, setAsociacionesDisponibles] = useState<Array<{ id: string; nombre: string }>>([]);
+  const [loadingAsociaciones, setLoadingAsociaciones] = useState(false);
 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -59,6 +67,44 @@ export const BeneficioForm: React.FC<BeneficioFormProps> = ({
     setMounted(true);
     return () => setMounted(false);
   }, []);
+
+  // Cargar asociaciones vinculadas al comercio
+  useEffect(() => {
+    const cargarAsociaciones = async () => {
+      if (!comercioId) return;
+      
+      try {
+        setLoadingAsociaciones(true);
+        const { comercioService } = await import('@/services/comercio.service');
+        const comercio = await comercioService.getComercioById(comercioId);
+        
+        if (comercio && comercio.asociacionesVinculadas && comercio.asociacionesVinculadas.length > 0) {
+          // Obtener información de cada asociación
+          const { collection, getDocs, query, where } = await import('firebase/firestore');
+          const { db } = await import('@/lib/firebase');
+          
+          const asociacionesQuery = query(
+            collection(db, 'asociaciones'),
+            where('__name__', 'in', comercio.asociacionesVinculadas.slice(0, 10)) // Firestore limit
+          );
+          
+          const snapshot = await getDocs(asociacionesQuery);
+          const asociaciones = snapshot.docs.map(doc => ({
+            id: doc.id,
+            nombre: doc.data().nombre || 'Asociación sin nombre'
+          }));
+          
+          setAsociacionesDisponibles(asociaciones);
+        }
+      } catch (error) {
+        console.error('Error cargando asociaciones:', error);
+      } finally {
+        setLoadingAsociaciones(false);
+      }
+    };
+    
+    cargarAsociaciones();
+  }, [comercioId]);
 
   useEffect(() => {
     if (isOpen) {
@@ -116,7 +162,9 @@ export const BeneficioForm: React.FC<BeneficioFormProps> = ({
         limitePorSocio: beneficio.limitePorSocio?.toString() || '',
         limiteTotal: beneficio.limiteTotal?.toString() || '',
         condiciones: beneficio.condiciones || '',
-        destacado: beneficio.destacado || false
+        destacado: beneficio.destacado || false,
+        tipoAcceso: beneficio.tipoAcceso || 'publico',
+        asociacionesSeleccionadas: beneficio.asociacionesDisponibles || []
       });
     } else {
       // Valores por defecto para nuevo beneficio
@@ -135,7 +183,9 @@ export const BeneficioForm: React.FC<BeneficioFormProps> = ({
         limitePorSocio: '',
         limiteTotal: '',
         condiciones: '',
-        destacado: false
+        destacado: false,
+        tipoAcceso: 'publico',
+        asociacionesSeleccionadas: []
       });
     }
   }, [beneficio]);
@@ -189,7 +239,9 @@ export const BeneficioForm: React.FC<BeneficioFormProps> = ({
         limitePorSocio: formData.limitePorSocio ? parseInt(formData.limitePorSocio) : undefined,
         limiteTotal: formData.limiteTotal ? parseInt(formData.limiteTotal) : undefined,
         condiciones: formData.condiciones.trim() || undefined,
-        destacado: formData.destacado
+        destacado: formData.destacado,
+        tipoAcceso: formData.tipoAcceso,
+        asociacionesDisponibles: formData.tipoAcceso === 'asociacion' ? formData.asociacionesSeleccionadas : []
       };
 
       if (beneficio?.id) {
@@ -222,10 +274,24 @@ export const BeneficioForm: React.FC<BeneficioFormProps> = ({
       limitePorSocio: '',
       limiteTotal: '',
       condiciones: '',
-      destacado: false
+      destacado: false,
+      tipoAcceso: 'publico',
+      asociacionesSeleccionadas: []
     });
     setErrors({});
     onClose();
+  };
+
+  const handleAsociacionToggle = (asociacionId: string) => {
+    setFormData(prev => {
+      const isSelected = prev.asociacionesSeleccionadas.includes(asociacionId);
+      return {
+        ...prev,
+        asociacionesSeleccionadas: isSelected
+          ? prev.asociacionesSeleccionadas.filter(id => id !== asociacionId)
+          : [...prev.asociacionesSeleccionadas, asociacionId]
+      };
+    });
   };
 
   if (!mounted) return null;
@@ -503,6 +569,152 @@ export const BeneficioForm: React.FC<BeneficioFormProps> = ({
                         />
                       </div>
                       <p className="mt-1 text-xs text-gray-500">Máximo total de usos para este beneficio</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Tipo de Acceso */}
+                <div className="space-y-6">
+                  <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                    <UserCheck className="w-5 h-5 text-purple-500" />
+                    Tipo de Acceso
+                  </h3>
+                  
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-3">
+                        ¿Quién puede acceder a este beneficio? *
+                      </label>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        {/* Opción Público */}
+                        <button
+                          type="button"
+                          onClick={() => setFormData({ ...formData, tipoAcceso: 'publico', asociacionesSeleccionadas: [] })}
+                          className={`p-4 border-2 rounded-xl transition-all ${
+                            formData.tipoAcceso === 'publico'
+                              ? 'border-blue-500 bg-blue-50'
+                              : 'border-gray-200 hover:border-gray-300'
+                          }`}
+                        >
+                          <div className="flex flex-col items-center gap-2">
+                            <Globe className={`w-8 h-8 ${formData.tipoAcceso === 'publico' ? 'text-blue-500' : 'text-gray-400'}`} />
+                            <span className={`font-medium ${formData.tipoAcceso === 'publico' ? 'text-blue-700' : 'text-gray-700'}`}>
+                              Público
+                            </span>
+                            <span className="text-xs text-gray-500 text-center">
+                              Disponible para todos los usuarios
+                            </span>
+                          </div>
+                        </button>
+
+                        {/* Opción Asociación */}
+                        <button
+                          type="button"
+                          onClick={() => setFormData({ ...formData, tipoAcceso: 'asociacion' })}
+                          className={`p-4 border-2 rounded-xl transition-all ${
+                            formData.tipoAcceso === 'asociacion'
+                              ? 'border-purple-500 bg-purple-50'
+                              : 'border-gray-200 hover:border-gray-300'
+                          }`}
+                        >
+                          <div className="flex flex-col items-center gap-2">
+                            <Building2 className={`w-8 h-8 ${formData.tipoAcceso === 'asociacion' ? 'text-purple-500' : 'text-gray-400'}`} />
+                            <span className={`font-medium ${formData.tipoAcceso === 'asociacion' ? 'text-purple-700' : 'text-gray-700'}`}>
+                              Asociación
+                            </span>
+                            <span className="text-xs text-gray-500 text-center">
+                              Solo para socios de asociaciones específicas
+                            </span>
+                          </div>
+                        </button>
+
+                        {/* Opción Directo */}
+                        <button
+                          type="button"
+                          onClick={() => setFormData({ ...formData, tipoAcceso: 'directo', asociacionesSeleccionadas: [] })}
+                          className={`p-4 border-2 rounded-xl transition-all ${
+                            formData.tipoAcceso === 'directo'
+                              ? 'border-green-500 bg-green-50'
+                              : 'border-gray-200 hover:border-gray-300'
+                          }`}
+                        >
+                          <div className="flex flex-col items-center gap-2">
+                            <Users className={`w-8 h-8 ${formData.tipoAcceso === 'directo' ? 'text-green-500' : 'text-gray-400'}`} />
+                            <span className={`font-medium ${formData.tipoAcceso === 'directo' ? 'text-green-700' : 'text-gray-700'}`}>
+                              Directo
+                            </span>
+                            <span className="text-xs text-gray-500 text-center">
+                              Para clientes directos del comercio
+                            </span>
+                          </div>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Selector de Asociaciones (solo si tipo es 'asociacion') */}
+                    {formData.tipoAcceso === 'asociacion' && (
+                      <div className="mt-4 p-4 bg-purple-50 rounded-xl border border-purple-200">
+                        <label className="block text-sm font-medium text-gray-700 mb-3">
+                          Selecciona las asociaciones *
+                        </label>
+                        
+                        {loadingAsociaciones ? (
+                          <div className="flex items-center justify-center py-4">
+                            <div className="w-6 h-6 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
+                            <span className="ml-2 text-sm text-gray-600">Cargando asociaciones...</span>
+                          </div>
+                        ) : asociacionesDisponibles.length === 0 ? (
+                          <div className="text-center py-4">
+                            <AlertCircle className="w-8 h-8 text-orange-500 mx-auto mb-2" />
+                            <p className="text-sm text-gray-600">
+                              No tienes asociaciones vinculadas. Contacta con una asociación para vincular tu comercio.
+                            </p>
+                          </div>
+                        ) : (
+                          <div className="space-y-2 max-h-48 overflow-y-auto">
+                            {asociacionesDisponibles.map((asociacion) => (
+                              <label
+                                key={asociacion.id}
+                                className="flex items-center gap-3 p-3 bg-white rounded-lg border border-gray-200 hover:border-purple-300 cursor-pointer transition-colors"
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={formData.asociacionesSeleccionadas.includes(asociacion.id)}
+                                  onChange={() => handleAsociacionToggle(asociacion.id)}
+                                  className="w-5 h-5 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+                                />
+                                <span className="text-sm font-medium text-gray-700">
+                                  {asociacion.nombre}
+                                </span>
+                              </label>
+                            ))}
+                          </div>
+                        )}
+                        
+                        {formData.asociacionesSeleccionadas.length > 0 && (
+                          <p className="mt-2 text-xs text-purple-600">
+                            {formData.asociacionesSeleccionadas.length} asociación(es) seleccionada(s)
+                          </p>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Descripción del tipo seleccionado */}
+                    <div className="p-3 bg-gray-50 rounded-lg border border-gray-200">
+                      <div className="flex items-start gap-2">
+                        <Info className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
+                        <div className="text-sm text-gray-600">
+                          {formData.tipoAcceso === 'publico' && (
+                            <p>Este beneficio estará disponible para <strong>todos los usuarios</strong> de la plataforma, sin restricciones.</p>
+                          )}
+                          {formData.tipoAcceso === 'asociacion' && (
+                            <p>Este beneficio solo estará disponible para <strong>socios de las asociaciones seleccionadas</strong>.</p>
+                          )}
+                          {formData.tipoAcceso === 'directo' && (
+                            <p>Este beneficio estará disponible para <strong>clientes directos</strong> de tu comercio y socios sin asociación.</p>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
