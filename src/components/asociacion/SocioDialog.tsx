@@ -22,8 +22,7 @@ import {
   AlertCircle,
   Loader2,
   Lock,
-  Shield,
-  Save
+  Shield
 } from 'lucide-react';
 import { Socio, SocioFormData } from '@/types/socio';
 import { Timestamp } from 'firebase/firestore';
@@ -195,14 +194,34 @@ const SimpleFormField = React.memo(({
             valueAsNumber: field.type === 'number' ? true : false,
             onChange: field.name === 'telefono' && setValue ? (e) => {
               let value = e.target.value;
-              // Ensure the value always starts with +54
-              if (!value.startsWith('+54')) {
-                value = '+54 ' + value.replace(/^\+54\s*/, '');
+              
+              // Remover espacios para procesamiento
+              const cleanValue = value.replace(/\s+/g, '');
+              
+              // Asegurar que comience con +54
+              if (!cleanValue.startsWith('+54')) {
+                // Si el usuario ingresa solo números, agregar +54
+                const numbersOnly = cleanValue.replace(/\D/g, '');
+                value = '+54 9 ' + numbersOnly;
+              } else {
+                // Si ya tiene +54, verificar si tiene el 9
+                const afterCountryCode = cleanValue.substring(3); // Después de +54
+                
+                if (!afterCountryCode.startsWith('9')) {
+                  // Agregar el 9 automáticamente
+                  value = '+54 9 ' + afterCountryCode;
+                } else {
+                  // Ya tiene el 9, solo formatear
+                  const withoutCountryAnd9 = afterCountryCode.substring(1); // Después del 9
+                  value = '+54 9 ' + withoutCountryAnd9;
+                }
               }
-              // Prevent deletion of +54 prefix
-              if (value.length < 4) {
-                value = '+54 ';
+              
+              // Prevenir que se borre el prefijo +54 9
+              if (value.length < 7) {
+                value = '+54 9 ';
               }
+              
               setValue('telefono', value);
             } : undefined
           })}
@@ -210,11 +229,21 @@ const SimpleFormField = React.memo(({
           placeholder={field.placeholder}
           className={getFieldClasses()}
           onFocus={field.name === 'telefono' ? (e) => {
-            // Ensure cursor is after the prefix
-            if (e.target.value === '+54 ') {
+            // Asegurar que el cursor esté después del prefijo +54 9
+            const currentValue = e.target.value;
+            if (currentValue === '+54 9 ' || currentValue.length <= 7) {
               setTimeout(() => {
-                e.target.setSelectionRange(4, 4);
+                e.target.setSelectionRange(7, 7);
               }, 0);
+            }
+          } : undefined}
+          onKeyDown={field.name === 'telefono' ? (e) => {
+            // Prevenir que se borre el prefijo +54 9
+            const input = e.currentTarget;
+            const cursorPos = input.selectionStart || 0;
+            
+            if ((e.key === 'Backspace' || e.key === 'Delete') && cursorPos <= 7) {
+              e.preventDefault();
             }
           } : undefined}
         />
@@ -240,7 +269,7 @@ const SimpleFormField = React.memo(({
       )}
       {field.name === 'telefono' && (
         <p className="text-xs text-gray-500">
-          Formato: +54 [código área] [número] (ej: +54 11 12345678)
+          Formato: +54 9 [código área] [número] (ej: +54 9 11 12345678)
         </p>
       )}
     </div>
@@ -303,7 +332,6 @@ export const SocioDialog: React.FC<SocioDialogProps> = ({
     formState: { errors },
     watch,
     trigger,
-    getValues,
     setValue
   } = useForm<SocioFormType>({
     resolver: isEditing
@@ -326,7 +354,7 @@ export const SocioDialog: React.FC<SocioDialogProps> = ({
           nombre: '',
           email: '',
           estado: 'activo',
-          telefono: '+54 ',
+          telefono: '+54 9 ',
           dni: '',
           direccion: '',
           fechaNacimiento: '',
@@ -341,7 +369,23 @@ export const SocioDialog: React.FC<SocioDialogProps> = ({
     if (open) {
       if (socio) {
         const phoneValue = socio.telefono || '';
-        const formattedPhone = phoneValue.startsWith('+54') ? phoneValue : (phoneValue ? `+54 ${phoneValue}` : '+54 ');
+        let formattedPhone = '';
+        
+        if (phoneValue.startsWith('+54')) {
+          // Si ya tiene +54, verificar si tiene el 9
+          const afterCountryCode = phoneValue.substring(3);
+          if (afterCountryCode.startsWith('9')) {
+            formattedPhone = phoneValue;
+          } else {
+            // Agregar el 9 si no lo tiene
+            formattedPhone = `+54 9 ${afterCountryCode}`;
+          }
+        } else if (phoneValue) {
+          // Si no tiene +54, agregarlo con el 9
+          formattedPhone = `+54 9 ${phoneValue}`;
+        } else {
+          formattedPhone = '+54 9 ';
+        }
         
         reset({
           nombre: socio.nombre || '',
@@ -357,7 +401,7 @@ export const SocioDialog: React.FC<SocioDialogProps> = ({
           nombre: '',
           email: '',
           estado: 'activo',
-          telefono: '+54 ',
+          telefono: '+54 9 ',
           dni: '',
           direccion: '',
           fechaNacimiento: '',
@@ -397,34 +441,6 @@ export const SocioDialog: React.FC<SocioDialogProps> = ({
   const goToStep = useCallback((stepIndex: number) => {
     setCurrentStep(stepIndex);
   }, []);
-
-  // Función para guardar cambios en modo edición sin validación completa
-  const handleQuickSave = useCallback(async () => {
-    if (!isEditing) return;
-
-    try {
-      setIsSubmitting(true);
-      
-      const currentValues = getValues();
-      const formData: SocioFormData = {
-        nombre: currentValues.nombre || socio?.nombre || '',
-        email: currentValues.email || socio?.email || '',
-        estado: currentValues.estado || socio?.estado || 'activo',
-        telefono: currentValues.telefono || '',
-        dni: currentValues.dni || '',
-        direccion: currentValues.direccion || '',
-        fechaNacimiento: currentValues.fechaNacimiento ? new Date(currentValues.fechaNacimiento) : undefined,
-        password: currentValues.password || '',
-      };
-
-      await onSave(formData);
-      onClose();
-    } catch (error) {
-      console.error('Error al guardar socio:', error);
-    } finally {
-      setIsSubmitting(false);
-    }
-  }, [isEditing, getValues, socio, onSave, onClose]);
 
   // Envío del formulario completo
   const onSubmit = useCallback(async (
@@ -524,31 +540,12 @@ export const SocioDialog: React.FC<SocioDialogProps> = ({
                       </p>
                     </div>
                   </div>
-                  <div className="flex items-center space-x-2">
-                    {/* Botón de guardado rápido para edición */}
-                    {isEditing && (
-                      <button
-                        type="button"
-                        onClick={handleQuickSave}
-                        disabled={isSubmitting || loading}
-                        className="flex items-center space-x-2 px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg transition-colors disabled:opacity-50"
-                        title="Guardar cambios actuales"
-                      >
-                        {isSubmitting || loading ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : (
-                          <Save className="w-4 h-4" />
-                        )}
-                        <span className="hidden sm:inline">Guardar</span>
-                      </button>
-                    )}
-                    <button
-                      onClick={onClose}
-                      className="p-2 hover:bg-white/20 rounded-lg transition-colors"
-                    >
-                      <X className="w-5 h-5 text-white" />
-                    </button>
-                  </div>
+                  <button
+                    onClick={onClose}
+                    className="p-2 hover:bg-white/20 rounded-lg transition-colors"
+                  >
+                    <X className="w-5 h-5 text-white" />
+                  </button>
                 </div>
 
                 {/* Navegación por iconos */}
@@ -647,28 +644,6 @@ export const SocioDialog: React.FC<SocioDialogProps> = ({
                     >
                       Cancelar
                     </button>
-
-                    {/* En modo edición, mostrar botón de guardado rápido también aquí */}
-                    {isEditing && (
-                      <button
-                        type="button"
-                        onClick={handleQuickSave}
-                        disabled={isSubmitting || loading}
-                        className="flex items-center space-x-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                      >
-                        {isSubmitting || loading ? (
-                          <>
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                            <span>Guardando...</span>
-                          </>
-                        ) : (
-                          <>
-                            <Save className="w-4 h-4" />
-                            <span>Guardar Cambios</span>
-                          </>
-                        )}
-                      </button>
-                    )}
 
                     {currentStep < FORM_STEPS.length - 1 ? (
                       <button

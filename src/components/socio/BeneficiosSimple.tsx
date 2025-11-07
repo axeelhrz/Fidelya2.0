@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { useBeneficiosSocio } from '@/hooks/useBeneficiosSocio';
+import { useBeneficioValidation } from '@/hooks/useBeneficioValidation';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -48,16 +49,21 @@ export const BeneficiosSimple: React.FC = () => {
     loading,
     error,
     estadisticas,
-    usarBeneficio,
     refrescar
   } = useBeneficiosSocio();
+
+  const { validarBeneficio, loading: validationLoading } = useBeneficioValidation();
 
   const [activeTab, setActiveTab] = useState<'beneficios' | 'usados'>('beneficios');
   const [refreshing, setRefreshing] = useState(false);
 
   const handleUseBenefit = async (beneficioId: string, comercioId: string) => {
-    const result = await usarBeneficio(beneficioId, comercioId);
-    return result;
+    const result = await validarBeneficio(beneficioId, comercioId);
+    if (result.success) {
+      // Recargar datos después de validación exitosa
+      await refrescar();
+    }
+    return result.success;
   };
 
   const handleRefresh = async () => {
@@ -364,13 +370,22 @@ export const BeneficiosSimple: React.FC = () => {
                         {/* Botón de acción mejorado */}
                         <motion.button
                           onClick={() => handleUseBenefit(beneficio.id, beneficio.comercioId)}
-                          disabled={loading}
+                          disabled={loading || validationLoading}
                           whileHover={{ scale: 1.02 }}
                           whileTap={{ scale: 0.98 }}
-                          className="w-full bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white py-3 rounded-2xl font-semibold transition-all duration-300 flex items-center justify-center space-x-2 shadow-lg hover:shadow-xl"
+                          className="w-full bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white py-3 rounded-2xl font-semibold transition-all duration-300 flex items-center justify-center space-x-2 shadow-lg hover:shadow-xl disabled:opacity-50"
                         >
-                          <Sparkles size={16} />
-                          <span>Usar Beneficio</span>
+                          {validationLoading ? (
+                            <>
+                              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                              <span>Validando...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Sparkles size={16} />
+                              <span>Validar Beneficio</span>
+                            </>
+                          )}
                         </motion.button>
                       </motion.div>
                     ))}

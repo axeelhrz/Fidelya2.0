@@ -59,6 +59,7 @@ import {
 import { Socio, SocioStats } from '@/types/socio';
 import Papa from 'papaparse';
 import toast from 'react-hot-toast';
+import * as XLSX from 'xlsx';
 
 interface DataExportSectionProps {
   socios: Socio[];
@@ -512,7 +513,7 @@ export const DataExportSection: React.FC<DataExportSectionProps> = ({
   loading
 }) => {
   const [activeStep, setActiveStep] = useState(0);
-  const [selectedFormat, setSelectedFormat] = useState<string>('csv');
+   const [selectedFormat, setSelectedFormat] = useState<string>('excel');
   const [selectedFields, setSelectedFields] = useState<string[]>(['nombre', 'email', 'estado', 'creadoEn']);
   const [dateRange, setDateRange] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -531,16 +532,17 @@ export const DataExportSection: React.FC<DataExportSectionProps> = ({
       recommended: true,
       supportsBulk: true
     },
-    {
-      id: 'excel',
-      name: 'Excel Workbook',
-      description: 'Archivo Excel con formato avanzado, múltiples hojas y estadísticas',
-      icon: <Description sx={{ fontSize: 28 }} />,
-      color: '#059669',
-      fileExtension: '.xlsx',
-      features: ['Formato Avanzado', 'Múltiples Hojas', 'Estadísticas', 'Gráficos'],
-      supportsBulk: true
-    },
+     {
+       id: 'excel',
+       name: 'Excel Workbook',
+       description: 'Archivo Excel con formato avanzado, múltiples hojas y estadísticas',
+       icon: <Description sx={{ fontSize: 28 }} />,
+       color: '#059669',
+       fileExtension: '.xlsx',
+       features: ['Formato Avanzado', 'Múltiples Hojas', 'Estadísticas', 'Gráficos'],
+       recommended: true,
+       supportsBulk: true
+     },
     {
       id: 'pdf',
       name: 'PDF Report',
@@ -912,24 +914,35 @@ export const DataExportSection: React.FC<DataExportSectionProps> = ({
           downloadFile(jsonData, filename, 'application/json');
           break;
 
-        case 'excel':
-          // For Excel, we'll create a CSV for now (in a real app, you'd use a library like xlsx)
-          const excelHeaders = selectedFields.map(field => {
-            const fieldData = exportFields.find(f => f.id === field);
-            return fieldData?.label || field;
-          });
+         case 'excel':
+           // Crear archivo Excel con XLSX
+           const excelHeaders = selectedFields.map(field => {
+             const fieldData = exportFields.find(f => f.id === field);
+             return fieldData?.label || field;
+           });
 
-          const excelContent = Papa.unparse({
-            fields: excelHeaders,
-            data: exportData.map(row => excelHeaders.map((_, index) => {
-              const fieldId = selectedFields[index];
-              return row[fieldId] || '';
-            }))
-          });
+           // Preparar datos para Excel
+           const excelDataFormatted = exportData.map(row => {
+             const excelRow: Record<string, unknown> = {};
+             selectedFields.forEach((fieldId, index) => {
+               excelRow[excelHeaders[index]] = row[fieldId] || '';
+             });
+             return excelRow;
+           });
 
-          downloadFile(excelContent, filename.replace('.xlsx', '.csv'), 'text/csv;charset=utf-8;');
-          toast('Archivo Excel exportado como CSV. Para funcionalidad completa de Excel, considera usar una biblioteca especializada.');
-          break;
+           // Crear workbook
+           const ws = XLSX.utils.json_to_sheet(excelDataFormatted);
+           const wb = XLSX.utils.book_new();
+           XLSX.utils.book_append_sheet(wb, ws, 'Socios');
+
+           // Aplicar estilos básicos
+           const colWidths = excelHeaders.map(() => 20);
+           ws['!cols'] = colWidths.map(width => ({ wch: width }));
+
+           // Descargar archivo
+           XLSX.writeFile(wb, filename);
+           toast.success(`Archivo ${filename} descargado correctamente`);
+           break;
 
         case 'pdf':
           // For PDF, we'll create a simple text report (in a real app, you'd use a PDF library)

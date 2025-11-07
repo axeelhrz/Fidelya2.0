@@ -194,13 +194,16 @@ export class SimpleNotificationService {
     console.log('📱 WhatsApp (Twilio via API):', this.whatsappService.getConfigInfo());
   }
 
-  // Obtener información de destinatarios
+  // Obtener información de destinatarios - SOLO SOCIOS ACTIVOS
   async getRecipients(): Promise<RecipientInfo[]> {
     try {
       const recipients: RecipientInfo[] = [];
 
-      // Obtener socios
-      const sociosQuery = query(collection(db, 'socios'));
+      // Obtener SOLO socios activos
+      const sociosQuery = query(
+        collection(db, 'socios'),
+        where('estado', '==', 'activo')
+      );
       const sociosSnapshot = await getDocs(sociosQuery);
       sociosSnapshot.forEach(doc => {
         const data = doc.data();
@@ -213,19 +216,7 @@ export class SimpleNotificationService {
         });
       });
 
-      // Obtener comercios
-      const comerciosQuery = query(collection(db, 'comercios'));
-      const comerciosSnapshot = await getDocs(comerciosQuery);
-      comerciosSnapshot.forEach(doc => {
-        const data = doc.data();
-        recipients.push({
-          id: doc.id,
-          name: data.nombre || 'Sin nombre',
-          email: data.email,
-          phone: data.telefono,
-          type: 'comercio'
-        });
-      });
+      console.log(`✅ Obtenidos ${recipients.length} socios activos para notificaciones`);
 
       return recipients;
     } catch (error) {

@@ -34,6 +34,22 @@ interface BeneficioFormProps {
   comercioId: string;
 }
 
+interface FormDataState {
+  titulo: string;
+  descripcion: string;
+  categoria: string;
+  tipo: 'porcentaje' | 'monto_fijo' | 'producto_gratis';
+  descuento: string;
+  fechaInicio: string;
+  fechaFin: string;
+  limitePorSocio: string;
+  limiteTotal: string;
+  condiciones: string;
+  destacado: boolean;
+  tipoAcceso: 'publico' | 'asociacion' | 'directo';
+  asociacionesSeleccionadas: string[];
+}
+
 export const BeneficioForm: React.FC<BeneficioFormProps> = ({
   isOpen,
   onClose,
@@ -43,11 +59,11 @@ export const BeneficioForm: React.FC<BeneficioFormProps> = ({
   const [mounted, setMounted] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<FormDataState>({
     titulo: '',
     descripcion: '',
     categoria: '',
-    tipo: 'porcentaje' as 'porcentaje' | 'monto_fijo' | 'producto_gratis',
+    tipo: 'porcentaje',
     descuento: '',
     fechaInicio: '',
     fechaFin: '',
@@ -55,8 +71,8 @@ export const BeneficioForm: React.FC<BeneficioFormProps> = ({
     limiteTotal: '',
     condiciones: '',
     destacado: false,
-    tipoAcceso: 'publico' as 'publico' | 'asociacion' | 'directo',
-    asociacionesSeleccionadas: [] as string[]
+    tipoAcceso: 'publico',
+    asociacionesSeleccionadas: []
   });
 
   const [asociacionesDisponibles, setAsociacionesDisponibles] = useState<Array<{ id: string; nombre: string; logo?: string }>>([]);
@@ -596,7 +612,7 @@ export const BeneficioForm: React.FC<BeneficioFormProps> = ({
                       <label className="block text-sm font-medium text-gray-700 mb-3">
                         ¿Quién puede acceder a este beneficio? *
                       </label>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {/* Opción Público */}
                         <button
                           type="button"
@@ -635,27 +651,6 @@ export const BeneficioForm: React.FC<BeneficioFormProps> = ({
                             </span>
                             <span className="text-xs text-gray-500 text-center">
                               Solo para socios de asociaciones específicas
-                            </span>
-                          </div>
-                        </button>
-
-                        {/* Opción Directo */}
-                        <button
-                          type="button"
-                          onClick={() => setFormData({ ...formData, tipoAcceso: 'directo', asociacionesSeleccionadas: [] })}
-                          className={`p-4 border-2 rounded-xl transition-all ${
-                            formData.tipoAcceso === 'directo'
-                              ? 'border-green-500 bg-green-50'
-                              : 'border-gray-200 hover:border-gray-300'
-                          }`}
-                        >
-                          <div className="flex flex-col items-center gap-2">
-                            <Users className={`w-8 h-8 ${formData.tipoAcceso === 'directo' ? 'text-green-500' : 'text-gray-400'}`} />
-                            <span className={`font-medium ${formData.tipoAcceso === 'directo' ? 'text-green-700' : 'text-gray-700'}`}>
-                              Directo
-                            </span>
-                            <span className="text-xs text-gray-500 text-center">
-                              Para clientes directos del comercio
                             </span>
                           </div>
                         </button>
@@ -789,9 +784,6 @@ export const BeneficioForm: React.FC<BeneficioFormProps> = ({
                           )}
                           {formData.tipoAcceso === 'asociacion' && (
                             <p>Este beneficio solo estará disponible para <strong>socios de las asociaciones seleccionadas</strong>.</p>
-                          )}
-                          {formData.tipoAcceso === 'directo' && (
-                            <p>Este beneficio estará disponible para <strong>clientes directos</strong> de tu comercio y socios sin asociación.</p>
                           )}
                         </div>
                       </div>

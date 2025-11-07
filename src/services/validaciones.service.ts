@@ -513,6 +513,19 @@ class ValidacionesService {
         // No interrumpimos el flujo principal si falla el historial
       }
 
+      // NUEVO: Enviar notificación automática de beneficio usado
+      try {
+        await this.enviarNotificacionBeneficioUsado(
+          result.validacionData.socioId,
+          result.beneficioData.titulo,
+          result.comercioData.nombreComercio,
+          result.beneficioData.descuento,
+        );
+      } catch (notificationError) {
+        console.error('⚠️ Error enviando notificación de beneficio usado (no crítico):', notificationError);
+        // No interrumpimos el flujo principal si falla la notificación
+      }
+
       // NUEVO: Upsert del cliente en la colección de clientes del comercio
       try {
         const { ClienteService } = await import('../services/cliente.service');
@@ -967,6 +980,93 @@ class ValidacionesService {
     if (change > 10) return 'up';
     if (change < -10) return 'down';
     return 'stable';
+  }
+
+  /**
+   * NUEVO: Enviar notificación automática cuando se usa un beneficio
+   */
+  private async enviarNotificacionBeneficioUsado(
+    socioId: string,
+    beneficioTitulo: string,
+    comercioNombre: string,
+    descuento: number,
+  ): Promise<void> {
+    try {
+      console.log('📧 Enviando notificación de beneficio usado...');
+
+      // Importar servicios necesarios
+      const { notificationSchedulerService } = await import('./notification-scheduler.service');
+      const { notificationTemplatesService } = await import('./notification-templates.service');
+
+      // Obtener la plantilla de "Beneficio Usado"
+      const templates = await notificationTemplatesService.getTemplates();
+      const beneficioUsadoTemplate = templates.find(t => t.name === 'Beneficio Usado');
+
+      if (!beneficioUsadoTemplate) {
+        console.warn('⚠️ Plantilla "Beneficio Usado" no encontrada');
+        return;
+      }
+
+      // Preparar variables para la plantilla
+      const templateVariables = {
+        beneficio_titulo: beneficioTitulo,
+        comercio_nombre: comercioNombre,
+        descuento: descuento.toString(),
+      };
+
+      // Parsear la plantilla con las variables
+      const titulo = notificationTemplatesService.parseTemplate(
+        beneficioUsadoTemplate.title,
+        templateVariables
+      );
+      const mensaje = notificationTemplatesService.parseTemplate(
+        beneficioUsadoTemplate.message,
+        templateVariables
+      );
+
+      // Crear trigger para enviar la notificación
+      const triggerId = await notificationSchedulerService.createNotificationTrigger({
+        name: `Beneficio Usado - ${beneficioTitulo}`,
+        description: `Notificación automática cuando se usa el beneficio ${beneficioTitulo}`,
+        isActive: true,
+        trigger: {
+          type: 'event',
+          event: 'beneficio_usado',
+        },
+        action: {
+          type: 'send_notification',
+          notificationData: {
+            title: titulo,
+            message: mensaje,
+            type: 'success',
+            category: 'general',
+          },
+        },
+        execution: {
+          priority: 'medium',
+        },
+        createdBy: 'system',
+      });
+
+      // Ejecutar el trigger para enviar la notificación al socio
+      await notificationSchedulerService.triggerNotification(
+        triggerId,
+        {
+          beneficio_titulo: beneficioTitulo,
+          comercio_nombre: comercioNombre,
+          descuento: descuento,
+        },
+        socioId
+      );
+
+      // Actualizar el contador de uso de la plantilla
+      await notificationTemplatesService.updateTemplateUsage(beneficioUsadoTemplate.id);
+
+      console.log('✅ Notificación de beneficio usado enviada correctamente');
+    } catch (error) {
+      console.error('❌ Error enviando notificación de beneficio usado:', error);
+      // No lanzamos el error para no interrumpir el flujo principal
+    }
   }
 }
 

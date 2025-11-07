@@ -1,6 +1,13 @@
 /**
  * Phone Validator and Formatter for Argentina
  * Automatically adds +549 prefix for WhatsApp compatibility
+ * 
+ * Valid Argentine phone formats:
+ * - Local: 1112345678 (10 digits, Buenos Aires)
+ * - Local with 0: 01112345678 (11 digits with leading 0)
+ * - With 54: 5491112345678 (12 digits)
+ * - With +54: +5491112345678 (13 characters)
+ * - With 9: 91112345678 (11 digits, mobile indicator)
  */
 
 export interface PhoneValidationResult {
@@ -20,10 +27,22 @@ export function cleanPhoneNumber(phone: string): string {
 }
 
 /**
+ * Validate if input contains ONLY digits (after cleaning)
+ * This ensures no special characters are present
+ */
+export function containsOnlyDigits(phone: string): boolean {
+  if (!phone) return false;
+  const cleaned = cleanPhoneNumber(phone);
+  // After cleaning, should only have digits (no + sign)
+  return /^\d+$/.test(cleaned);
+}
+
+/**
  * Validate if a phone number is valid for WhatsApp
- * Valid formats:
- * - +549XXXXXXXXXX (11-13 digits after +549)
- * - Must start with +549 for Argentina
+ * Valid formats after formatting:
+ * - +549XXXXXXXXXX where X are digits
+ * - Total: +549 (4 chars) + 10-12 digits = 14-16 characters
+ * - Argentina mobile: +549 + area code (2-4 digits) + number (6-8 digits)
  */
 export function isValidWhatsAppPhone(phone: string): boolean {
   if (!phone) return false;
@@ -33,83 +52,81 @@ export function isValidWhatsAppPhone(phone: string): boolean {
   // Must start with +549 for Argentina
   if (!cleaned.startsWith('+549')) return false;
   
-  // Total length should be between 14-16 characters (+549 + 10-12 digits)
-  // Argentina mobile: +549 + area code (2-4 digits) + number (6-8 digits)
-  const totalLength = cleaned.length;
-  return totalLength >= 14 && totalLength <= 16;
+  // Extract digits after +549
+  const digitsAfterPrefix = cleaned.substring(4);
+  
+  // Must contain ONLY digits
+  if (!/^\d+$/.test(digitsAfterPrefix)) return false;
+  
+  // Must have exactly 10-12 digits after +549
+  // Argentina mobile: area code (2-4 digits) + number (6-8 digits)
+  const digitCount = digitsAfterPrefix.length;
+  return digitCount >= 10 && digitCount <= 12;
 }
 
 /**
  * Format phone number for Argentina with +549 prefix
  * Handles multiple input formats:
- * - 1112345678 -> +5491112345678
- * - 91112345678 -> +5491112345678
- * - 5491112345678 -> +5491112345678
- * - +5491112345678 -> +5491112345678
- * - 011 1234-5678 -> +5491112345678
- * - (011) 1234-5678 -> +5491112345678
+ * - 1112345678 -> +5491112345678 (10 digits, Buenos Aires)
+ * - 91112345678 -> +5491112345678 (11 digits with 9)
+ * - 5491112345678 -> +5491112345678 (12 digits with 54)
+ * - +5491112345678 -> +5491112345678 (already formatted)
+ * - 01112345678 -> +5491112345678 (11 digits with leading 0)
+ * - 3512345678 -> +54935112345678 (10 digits, Córdoba area)
  */
 export function formatPhoneForArgentina(phone: string): string {
   if (!phone) return '';
   
-  // Clean the phone number
+  // Clean the phone number - remove all non-digits
   let cleaned = cleanPhoneNumber(phone);
+  
+  if (!cleaned) return '';
   
   // Remove leading + if exists
   if (cleaned.startsWith('+')) {
     cleaned = cleaned.substring(1);
   }
   
-  // Case 1: Already has full format (549XXXXXXXXXX)
-  if (cleaned.startsWith('549') && cleaned.length >= 13) {
+  // Case 1: Already has full format (549XXXXXXXXXX) - 12 digits
+  if (cleaned.startsWith('549') && cleaned.length >= 12 && cleaned.length <= 14) {
     return '+' + cleaned;
   }
   
-  // Case 2: Has 54 prefix but missing 9 (54XXXXXXXXXX)
-  if (cleaned.startsWith('54') && !cleaned.startsWith('549')) {
-    // Check if next digit after 54 is 9 (area code starting with 9)
-    if (cleaned.length >= 3 && cleaned[2] === '9') {
-      // It's 54 + 9XX... so we need to insert 9 after 54
-      return '+54' + '9' + cleaned.substring(2);
-    }
-    // Otherwise just add 9 after 54
+  // Case 2: Has 54 prefix but missing 9 (54XXXXXXXXXX) - 11 digits
+  if (cleaned.startsWith('54') && !cleaned.startsWith('549') && cleaned.length >= 11) {
+    // Remove 54 and add 549
     return '+549' + cleaned.substring(2);
   }
   
-  // Case 3: Starts with 9 (mobile indicator) - 9XXXXXXXXXX
-  if (cleaned.startsWith('9') && cleaned.length >= 11) {
+  // Case 3: Starts with 9 (mobile indicator) - 9XXXXXXXXXX (11 digits)
+  if (cleaned.startsWith('9') && cleaned.length >= 10 && cleaned.length <= 12) {
     return '+549' + cleaned.substring(1);
   }
   
-  // Case 4: Starts with 0 (national format) - 01112345678
-  if (cleaned.startsWith('0')) {
+  // Case 4: Starts with 0 (national format) - 01112345678 (11 digits)
+  if (cleaned.startsWith('0') && cleaned.length >= 10 && cleaned.length <= 12) {
     // Remove leading 0
     cleaned = cleaned.substring(1);
-    
-    // If next digit is also 0 (00), remove it too (international prefix)
-    if (cleaned.startsWith('0')) {
-      cleaned = cleaned.substring(1);
-    }
-    
     return '+549' + cleaned;
   }
   
-  // Case 5: Just the local number without any prefix - 1112345678
-  if (cleaned.length >= 10) {
+  // Case 5: Just the local number without any prefix - 1112345678 (10 digits)
+  if (cleaned.length >= 10 && cleaned.length <= 11 && !cleaned.startsWith('0') && !cleaned.startsWith('5') && !cleaned.startsWith('9')) {
     return '+549' + cleaned;
   }
   
-  // Case 6: Short number (less than 10 digits) - might be incomplete
-  if (cleaned.length > 0) {
-    return '+549' + cleaned;
-  }
-  
+  // Case 6: Invalid - too short or too long
   return '';
 }
 
 /**
  * Validate and format phone number for Argentina
  * Returns validation result with formatted number
+ * 
+ * Validation rules:
+ * 1. Must contain ONLY digits (no special characters)
+ * 2. Must be 10-12 digits (after removing formatting)
+ * 3. Must be a valid Argentine phone number
  */
 export function validateAndFormatPhone(phone: string): PhoneValidationResult {
   const original = phone;
@@ -123,37 +140,51 @@ export function validateAndFormatPhone(phone: string): PhoneValidationResult {
     };
   }
   
+  // Check if contains only digits (after cleaning)
+  if (!containsOnlyDigits(phone)) {
+    return {
+      isValid: false,
+      formatted: '',
+      original,
+      error: 'El número debe contener solo dígitos (0-9), sin caracteres especiales'
+    };
+  }
+  
+  // Clean and check length
+  const cleaned = cleanPhoneNumber(phone);
+  
+  // Must have 10-12 digits (before adding +549)
+  if (cleaned.length < 10 || cleaned.length > 12) {
+    return {
+      isValid: false,
+      formatted: '',
+      original,
+      error: `El número debe tener entre 10 y 12 dígitos. Ingresaste ${cleaned.length} dígitos`
+    };
+  }
+  
   // Format the phone
   const formatted = formatPhoneForArgentina(phone);
+  
+  // If formatting failed (returned empty string)
+  if (!formatted) {
+    return {
+      isValid: false,
+      formatted: '',
+      original,
+      error: 'Formato de teléfono inválido. Ejemplo válido: 1112345678 o +5491112345678'
+    };
+  }
   
   // Validate the formatted phone
   const isValid = isValidWhatsAppPhone(formatted);
   
   if (!isValid) {
-    // Check specific error cases
-    if (formatted.length < 14) {
-      return {
-        isValid: false,
-        formatted,
-        original,
-        error: 'El número es demasiado corto. Debe tener al menos 10 dígitos'
-      };
-    }
-    
-    if (formatted.length > 16) {
-      return {
-        isValid: false,
-        formatted,
-        original,
-        error: 'El número es demasiado largo'
-      };
-    }
-    
     return {
       isValid: false,
       formatted,
       original,
-      error: 'Formato de teléfono inválido para WhatsApp'
+      error: 'Número de teléfono argentino inválido. Debe ser un número móvil válido'
     };
   }
   

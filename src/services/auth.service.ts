@@ -115,21 +115,39 @@ class AuthService {
       if (!userCredential.user.emailVerified) {
         console.warn('🔐 Email not verified for user:', email);
         
-        // NUEVO: Enviar automáticamente email de verificación si es necesario
+        // CRÍTICO: Enviar automáticamente email de verificación ANTES de retornar
         console.log('📧 Enviando automáticamente email de verificación...');
+        let emailSentSuccessfully = false;
+        
         try {
           await this.sendEmailVerificationWithRetry(userCredential.user);
           console.log('✅ Email de verificación enviado automáticamente');
+          emailSentSuccessfully = true;
         } catch (verificationError) {
-          console.warn('⚠️ Error enviando email de verificación automático:', verificationError);
-          // No fallar el login por esto, solo registrar el error
+          console.error('❌ Error enviando email de verificación automático:', verificationError);
+          // Intentar una última vez con configuración más simple
+          try {
+            console.log('🔄 Reintentando con configuración simple...');
+            await sendEmailVerification(userCredential.user);
+            console.log('✅ Email de verificación enviado en reintento simple');
+            emailSentSuccessfully = true;
+          } catch (finalError) {
+            console.error('❌ Fallo final al enviar email de verificación:', finalError);
+            // No fallar el login, pero registrar que no se envió
+          }
         }
         
         await this.signOut();
+        
+        // Retornar mensaje apropiado basado en si se envió el email
+        const errorMessage = emailSentSuccessfully 
+          ? 'Hemos enviado un enlace de verificación a tu correo electrónico. Revisa tu bandeja de entrada y haz clic en el enlace para verificar tu cuenta.'
+          : 'Tu email no está verificado. Hemos intentado enviar un enlace de verificación pero hubo un problema. Por favor, intenta reenviar el enlace desde la pantalla de verificación.';
+        
         return {
           success: false,
           requiresEmailVerification: true,
-          error: 'Hemos enviado un enlace de verificación a tu correo electrónico. Revisa tu bandeja de entrada y haz clic en el enlace para verificar tu cuenta.'
+          error: errorMessage
         };
       }
 
@@ -296,7 +314,22 @@ class AuthService {
       console.log('🔐 Firestore documents created successfully');
 
       // Send email verification with retry logic
-      await this.sendEmailVerificationWithRetry(userCredential.user);
+      console.log('📧 Sending email verification to new user...');
+      try {
+        await this.sendEmailVerificationWithRetry(userCredential.user);
+        console.log('✅ Email verification sent successfully to new user');
+      } catch (verificationError) {
+        console.error('❌ Error sending email verification to new user:', verificationError);
+        // Try one more time with simple method
+        try {
+          console.log('🔄 Attempting simple email verification send...');
+          await sendEmailVerification(userCredential.user);
+          console.log('✅ Simple email verification sent successfully');
+        } catch (finalError) {
+          console.error('❌ Final attempt to send email verification failed:', finalError);
+          // Don't fail registration, but log the error
+        }
+      }
 
       // Send welcome email for comercios and asociaciones
       if (role === 'comercio' || role === 'asociacion') {
@@ -339,7 +372,7 @@ class AuthService {
         requiresEmailVerification: true,
       };
     } catch (error: unknown) {
-      console.error('🔐 Registration error:', error);
+      console.error('❌ Registration error:', error);
 
       // If user was created but Firestore failed, clean up
       if (userCredential?.user) {
@@ -360,32 +393,44 @@ class AuthService {
 
   /**
    * Send email verification with retry logic
+   * MEJORADO: Reintentos más agresivos y mejor manejo de errores
    */
-  private async sendEmailVerificationWithRetry(user: User, maxRetries = 3): Promise<void> {
+  private async sendEmailVerificationWithRetry(user: User, maxRetries = 5): Promise<void> {
     let lastError: Error | null = null;
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        console.log(`🔐 Sending email verification (attempt ${attempt}/${maxRetries})...`);
+        console.log(`📧 Sending email verification (attempt ${attempt}/${maxRetries})...`);
+        console.log(`   User: ${user.email}`);
+        console.log(`   Email verified status: ${user.emailVerified}`);
+        
+        // Recargar usuario para obtener el estado más reciente
+        if (attempt > 1) {
+          console.log(`   Reloading user before attempt ${attempt}...`);
+          await reload(user);
+        }
         
         await sendEmailVerification(user, this.getEmailActionCodeSettings());
         
-        console.log('🔐 Email verification sent successfully');
+        console.log(`✅ Email verification sent successfully on attempt ${attempt}`);
         return;
       } catch (error) {
         lastError = error as Error;
-        console.warn(`🔐 Email verification attempt ${attempt} failed:`, error);
+        console.warn(`❌ Email verification attempt ${attempt} failed:`, error);
         
         if (attempt < maxRetries) {
-          // Wait before retrying (exponential backoff)
-          const delay = Math.pow(2, attempt) * 1000;
+          // Wait before retrying (exponential backoff, pero más corto)
+          const delay = Math.pow(1.5, attempt) * 500; // 750ms, 1125ms, 1687ms, etc.
+          console.log(`   Waiting ${delay}ms before retry...`);
           await new Promise(resolve => setTimeout(resolve, delay));
         }
       }
     }
 
     // If all retries failed, throw the last error
-    throw new Error(`Failed to send email verification after ${maxRetries} attempts: ${lastError?.message}`);
+    const errorMessage = `Failed to send email verification after ${maxRetries} attempts: ${lastError?.message}`;
+    console.error(`💥 ${errorMessage}`);
+    throw new Error(errorMessage);
   }
 
   /**

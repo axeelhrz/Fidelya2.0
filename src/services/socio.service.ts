@@ -392,7 +392,7 @@ class SocioService {
   }
 
   /**
-   * Update socio with automatic users table synchronization
+   * Update socio with automatic users table synchronization and password update
    */
   async updateSocio(id: string, data: Partial<SocioFormData>): Promise<boolean> {
     try {
@@ -469,6 +469,37 @@ class SocioService {
 
       if (data.email) {
         updateData.email = data.email.toLowerCase();
+      }
+
+      // NUEVA FUNCIONALIDAD: Actualizar contraseña en Firebase Auth si se proporciona
+      if (data.password && data.password.length >= 6) {
+        console.log(`🔐 Actualizando contraseña para el socio: ${id}`);
+        try {
+          // Usar endpoint server-side para actualizar la contraseña
+          const response = await fetch('/api/auth/update-socio-password', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              socioId: id,
+              newPassword: data.password,
+              asociacionId: asociacionIdSafe,
+            }),
+          });
+
+          const result = await response.json();
+
+          if (response.ok && result.success) {
+            console.log(`✅ Contraseña actualizada exitosamente para el socio: ${id}`);
+          } else {
+            console.error(`❌ Error actualizando contraseña: ${result.error}`);
+            throw new Error(`Error al actualizar contraseña: ${result.error}`);
+          }
+        } catch (passwordError) {
+          console.error('❌ Error en actualización de contraseña:', passwordError);
+          throw new Error(`No se pudo actualizar la contraseña: ${passwordError instanceof Error ? passwordError.message : 'Error desconocido'}`);
+        }
       }
 
       // NUEVA FUNCIONALIDAD: Sincronizar estado con tabla users
