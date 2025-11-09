@@ -479,33 +479,86 @@ export const useClientes = (): UseClientesReturn => {
   }, [comercioId]);
 
   /**
-   * Exportar datos
+   * Exportar datos en formato CSV
    */
   const exportData = useCallback(async () => {
     if (!comercioId) return;
 
     try {
-      const exportData = await ClienteService.exportClientesData(comercioId);
+      const exportDataResult = await ClienteService.exportClientesData(comercioId);
       
-      // Crear y descargar archivo
-      const blob = new Blob([JSON.stringify(exportData, null, 2)], { 
-        type: 'application/json' 
+      // Convertir clientes a CSV
+      const csvContent = convertClientesToCSV(exportDataResult.clientes);
+      
+      // Crear y descargar archivo CSV
+      const blob = new Blob([csvContent], { 
+        type: 'text/csv;charset=utf-8;' 
       });
       const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `socios-${new Date().toISOString().split('T')[0]}.json`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      link.setAttribute('download', `socios-${new Date().toISOString().split('T')[0]}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
       URL.revokeObjectURL(url);
       
-      toast.success('Datos exportados exitosamente');
+      toast.success('Datos exportados exitosamente en formato CSV');
     } catch (error) {
       console.error('Error exporting data:', error);
       toast.error('Error al exportar datos');
     }
   }, [comercioId]);
+
+  /**
+   * Convertir clientes a CSV
+   */
+  const convertClientesToCSV = (clientes: Cliente[]): string => {
+    if (clientes.length === 0) return '';
+
+    // Definir encabezados
+    const headers = [
+      'Nombre',
+      'Email',
+      'Teléfono',
+      'DNI',
+      'Dirección',
+      'Estado',
+      'Fecha de Alta',
+      'Total Compras',
+      'Monto Total Gastado',
+      'Promedio Compra',
+      'Beneficios Usados',
+      'Validaciones',
+      'Última Visita'
+    ];
+
+    // Convertir datos a filas CSV
+    const rows = clientes.map(cliente => [
+      `"${cliente.nombre.replace(/"/g, '""')}"`,
+      `"${cliente.email.replace(/"/g, '""')}"`,
+      `"${(cliente.telefono || '').replace(/"/g, '""')}"`,
+      `"${(cliente.dni || '').replace(/"/g, '""')}"`,
+      `"${(cliente.direccion || '').replace(/"/g, '""')}"`,
+      cliente.estado,
+      cliente.creadoEn.toDate().toLocaleDateString('es-ES'),
+      cliente.totalCompras,
+      cliente.montoTotalGastado.toFixed(2),
+      cliente.promedioCompra.toFixed(2),
+      cliente.beneficiosUsados,
+      cliente.totalValidaciones || 0,
+      cliente.fechaUltimaVisita ? cliente.fechaUltimaVisita.toDate().toLocaleDateString('es-ES') : 'N/A'
+    ]);
+
+    // Combinar encabezados y filas
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.join(','))
+    ].join('\n');
+
+    return csvContent;
+  };
 
   /**
    * Actualizar compra del cliente

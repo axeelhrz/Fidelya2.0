@@ -16,8 +16,6 @@ import {
   Eye,
   EyeOff,
   X,
-  ChevronLeft,
-  ChevronRight,
   Check,
   AlertCircle,
   Loader2,
@@ -27,12 +25,37 @@ import {
 import { Socio, SocioFormData } from '@/types/socio';
 import { Timestamp } from 'firebase/firestore';
 
+// Función para validar teléfono argentino
+const validatePhoneNumber = (phone: string): boolean => {
+  if (!phone || phone === '+54 9 ') return true; // Campo opcional
+  
+  // Remover espacios
+  const cleanPhone = phone.replace(/\s+/g, '');
+  
+  // Debe comenzar con +54 9
+  if (!cleanPhone.startsWith('+549')) return false;
+  
+  // Extraer solo los números después de +54 9
+  const numbersOnly = cleanPhone.substring(4); // Después de +549
+  
+  // Debe tener exactamente 10 dígitos (código área + número)
+  if (numbersOnly.length !== 10) return false;
+  
+  // Debe contener solo números
+  if (!/^\d+$/.test(numbersOnly)) return false;
+  
+  return true;
+};
+
 // Esquema de validación para creación (más estricto)
 const createSocioSchema = z.object({
   nombre: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
   email: z.string().email('Email inválido'),
   estado: z.enum(['activo', 'inactivo', 'suspendido', 'pendiente', 'vencido']),
-  telefono: z.string().optional(),
+  telefono: z.string().refine(
+    (phone) => validatePhoneNumber(phone),
+    'El teléfono debe tener formato +54 9 [código área] [número] (10 dígitos totales)'
+  ).optional(),
   dni: z.string().optional(),
   direccion: z.string().optional(),
   fechaNacimiento: z.string().optional(),
@@ -50,7 +73,10 @@ const editSocioSchema = z.object({
   nombre: z.string().min(1, 'El nombre es requerido').optional(),
   email: z.string().email('Email inválido').optional(),
   estado: z.enum(['activo', 'inactivo', 'suspendido', 'pendiente', 'vencido']).optional(),
-  telefono: z.string().optional(),
+  telefono: z.string().refine(
+    (phone) => validatePhoneNumber(phone),
+    'El teléfono debe tener formato +54 9 [código área] [número] (10 dígitos totales)'
+  ).optional(),
   dni: z.string().optional(),
   direccion: z.string().optional(),
   fechaNacimiento: z.string().optional(),
@@ -198,17 +224,20 @@ const SimpleFormField = React.memo(({
               // Remover espacios para procesamiento
               const cleanValue = value.replace(/\s+/g, '');
               
+              // Remover caracteres no numéricos excepto +
+              const cleanedForProcessing = cleanValue.replace(/[^\d+]/g, '');
+              
               // Asegurar que comience con +54
-              if (!cleanValue.startsWith('+54')) {
-                // Si el usuario ingresa solo números, agregar +54
-                const numbersOnly = cleanValue.replace(/\D/g, '');
+              if (!cleanedForProcessing.startsWith('+54')) {
+                // Si el usuario ingresa solo números, agregar +54 9
+                const numbersOnly = cleanedForProcessing.replace(/\D/g, '');
                 value = '+54 9 ' + numbersOnly;
               } else {
-                // Si ya tiene +54, verificar si tiene el 9
-                const afterCountryCode = cleanValue.substring(3); // Después de +54
+                // Si ya tiene +54, extraer lo que viene después
+                const afterCountryCode = cleanedForProcessing.substring(3); // Después de +54
                 
+                // Si no comienza con 9, agregarlo
                 if (!afterCountryCode.startsWith('9')) {
-                  // Agregar el 9 automáticamente
                   value = '+54 9 ' + afterCountryCode;
                 } else {
                   // Ya tiene el 9, solo formatear
@@ -331,7 +360,6 @@ export const SocioDialog: React.FC<SocioDialogProps> = ({
     reset,
     formState: { errors },
     watch,
-    trigger,
     setValue
   } = useForm<SocioFormType>({
     resolver: isEditing
@@ -410,33 +438,6 @@ export const SocioDialog: React.FC<SocioDialogProps> = ({
       setCurrentStep(0);
     }
   }, [open, socio, reset, formatDateForInput]);
-
-  // Navegación entre pasos
-  const nextStep = useCallback(async () => {
-    // En modo edición, permitir navegar sin validación estricta
-    if (isEditing) {
-      if (currentStep < FORM_STEPS.length - 1) {
-        setCurrentStep(prev => prev + 1);
-      }
-      return;
-    }
-
-    // En modo creación, validar antes de continuar
-    const currentFields = FORM_STEPS[currentStep].fields as Array<
-      "nombre" | "email" | "estado" | "telefono" | "dni" | "direccion" | "fechaNacimiento" | "password" | "confirmPassword"
-    >;
-    const isValid = await trigger(currentFields);
-    
-    if (isValid && currentStep < FORM_STEPS.length - 1) {
-      setCurrentStep(prev => prev + 1);
-    }
-  }, [currentStep, trigger, isEditing]);
-
-  const prevStep = useCallback(() => {
-    if (currentStep > 0) {
-      setCurrentStep(prev => prev - 1);
-    }
-  }, [currentStep]);
 
   const goToStep = useCallback((stepIndex: number) => {
     setCurrentStep(stepIndex);
@@ -625,55 +626,32 @@ export const SocioDialog: React.FC<SocioDialogProps> = ({
                 </div>
 
                 {/* Footer */}
-                <div className="flex items-center justify-between mt-8 pt-6 border-t border-gray-200">
+                <div className="flex items-center justify-end gap-3 mt-8 pt-6 border-t border-gray-200">
                   <button
                     type="button"
-                    onClick={prevStep}
-                    disabled={currentStep === 0}
-                    className="flex items-center space-x-2 px-4 py-2 text-gray-600 hover:text-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    onClick={onClose}
+                    className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
                   >
-                    <ChevronLeft className="w-4 h-4" />
-                    <span>Anterior</span>
+                    Cancelar
                   </button>
 
-                  <div className="flex space-x-3">
-                    <button
-                      type="button"
-                      onClick={onClose}
-                      className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-                    >
-                      Cancelar
-                    </button>
-
-                    {currentStep < FORM_STEPS.length - 1 ? (
-                      <button
-                        type="button"
-                        onClick={nextStep}
-                        className="flex items-center space-x-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                      >
-                        <span>Siguiente</span>
-                        <ChevronRight className="w-4 h-4" />
-                      </button>
+                  <button
+                    type="submit"
+                    disabled={isSubmitting || loading}
+                    className="flex items-center space-x-2 px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {isSubmitting || loading ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Guardando...</span>
+                      </>
                     ) : (
-                      <button
-                        type="submit"
-                        disabled={isSubmitting || loading}
-                        className="flex items-center space-x-2 px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                      >
-                        {isSubmitting || loading ? (
-                          <>
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                            <span>Guardando...</span>
-                          </>
-                        ) : (
-                          <>
-                            <Check className="w-4 h-4" />
-                            <span>{isEditing ? 'Actualizar' : 'Crear'} Socio</span>
-                          </>
-                        )}
-                      </button>
+                      <>
+                        <Check className="w-4 h-4" />
+                        <span>{isEditing ? 'Actualizar' : 'Crear'} Socio</span>
+                      </>
                     )}
-                  </div>
+                  </button>
                 </div>
               </form>
             </motion.div>

@@ -517,7 +517,7 @@ export function SocioAnalytics() {
       frecuenciaPromedio,
       crecimientoMensual: clienteStats.crecimientoMensual || 0,
     };
-  }, [clientes, timeRange, clienteStats]);
+  }, [clientes, clienteStats]);
 
   // Cargar datos iniciales
   useEffect(() => {
@@ -1163,4 +1163,3 @@ export function SocioAnalytics() {
 }
 
 export default SocioAnalytics;
-

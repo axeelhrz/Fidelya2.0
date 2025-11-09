@@ -18,7 +18,6 @@ import {
   ChevronRight,
   Eye,
   FileText,
-  MoreVertical,
   ArrowUpDown,
   Zap,
   Target,
@@ -675,17 +674,6 @@ export const ValidacionesHistory: React.FC = () => {
                             )}
                           </div>
 
-                          {/* Footer */}
-                          <div className="mt-4 pt-4 border-t border-gray-200">
-                            <div className="flex items-center justify-between">
-                              <span className="text-xs text-gray-500">
-                                ID: {validacion.id ? `${validacion.id.substring(0, 8)}...` : 'N/A'}
-                              </span>
-                              <button className="text-gray-400 hover:text-gray-600 transition-colors">
-                                <MoreVertical size={16} />
-                              </button>
-                            </div>
-                          </div>
                         </motion.div>
                       );
                     })}

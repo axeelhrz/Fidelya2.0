@@ -1169,16 +1169,6 @@ export const ComercioManagement: React.FC<ComercioManagementProps> = ({
                           >
                             <Unlink size={16} />
                           </motion.button>
-
-                          <motion.button
-                            whileHover={{ scale: 1.1 }}
-                            whileTap={{ scale: 0.9 }}
-                            onClick={() => setComercioToDelete(comercio)}
-                            className="p-2 text-red-600 hover:text-red-900 hover:bg-red-50 rounded-lg transition-all duration-200"
-                            title="Eliminar"
-                          >
-                            <Trash2 size={16} />
-                          </motion.button>
                         </div>
                       </div>
                     </div>
@@ -1464,16 +1454,6 @@ export const ComercioManagement: React.FC<ComercioManagementProps> = ({
                               title="Desvincular"
                             >
                               <Unlink size={14} className="lg:w-4 lg:h-4" />
-                            </motion.button>
-
-                            <motion.button
-                              whileHover={{ scale: 1.1 }}
-                              whileTap={{ scale: 0.9 }}
-                              onClick={() => setComercioToDelete(comercio)}
-                              className="p-1.5 lg:p-2 text-red-600 hover:text-red-900 hover:bg-red-50 rounded-lg transition-all duration-200"
-                              title="Eliminar"
-                            >
-                              <Trash2 size={14} className="lg:w-4 lg:h-4" />
                             </motion.button>
                           </div>
                         </td>
@@ -1820,5 +1800,3 @@ export const ComercioManagement: React.FC<ComercioManagementProps> = ({
     </div>
   );
 };
-
-
