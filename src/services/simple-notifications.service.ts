@@ -3,6 +3,7 @@ import {
   doc, 
   addDoc, 
   getDocs, 
+  getDoc,
   query, 
   where, 
   orderBy,
@@ -194,29 +195,60 @@ export class SimpleNotificationService {
     console.log('📱 WhatsApp (Twilio via API):', this.whatsappService.getConfigInfo());
   }
 
-  // Obtener información de destinatarios - SOLO SOCIOS ACTIVOS
-  async getRecipients(): Promise<RecipientInfo[]> {
+  // Obtener información de destinatarios - SOCIOS ACTIVOS O CUALQUIER ESTADO SI SE ESPECIFICA ID
+  async getRecipients(specificIds?: string[]): Promise<RecipientInfo[]> {
     try {
       const recipients: RecipientInfo[] = [];
 
-      // Obtener SOLO socios activos
-      const sociosQuery = query(
-        collection(db, 'socios'),
-        where('estado', '==', 'activo')
-      );
-      const sociosSnapshot = await getDocs(sociosQuery);
-      sociosSnapshot.forEach(doc => {
-        const data = doc.data();
-        recipients.push({
-          id: doc.id,
-          name: data.nombre || 'Sin nombre',
-          email: data.email,
-          phone: data.telefono,
-          type: 'socio'
+      // Si se especifican IDs específicos, obtener esos socios sin importar estado
+      if (specificIds && specificIds.length > 0) {
+        console.log(`🔍 Buscando ${specificIds.length} socios específicos: ${specificIds.join(', ')}`);
+        
+        for (const socioId of specificIds) {
+          try {
+            // Usar getDoc directamente con el ID del documento
+            const socioDocRef = doc(db, 'socios', socioId);
+            const socioDocSnapshot = await getDoc(socioDocRef);
+            
+            if (socioDocSnapshot.exists()) {
+              const data = socioDocSnapshot.data();
+              recipients.push({
+                id: socioDocSnapshot.id,
+                name: data.nombre || 'Sin nombre',
+                email: data.email,
+                phone: data.telefono,
+                type: 'socio'
+              });
+              console.log(`✅ Socio encontrado por ID: ${data.nombre} (${socioId})`);
+            } else {
+              console.warn(`⚠️ Socio no encontrado con ID: ${socioId}`);
+            }
+          } catch (error) {
+            console.error(`❌ Error buscando socio ${socioId}:`, error);
+          }
+        }
+        
+        console.log(`✅ Se encontraron ${recipients.length} de ${specificIds.length} socios solicitados`);
+      } else {
+        // Obtener SOLO socios activos si no se especifican IDs
+        const sociosQuery = query(
+          collection(db, 'socios'),
+          where('estado', '==', 'activo')
+        );
+        const sociosSnapshot = await getDocs(sociosQuery);
+        sociosSnapshot.forEach(doc => {
+          const data = doc.data();
+          recipients.push({
+            id: doc.id,
+            name: data.nombre || 'Sin nombre',
+            email: data.email,
+            phone: data.telefono,
+            type: 'socio'
+          });
         });
-      });
 
-      console.log(`✅ Obtenidos ${recipients.length} socios activos para notificaciones`);
+        console.log(`✅ Obtenidos ${recipients.length} socios activos para notificaciones`);
+      }
 
       return recipients;
     } catch (error) {
@@ -277,12 +309,15 @@ export class SimpleNotificationService {
         status: 'sending'
       });
 
-      // Obtener información de destinatarios
-      const allRecipients = await this.getRecipients();
+      // Obtener información de destinatarios - pasar IDs específicos para buscar
+      console.log(`🔍 Buscando ${data.recipientIds.length} destinatarios específicos`);
+      const allRecipients = await this.getRecipients(data.recipientIds);
       const recipients = allRecipients.filter(r => data.recipientIds.includes(r.id));
 
       console.log(`📤 Enviando notificación "${data.title}" a ${recipients.length} destinatarios`);
       console.log(`📋 Canales seleccionados: ${data.channels.join(', ')}`);
+      console.log(`📋 IDs de destinatarios: ${data.recipientIds.join(', ')}`);
+      console.log(`📋 Destinatarios encontrados: ${recipients.map(r => r.id).join(', ')}`);
 
       // Validate and format phone numbers for all recipients
       const recipientsWithValidatedPhones = recipients.map(recipient => {
