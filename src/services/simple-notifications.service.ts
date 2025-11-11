@@ -264,11 +264,14 @@ export class SimpleNotificationService {
         console.log(`✅ Se encontraron ${recipients.length} de ${specificIds.length} destinatarios solicitados`);
       } else {
         // Obtener SOLO socios activos si no se especifican IDs
+        console.log(`🔍 Consultando socios activos...`);
         const sociosQuery = query(
           collection(db, 'socios'),
           where('estado', '==', 'activo')
         );
         const sociosSnapshot = await getDocs(sociosQuery);
+        console.log(`📊 Total de socios encontrados con estado 'activo': ${sociosSnapshot.size}`);
+        
         sociosSnapshot.forEach(doc => {
           const data = doc.data();
           const recipient: RecipientInfo = {
@@ -278,12 +281,23 @@ export class SimpleNotificationService {
             phone: data.telefono || '',
             type: 'socio'
           };
-          console.log(`📋 Socio cargado:`, { id: recipient.id, name: recipient.name, phone: recipient.phone });
+          console.log(`📋 Socio cargado:`, { id: recipient.id, name: recipient.name, phone: recipient.phone, estado: data.estado });
           recipients.push(recipient);
         });
 
         console.log(`✅ Obtenidos ${recipients.length} socios activos para notificaciones`);
-        console.log(`📋 Socios con teléfono:`, recipients.map(r => ({ name: r.name, phone: r.phone })));
+        if (recipients.length > 0) {
+          console.log(`📋 Socios con teléfono:`, recipients.map(r => ({ name: r.name, phone: r.phone })));
+        } else {
+          console.warn(`⚠️ No se encontraron socios activos. Intentando obtener TODOS los socios...`);
+          const allSociosQuery = query(collection(db, 'socios'));
+          const allSociosSnapshot = await getDocs(allSociosQuery);
+          console.log(`📊 Total de socios en la colección: ${allSociosSnapshot.size}`);
+          allSociosSnapshot.forEach(doc => {
+            const data = doc.data();
+            console.log(`📋 Socio encontrado:`, { id: doc.id, name: data.nombre, estado: data.estado, phone: data.telefono });
+          });
+        }
       }
 
       return recipients;

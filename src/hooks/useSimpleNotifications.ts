@@ -11,9 +11,11 @@ import {
 } from '@/types/simple-notification';
 import { simpleNotificationService } from '@/services/simple-notifications.service';
 import { useAuth } from './useAuth';
+import { useClientes } from './useClientes';
 
 export const useSimpleNotifications = () => {
   const { user } = useAuth();
+  const { clientes, loading: clientesLoading } = useClientes();
   const [notifications, setNotifications] = useState<SimpleNotification[]>([]);
   const [recipients, setRecipients] = useState<RecipientInfo[]>([]);
   const [settings, setSettings] = useState<SimpleNotificationSettings | null>(null);
@@ -21,11 +23,26 @@ export const useSimpleNotifications = () => {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Cargar destinatarios
+  // Cargar destinatarios desde useClientes (misma fuente que la pestaña de Socios)
   const loadRecipients = useCallback(async () => {
     try {
       setLoading(true);
-      const recipientsList = await simpleNotificationService.getRecipients();
+      console.log(`📋 Cargando destinatarios desde useClientes...`);
+      
+      // Convertir clientes a RecipientInfo
+      const recipientsList: RecipientInfo[] = clientes.map(cliente => ({
+        id: cliente.id,
+        name: cliente.nombre,
+        email: cliente.email,
+        phone: cliente.telefono || '',
+        type: 'socio'
+      }));
+      
+      console.log(`✅ Destinatarios cargados:`, recipientsList.map(r => ({ 
+        name: r.name, 
+        phone: r.phone 
+      })));
+      
       setRecipients(recipientsList);
     } catch (err) {
       console.error('Error loading recipients:', err);
@@ -34,7 +51,14 @@ export const useSimpleNotifications = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [clientes]);
+
+  // Cargar destinatarios cuando clientes cambien
+  useEffect(() => {
+    if (clientes.length > 0) {
+      loadRecipients();
+    }
+  }, [clientes, loadRecipients]);
 
   // Cargar historial de notificaciones
   const loadNotifications = useCallback(async () => {

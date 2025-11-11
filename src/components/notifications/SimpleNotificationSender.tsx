@@ -52,6 +52,7 @@ import {
   Edit,
 } from '@mui/icons-material';
 import { useSimpleNotifications } from '@/hooks/useSimpleNotifications';
+import { useClientes } from '@/hooks/useClientes';
 import { 
   SimpleNotificationFormData, 
   SimpleNotificationChannel, 
