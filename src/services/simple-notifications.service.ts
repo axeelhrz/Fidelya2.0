@@ -290,6 +290,80 @@ export class SimpleNotificationService {
     }
   }
 
+  // Obtener destinatarios por teléfono (fallback cuando no se encuentra por ID)
+  async getRecipientsByPhone(phoneNumbers: string[]): Promise<RecipientInfo[]> {
+    try {
+      const recipients: RecipientInfo[] = [];
+      
+      console.log(`📱 Buscando destinatarios por teléfono: ${phoneNumbers.join(', ')}`);
+      
+      for (const phone of phoneNumbers) {
+        try {
+          // Si el valor parece ser un teléfono (contiene dígitos y +), buscar directamente
+          if (phone.includes('+') || /\d{10,}/.test(phone)) {
+            console.log(`🔍 Buscando por teléfono: ${phone}`);
+            
+            // Buscar en la colección 'socios' con el teléfono exacto
+            const sociosQuery = query(
+              collection(db, 'socios'),
+              where('telefono', '==', phone)
+            );
+            const sociosSnapshot = await getDocs(sociosQuery);
+            
+            if (!sociosSnapshot.empty) {
+              sociosSnapshot.forEach(doc => {
+                const data = doc.data();
+                recipients.push({
+                  id: doc.id,
+                  name: data.nombre || 'Sin nombre',
+                  email: data.email,
+                  phone: data.telefono,
+                  type: 'socio'
+                });
+                console.log(`✅ Socio encontrado por teléfono: ${data.nombre} (${phone})`);
+              });
+            } else {
+              // Si no encuentra con el formato exacto, intentar variaciones
+              const normalizedPhone = phone.replace(/\D/g, '');
+              console.log(`🔍 Intentando con teléfono normalizado: ${normalizedPhone}`);
+              
+              // Buscar todos los socios y filtrar por teléfono normalizado
+              const allSociosQuery = query(collection(db, 'socios'));
+              const allSociosSnapshot = await getDocs(allSociosQuery);
+              
+              allSociosSnapshot.forEach(doc => {
+                const data = doc.data();
+                const socioPhone = data.telefono?.replace(/\D/g, '') || '';
+                if (socioPhone === normalizedPhone) {
+                  recipients.push({
+                    id: doc.id,
+                    name: data.nombre || 'Sin nombre',
+                    email: data.email,
+                    phone: data.telefono,
+                    type: 'socio'
+                  });
+                  console.log(`✅ Socio encontrado por teléfono normalizado: ${data.nombre} (${phone})`);
+                }
+              });
+              
+              if (recipients.length === 0) {
+                console.warn(`⚠️ No se encontró socio con teléfono: ${phone}`);
+              }
+            }
+          }
+        } catch (error) {
+          console.error(`❌ Error buscando por teléfono ${phone}:`, error);
+        }
+      }
+      
+      console.log(`✅ Se encontraron ${recipients.length} destinatarios por teléfono`);
+      return recipients;
+    } catch (error) {
+      console.error('Error getting recipients by phone:', error);
+      return [];
+    }
+  }
+
   // Crear notificación
   async createNotification(
     data: SimpleNotificationFormData,
@@ -344,8 +418,17 @@ export class SimpleNotificationService {
 
       // Obtener información de destinatarios - pasar IDs específicos para buscar
       console.log(`🔍 Buscando ${data.recipientIds.length} destinatarios específicos`);
+      let recipients: RecipientInfo[] = [];
+      
+      // Primero intentar obtener por ID
       const allRecipients = await this.getRecipients(data.recipientIds);
-      const recipients = allRecipients.filter(r => data.recipientIds.includes(r.id));
+      recipients = allRecipients.filter(r => data.recipientIds.includes(r.id));
+      
+      // Si no se encontraron destinatarios, intentar buscar por teléfono
+      if (recipients.length === 0 && data.recipientIds.length > 0) {
+        console.log(`⚠️ No se encontraron destinatarios por ID, intentando buscar por teléfono...`);
+        recipients = await this.getRecipientsByPhone(data.recipientIds);
+      }
 
       console.log(`📤 Enviando notificación "${data.title}" a ${recipients.length} destinatarios`);
       console.log(`📋 Canales seleccionados: ${data.channels.join(', ')}`);
