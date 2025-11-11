@@ -195,40 +195,73 @@ export class SimpleNotificationService {
     console.log('📱 WhatsApp (Twilio via API):', this.whatsappService.getConfigInfo());
   }
 
-  // Obtener información de destinatarios - SOCIOS ACTIVOS O CUALQUIER ESTADO SI SE ESPECIFICA ID
+  // Obtener información de destinatarios - BUSCA EN USERS Y SOCIOS
   async getRecipients(specificIds?: string[]): Promise<RecipientInfo[]> {
     try {
       const recipients: RecipientInfo[] = [];
 
-      // Si se especifican IDs específicos, obtener esos socios sin importar estado
+      // Si se especifican IDs específicos, obtener esos usuarios/socios sin importar estado
       if (specificIds && specificIds.length > 0) {
-        console.log(`🔍 Buscando ${specificIds.length} socios específicos: ${specificIds.join(', ')}`);
+        console.log(`🔍 Buscando ${specificIds.length} destinatarios específicos: ${specificIds.join(', ')}`);
         
-        for (const socioId of specificIds) {
+        for (const userId of specificIds) {
           try {
-            // Usar getDoc directamente con el ID del documento
-            const socioDocRef = doc(db, 'socios', socioId);
-            const socioDocSnapshot = await getDoc(socioDocRef);
+            // Primero intentar en la colección 'users'
+            const userDocRef = doc(db, 'users', userId);
+            const userDocSnapshot = await getDoc(userDocRef);
             
-            if (socioDocSnapshot.exists()) {
-              const data = socioDocSnapshot.data();
+            if (userDocSnapshot.exists()) {
+              const userData = userDocSnapshot.data();
+              console.log(`✅ Usuario encontrado en 'users': ${userData.nombre} (${userId})`);
+              
+              // Si es un socio, obtener también su teléfono de la colección 'socios'
+              let phone = userData.telefono;
+              if (userData.role === 'socio') {
+                try {
+                  const socioDocRef = doc(db, 'socios', userId);
+                  const socioDocSnapshot = await getDoc(socioDocRef);
+                  if (socioDocSnapshot.exists()) {
+                    const socioData = socioDocSnapshot.data();
+                    phone = socioData.telefono || phone;
+                    console.log(`📱 Teléfono del socio: ${phone}`);
+                  }
+                } catch {
+                  console.warn(`⚠️ No se encontró documento de socio para ${userId}`);
+                }
+              }
+              
               recipients.push({
-                id: socioDocSnapshot.id,
-                name: data.nombre || 'Sin nombre',
-                email: data.email,
-                phone: data.telefono,
-                type: 'socio'
+                id: userDocSnapshot.id,
+                name: userData.nombre || 'Sin nombre',
+                email: userData.email,
+                phone: phone,
+                type: userData.role || 'usuario'
               });
-              console.log(`✅ Socio encontrado por ID: ${data.nombre} (${socioId})`);
             } else {
-              console.warn(`⚠️ Socio no encontrado con ID: ${socioId}`);
+              // Si no está en 'users', intentar en 'socios'
+              const socioDocRef = doc(db, 'socios', userId);
+              const socioDocSnapshot = await getDoc(socioDocRef);
+              
+              if (socioDocSnapshot.exists()) {
+                const socioData = socioDocSnapshot.data();
+                console.log(`✅ Socio encontrado en 'socios': ${socioData.nombre} (${userId})`);
+                recipients.push({
+                  id: socioDocSnapshot.id,
+                  name: socioData.nombre || 'Sin nombre',
+                  email: socioData.email,
+                  phone: socioData.telefono,
+                  type: 'socio'
+                });
+              } else {
+                console.warn(`⚠️ No se encontró usuario/socio con ID: ${userId}`);
+              }
             }
           } catch (error) {
-            console.error(`❌ Error buscando socio ${socioId}:`, error);
+            console.error(`❌ Error buscando usuario ${userId}:`, error);
           }
         }
         
-        console.log(`✅ Se encontraron ${recipients.length} de ${specificIds.length} socios solicitados`);
+        console.log(`✅ Se encontraron ${recipients.length} de ${specificIds.length} destinatarios solicitados`);
       } else {
         // Obtener SOLO socios activos si no se especifican IDs
         const sociosQuery = query(
