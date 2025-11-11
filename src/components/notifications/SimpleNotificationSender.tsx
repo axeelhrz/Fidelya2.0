@@ -222,17 +222,21 @@ export const SimpleNotificationSender: React.FC = () => {
     }));
   };
 
-  const handleRecipientToggle = (recipientId: string) => {
+  const handleRecipientToggle = (recipientId: string, phone?: string) => {
+    // Si hay teléfono, usar el teléfono como ID; si no, usar el ID del documento
+    const idToUse = phone || recipientId;
+    
     setFormData(prev => ({
       ...prev,
-      recipientIds: prev.recipientIds.includes(recipientId)
-        ? prev.recipientIds.filter(id => id !== recipientId)
-        : [...prev.recipientIds, recipientId]
+      recipientIds: prev.recipientIds.includes(idToUse)
+        ? prev.recipientIds.filter(id => id !== idToUse)
+        : [...prev.recipientIds, idToUse]
     }));
   };
 
   const handleSelectAll = () => {
-    const allIds = filteredRecipients.map(r => r.id);
+    // Usar teléfono si está disponible, si no usar el ID
+    const allIds = filteredRecipients.map(r => r.phone || r.id);
     setFormData(prev => ({
       ...prev,
       recipientIds: prev.recipientIds.length === allIds.length ? [] : allIds
@@ -587,14 +591,16 @@ export const SimpleNotificationSender: React.FC = () => {
                 </Box>
               ) : (
                 <List dense>
-                  {filteredRecipients.map((recipient) => (
+                  {filteredRecipients.map((recipient) => {
+                    const idToUse = recipient.phone || recipient.id;
+                    return (
                     <ListItem key={recipient.id} disablePadding>
                       <ListItemButton
-                        onClick={() => handleRecipientToggle(recipient.id)}
+                        onClick={() => handleRecipientToggle(recipient.id, recipient.phone)}
                         sx={{ borderRadius: 2, mb: 0.5 }}
                       >
                         <Checkbox
-                          checked={formData.recipientIds.includes(recipient.id)}
+                          checked={formData.recipientIds.includes(idToUse)}
                           sx={{ mr: 1 }}
                         />
                         <ListItemAvatar>
@@ -630,7 +636,8 @@ export const SimpleNotificationSender: React.FC = () => {
                         />
                       </ListItemButton>
                     </ListItem>
-                  ))}
+                  );
+                  })}
                 </List>
               )}
             </Box>
