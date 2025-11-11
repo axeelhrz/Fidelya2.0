@@ -29,7 +29,7 @@ import { COLLECTIONS, USER_STATES, DASHBOARD_ROUTES } from '@/lib/constants';
 import { handleError } from '@/lib/error-handler';
 import { configService } from '@/lib/config';
 import { membershipSyncService } from './membership-sync.service';
-import { getEmailVerificationSettings, getPasswordResetSettings } from '@/lib/firebase-auth-config';
+import { getEmailVerificationSettings } from '@/lib/firebase-auth-config';
 
 export interface LoginCredentials {
   email: string;
@@ -80,12 +80,6 @@ class AuthService {
     return getEmailVerificationSettings();
   }
 
-  /**
-   * Get password reset action code settings
-   */
-  private getPasswordResetActionCodeSettings(): ActionCodeSettings {
-    return getPasswordResetSettings();
-  }
 
   /**
    * Sign in user with email and password with membership status validation
@@ -118,31 +112,48 @@ class AuthService {
         // CRÍTICO: Enviar automáticamente email de verificación ANTES de retornar
         console.log('📧 Enviando automáticamente email de verificación...');
         let emailSentSuccessfully = false;
+        let rateLimitedError = false;
         
         try {
           await this.sendEmailVerificationWithRetry(userCredential.user);
           console.log('✅ Email de verificación enviado automáticamente');
           emailSentSuccessfully = true;
         } catch (verificationError) {
+          const errorCode = (verificationError as { code?: string })?.code || '';
+          const errorMessage = (verificationError as { message?: string })?.message || '';
+          
           console.error('❌ Error enviando email de verificación automático:', verificationError);
-          // Intentar una última vez con configuración más simple
-          try {
-            console.log('🔄 Reintentando con configuración simple...');
-            await sendEmailVerification(userCredential.user);
-            console.log('✅ Email de verificación enviado en reintento simple');
-            emailSentSuccessfully = true;
-          } catch (finalError) {
-            console.error('❌ Fallo final al enviar email de verificación:', finalError);
-            // No fallar el login, pero registrar que no se envió
+          
+          // Detectar si es rate-limiting
+          if (errorCode === 'auth/too-many-requests' || errorMessage.includes('too-many-requests')) {
+            rateLimitedError = true;
+            console.error('🚫 Rate-limited by Firebase. User will need to retry later.');
+          } else {
+            // Intentar una última vez con configuración más simple (solo si no es rate-limiting)
+            try {
+              console.log('🔄 Reintentando con configuración simple...');
+              await sendEmailVerification(userCredential.user);
+              console.log('✅ Email de verificación enviado en reintento simple');
+              emailSentSuccessfully = true;
+            } catch (finalError) {
+              console.error('❌ Fallo final al enviar email de verificación:', finalError);
+              // No fallar el login, pero registrar que no se envió
+            }
           }
         }
         
         await this.signOut();
         
         // Retornar mensaje apropiado basado en si se envió el email
-        const errorMessage = emailSentSuccessfully 
-          ? 'Hemos enviado un enlace de verificación a tu correo electrónico. Revisa tu bandeja de entrada y haz clic en el enlace para verificar tu cuenta.'
-          : 'Tu email no está verificado. Hemos intentado enviar un enlace de verificación pero hubo un problema. Por favor, intenta reenviar el enlace desde la pantalla de verificación.';
+        let errorMessage: string;
+        
+        if (emailSentSuccessfully) {
+          errorMessage = 'Hemos enviado un enlace de verificación a tu correo electrónico. Revisa tu bandeja de entrada y haz clic en el enlace para verificar tu cuenta.';
+        } else if (rateLimitedError) {
+          errorMessage = 'Se han enviado demasiados emails de verificación. Por favor, intenta de nuevo en unos minutos. Revisa tu bandeja de entrada y spam.';
+        } else {
+          errorMessage = 'Tu email no está verificado. Hemos intentado enviar un enlace de verificación pero hubo un problema. Por favor, intenta reenviar el enlace desde la pantalla de verificación.';
+        }
         
         return {
           success: false,
@@ -315,19 +326,28 @@ class AuthService {
 
       // Send email verification with retry logic
       console.log('📧 Sending email verification to new user...');
+      
       try {
         await this.sendEmailVerificationWithRetry(userCredential.user);
         console.log('✅ Email verification sent successfully to new user');
       } catch (verificationError) {
+        const errorCode = (verificationError as { code?: string })?.code || '';
+        const errorMessage = (verificationError as { message?: string })?.message || '';
+        
         console.error('❌ Error sending email verification to new user:', verificationError);
-        // Try one more time with simple method
-        try {
-          console.log('🔄 Attempting simple email verification send...');
-          await sendEmailVerification(userCredential.user);
-          console.log('✅ Simple email verification sent successfully');
-        } catch (finalError) {
-          console.error('❌ Final attempt to send email verification failed:', finalError);
-          // Don't fail registration, but log the error
+        
+        // Only try simple method if it's not a rate-limiting error
+        if (!(errorCode === 'auth/too-many-requests' || errorMessage.includes('too-many-requests'))) {
+          try {
+            console.log('🔄 Attempting simple email verification send...');
+            await sendEmailVerification(userCredential.user);
+            console.log('✅ Simple email verification sent successfully');
+          } catch (finalError) {
+            console.error('❌ Final attempt to send email verification failed:', finalError);
+            // Don't fail registration, but log the error
+          }
+        } else {
+          console.error('🚫 Rate-limited by Firebase. Email verification will need to be resent manually.');
         }
       }
 
@@ -393,12 +413,15 @@ class AuthService {
 
   /**
    * Send email verification with retry logic
-   * MEJORADO: Reintentos más agresivos y mejor manejo de errores
+   * MEJORADO: Manejo inteligente de rate-limiting y errores específicos
    */
-  private async sendEmailVerificationWithRetry(user: User, maxRetries = 5): Promise<void> {
+  private async sendEmailVerificationWithRetry(user: User, maxRetries = 2): Promise<void> {
     let lastError: Error | null = null;
+    let isRateLimited = false;
+    let lastAttempt = 0;
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      lastAttempt = attempt;
       try {
         console.log(`📧 Sending email verification (attempt ${attempt}/${maxRetries})...`);
         console.log(`   User: ${user.email}`);
@@ -416,19 +439,41 @@ class AuthService {
         return;
       } catch (error) {
         lastError = error as Error;
+        const errorCode = (error as { code?: string })?.code || '';
+        
         console.warn(`❌ Email verification attempt ${attempt} failed:`, error);
         
+        // Detectar rate-limiting específicamente
+        if (errorCode === 'auth/too-many-requests') {
+          isRateLimited = true;
+          console.error('🚫 Rate-limited by Firebase. Stopping retry attempts.');
+          break; // No retry on rate-limiting, just fail fast
+        }
+        
+        // Detectar errores de configuración que no se pueden resolver con reintentos
+        if (errorCode === 'auth/invalid-api-key' || errorCode === 'auth/configuration-not-found') {
+          console.error('⚙️ Configuration error detected. Stopping retry attempts.');
+          break;
+        }
+        
         if (attempt < maxRetries) {
-          // Wait before retrying (exponential backoff, pero más corto)
-          const delay = Math.pow(1.5, attempt) * 500; // 750ms, 1125ms, 1687ms, etc.
+          // Esperar más tiempo entre reintentos (backoff exponencial más agresivo)
+          const delay = Math.pow(2, attempt) * 1000; // 2s, 4s, etc.
           console.log(`   Waiting ${delay}ms before retry...`);
           await new Promise(resolve => setTimeout(resolve, delay));
         }
       }
     }
 
-    // If all retries failed, throw the last error
-    const errorMessage = `Failed to send email verification after ${maxRetries} attempts: ${lastError?.message}`;
+    // If all retries failed, throw the last error with context
+    let errorMessage = `Failed to send email verification after ${lastAttempt} attempts`;
+    
+    if (isRateLimited) {
+      errorMessage += ': Too many requests. Please try again later.';
+    } else if (lastError?.message) {
+      errorMessage += `: ${lastError.message}`;
+    }
+    
     console.error(`💥 ${errorMessage}`);
     throw new Error(errorMessage);
   }
@@ -681,12 +726,33 @@ class AuthService {
 
                   // Enviar verificación
                   console.log('🔐 Sending verification email for socio...');
-                  await this.sendEmailVerificationWithRetry(targetUser);
-                  await this.signOut();
+                  try {
+                    await this.sendEmailVerificationWithRetry(targetUser);
+                    await this.signOut();
 
-                  return {
-                    success: true,
-                  };
+                    return {
+                      success: true,
+                    };
+                  } catch (emailError) {
+                    const errorCode = (emailError as { code?: string })?.code || '';
+                    const errorMessage = (emailError as { message?: string })?.message || '';
+                    
+                    console.error('❌ Error sending verification email for socio:', emailError);
+                    
+                    await this.signOut();
+                    
+                    if (errorCode === 'auth/too-many-requests' || errorMessage.includes('too-many-requests')) {
+                      return {
+                        success: false,
+                        error: 'Se han enviado demasiados emails de verificación. Por favor, intenta de nuevo en unos minutos.'
+                      };
+                    }
+                    
+                    return {
+                      success: false,
+                      error: 'Error al enviar el email de verificación. Por favor, intenta de nuevo más tarde.'
+                    };
+                  }
 
                 } catch (socioAuthError) {
                   console.error('🔐 Socio auth error:', socioAuthError);
@@ -765,17 +831,33 @@ class AuthService {
 
       // Send verification email
       console.log('🔐 Sending verification email...');
-      await this.sendEmailVerificationWithRetry(targetUser);
-
-      // If we signed in temporarily, sign out
-      if (tempUserCredential) {
+      try {
+        await this.sendEmailVerificationWithRetry(targetUser);
         await this.signOut();
-      }
 
-      console.log('🔐 Verification email sent successfully');
-      return {
-        success: true,
-      };
+        return {
+          success: true,
+        };
+      } catch (emailError) {
+        const errorCode = (emailError as { code?: string })?.code || '';
+        const errorMessage = (emailError as { message?: string })?.message || '';
+        
+        console.error('❌ Error sending verification email:', emailError);
+        
+        await this.signOut();
+        
+        if (errorCode === 'auth/too-many-requests' || errorMessage.includes('too-many-requests')) {
+          return {
+            success: false,
+            error: 'Se han enviado demasiados emails de verificación. Por favor, intenta de nuevo en unos minutos.'
+          };
+        }
+        
+        return {
+          success: false,
+          error: 'Error al enviar el email de verificación. Por favor, intenta de nuevo más tarde.'
+        };
+      }
     } catch (error) {
       console.error('🔐 Resend email verification error:', error);
       
