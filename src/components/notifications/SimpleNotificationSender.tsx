@@ -213,6 +213,18 @@ export const SimpleNotificationSender: React.FC = () => {
     return matchesSearch && matchesType;
   });
 
+  // Debug: Log recipients to see if phone is included
+  useEffect(() => {
+    if (recipients.length > 0) {
+      console.log(`📋 Recipients loaded:`, recipients.map(r => ({
+        id: r.id,
+        name: r.name,
+        phone: r.phone,
+        email: r.email
+      })));
+    }
+  }, [recipients]);
+
   const handleChannelToggle = (channel: SimpleNotificationChannel) => {
     setFormData(prev => ({
       ...prev,
