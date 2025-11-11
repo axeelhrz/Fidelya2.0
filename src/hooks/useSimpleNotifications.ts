@@ -15,7 +15,7 @@ import { useClientes } from './useClientes';
 
 export const useSimpleNotifications = () => {
   const { user } = useAuth();
-  const { clientes, loading: clientesLoading } = useClientes();
+  const { clientes, } = useClientes();
   const [notifications, setNotifications] = useState<SimpleNotification[]>([]);
   const [recipients, setRecipients] = useState<RecipientInfo[]>([]);
   const [settings, setSettings] = useState<SimpleNotificationSettings | null>(null);
