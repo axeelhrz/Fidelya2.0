@@ -271,16 +271,19 @@ export class SimpleNotificationService {
         const sociosSnapshot = await getDocs(sociosQuery);
         sociosSnapshot.forEach(doc => {
           const data = doc.data();
-          recipients.push({
+          const recipient: RecipientInfo = {
             id: doc.id,
             name: data.nombre || 'Sin nombre',
             email: data.email,
-            phone: data.telefono,
+            phone: data.telefono || '',
             type: 'socio'
-          });
+          };
+          console.log(`📋 Socio cargado:`, { id: recipient.id, name: recipient.name, phone: recipient.phone });
+          recipients.push(recipient);
         });
 
         console.log(`✅ Obtenidos ${recipients.length} socios activos para notificaciones`);
+        console.log(`📋 Socios con teléfono:`, recipients.map(r => ({ name: r.name, phone: r.phone })));
       }
 
       return recipients;
