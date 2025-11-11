@@ -226,12 +226,20 @@ export const SimpleNotificationSender: React.FC = () => {
     // Si hay teléfono, usar el teléfono como ID; si no, usar el ID del documento
     const idToUse = phone || recipientId;
     
-    setFormData(prev => ({
-      ...prev,
-      recipientIds: prev.recipientIds.includes(idToUse)
+    console.log(`🔄 Toggling recipient:`, { recipientId, phone, idToUse });
+    
+    setFormData(prev => {
+      const newRecipientIds = prev.recipientIds.includes(idToUse)
         ? prev.recipientIds.filter(id => id !== idToUse)
-        : [...prev.recipientIds, idToUse]
-    }));
+        : [...prev.recipientIds, idToUse];
+      
+      console.log(`✅ Updated recipientIds:`, newRecipientIds);
+      
+      return {
+        ...prev,
+        recipientIds: newRecipientIds
+      };
+    });
   };
 
   const handleSelectAll = () => {
@@ -542,8 +550,10 @@ export const SimpleNotificationSender: React.FC = () => {
                 onChange={(e) => setSearchTerm(e.target.value)}
                 size="small"
                 sx={{ '& .MuiOutlinedInput-root': { borderRadius: 3 } }}
-                InputProps={{
-                  startAdornment: <Search sx={{ mr: 1, color: 'text.secondary' }} />
+                slotProps={{
+                  input: {
+                    startAdornment: <Search sx={{ mr: 1, color: 'text.secondary' }} />
+                  }
                 }}
               />
 
