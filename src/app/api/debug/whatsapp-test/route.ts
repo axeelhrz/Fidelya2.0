@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { greenAPIService } from '@/services/green-api.service';
 import { callMeBotService } from '@/services/callmebot.service';
 import { freeWhatsAppService } from '@/services/free-whatsapp.service';
-import { validateAndFormatPhone } from '@/utils/phone-validator';
+import { validateAndFormatPhoneInternational } from '@/utils/phone-validator';
 
 /**
  * DEBUG ENDPOINT - Prueba de envío de WhatsApp
@@ -46,11 +46,12 @@ export async function POST(request: NextRequest) {
     console.log('\n📋 PASO 1: Validando número de teléfono');
     console.log('-'.repeat(80));
     
-    const validation = validateAndFormatPhone(phone);
+    const validation = validateAndFormatPhoneInternational(phone);
     
     console.log(`Número original: ${phone}`);
     console.log(`Válido: ${validation.isValid}`);
     console.log(`Número formateado: ${validation.formatted}`);
+    console.log(`País: ${validation.country || 'Desconocido'}`);
     if (validation.error) {
       console.log(`Error: ${validation.error}`);
     }

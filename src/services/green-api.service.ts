@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { validateAndFormatPhone } from '@/utils/phone-validator';
+import { validateAndFormatPhoneInternational } from '@/utils/phone-validator';
 
 interface GreenAPIConfig {
   instanceId: string;
@@ -36,13 +36,14 @@ class GreenAPIService {
   /**
    * Formatea el número para Green API
    * Green API espera: 549XXXXXXXXXX (sin +, sin @c.us)
+   * Soporta números internacionales de cualquier país
    */
   private formatPhoneForGreenAPI(phone: string): string {
     // Limpiar el número primero (remover TODOS los caracteres no-dígitos)
     const digitsOnly = phone.replace(/\D/g, '');
     
-    // Ahora validar y formatear con el validador estándar
-    const validation = validateAndFormatPhone(digitsOnly);
+    // Ahora validar y formatear con el validador internacional
+    const validation = validateAndFormatPhoneInternational(digitsOnly);
     
     if (!validation.isValid) {
       console.error(`❌ Green API: Número inválido: ${phone}`);
@@ -50,12 +51,13 @@ class GreenAPIService {
       throw new Error(`Número de teléfono inválido: ${validation.error}`);
     }
 
-    // El validador devuelve +549XXXXXXXXXX
-    // Green API espera 549XXXXXXXXXX (sin el +)
+    // El validador devuelve +[country_code][number]
+    // Green API espera [country_code][number] (sin el +)
     const formatted = validation.formatted.replace(/^\+/, '');
     
     console.log(`📱 Green API: Número original: ${phone}`);
     console.log(`📱 Green API: Dígitos solo: ${digitsOnly}`);
+    console.log(`📱 Green API: País: ${validation.country || 'Desconocido'}`);
     console.log(`📱 Green API: Número validado: ${validation.formatted}`);
     console.log(`📱 Green API: Número para API: ${formatted}`);
     
