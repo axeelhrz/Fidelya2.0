@@ -140,6 +140,7 @@ export const useClientes = (): UseClientesReturn => {
           id: c.id,
           nombre: c.nombre,
           email: c.email,
+          telefono: c.telefono,
           estado: c.estado
         })));
       }
