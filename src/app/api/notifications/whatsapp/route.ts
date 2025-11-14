@@ -1,19 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { freeWhatsAppService } from '@/services/free-whatsapp.service';
-import { validateAndFormatPhone } from '@/utils/phone-validator';
+import { greenAPIService } from '@/services/green-api.service';
 
 interface WhatsAppRequest {
-  to: string;
+  phone?: string;
+  to?: string;
   message: string;
   title?: string;
-  forceProvider?: string;
+  recipientId?: string;
+  recipientName?: string;
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const { to, message, title }: WhatsAppRequest = await request.json();
+    const body: WhatsAppRequest = await request.json();
+    
+    // Aceptar tanto 'phone' como 'to'
+    const phoneNumber = body.phone || body.to;
+    const { message, title, recipientId, recipientName } = body;
 
-    if (!to || !message) {
+    console.log(`\n📱 WhatsApp API: Solicitud recibida`);
+    console.log(`👤 Destinatario: ${recipientName || 'Desconocido'} (${phoneNumber})`);
+    console.log(`📝 Mensaje: ${message.substring(0, 50)}...`);
+
+    if (!phoneNumber || !message) {
+      console.error('❌ WhatsApp API: Faltan parámetros requeridos');
       return NextResponse.json(
         { 
           success: false, 
@@ -23,57 +33,40 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate and format phone number for Argentina
-    const phoneValidation = validateAndFormatPhone(to);
+    console.log(`🚀 WhatsApp API: Enviando con Green API...`);
     
-    if (!phoneValidation.isValid) {
-      console.error(`❌ API: Número de teléfono inválido: ${to}`);
-      console.error(`❌ API: Error: ${phoneValidation.error}`);
-      
-      return NextResponse.json(
-        { 
-          success: false, 
-          error: phoneValidation.error || 'Número de teléfono inválido para WhatsApp',
-          details: 'El número debe ser un número argentino válido (+549...)'
-        },
-        { status: 400 }
-      );
-    }
-
-    const formattedPhone = phoneValidation.formatted;
-
-    console.log(`📱 API: Enviando WhatsApp GRATIS a: ${formattedPhone} (original: ${to})`);
-    console.log(`📝 API: Mensaje: ${message.substring(0, 50)}...`);
-    
-    // Enviar usando proveedores gratuitos con el número formateado
-    const result = await freeWhatsAppService.sendMessage(formattedPhone, message, title);
+    // Enviar usando Green API
+    const result = await greenAPIService.sendMessage(phoneNumber, message, title);
 
     if (result.success) {
-      console.log(`✅ API: WhatsApp enviado exitosamente con ${result.provider}`);
+      console.log(`✅ WhatsApp API: Mensaje enviado exitosamente`);
+      console.log(`✅ ID del mensaje: ${result.messageId}`);
       
       return NextResponse.json({
         success: true,
         messageId: result.messageId,
-        provider: result.provider,
-        fallbackUsed: result.fallbackUsed,
-        cost: 0, // ¡Gratis!
+        phone: result.phoneUsed,
+        recipientId,
+        recipientName,
         timestamp: result.timestamp
       });
     } else {
-      console.error('❌ API: Error enviando WhatsApp:', result.error);
+      console.error(`❌ WhatsApp API: Error enviando: ${result.error}`);
       
       return NextResponse.json(
         { 
           success: false, 
-          error: result.error || 'Error desconocido',
-          provider: result.provider
+          error: result.error || 'Error desconocido al enviar WhatsApp',
+          phone: phoneNumber,
+          recipientId,
+          recipientName
         },
         { status: 400 }
       );
     }
 
   } catch (error) {
-    console.error('💥 API: Error crítico enviando WhatsApp:', error);
+    console.error('💥 WhatsApp API: Error crítico:', error);
     
     return NextResponse.json(
       { 
@@ -86,21 +79,27 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// Endpoint para obtener estado de proveedores
+// Endpoint para obtener estado de Green API
 export async function GET() {
   try {
-    const providers = await freeWhatsAppService.getAvailableProviders();
+    const status = await greenAPIService.getInstanceStatus();
+    const config = greenAPIService.getConfig();
     
     return NextResponse.json({
       success: true,
-      providers,
+      configured: greenAPIService.isConfigured(),
+      status,
+      config,
       timestamp: new Date()
     });
-  } catch {
+  } catch (error) {
+    console.error('❌ WhatsApp API: Error obteniendo estado:', error);
+    
     return NextResponse.json(
       { 
         success: false, 
-        error: 'Error obteniendo estado de proveedores'
+        error: 'Error obteniendo estado de Green API',
+        details: error instanceof Error ? error.message : 'Error desconocido'
       },
       { status: 500 }
     );
