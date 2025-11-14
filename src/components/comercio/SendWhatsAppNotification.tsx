@@ -14,7 +14,6 @@ import {
   Copy,
   Eye,
   EyeOff,
-  Globe,
   Info,
   Gift,
   AlertTriangle,
