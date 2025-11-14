@@ -127,16 +127,18 @@ class CallMeBotService {
     } catch (error) {
       console.error('❌ CallMeBot: Error crítico:', error);
       
-      if (axios.isAxiosError(error)) {
-        console.error(`❌ CallMeBot: Status: ${error.response?.status}`);
-        console.error(`❌ CallMeBot: Respuesta: ${JSON.stringify(error.response?.data)}`);
-        console.error(`❌ CallMeBot: Mensaje: ${error.message}`);
+      // Verificar si es un error de axios
+      if (error && typeof error === 'object' && 'response' in error && 'config' in error) {
+        const axiosError = error as { response?: { status?: number; data?: unknown }; message?: string };
+        console.error(`❌ CallMeBot: Status: ${axiosError.response?.status}`);
+        console.error(`❌ CallMeBot: Respuesta: ${JSON.stringify(axiosError.response?.data)}`);
+        console.error(`❌ CallMeBot: Mensaje: ${axiosError.message}`);
         
         return {
           success: false,
-          error: `CallMeBot HTTP ${error.response?.status}: ${error.message}`,
+          error: `CallMeBot HTTP ${axiosError.response?.status}: ${axiosError.message}`,
           timestamp: new Date(),
-          rawResponse: error.response?.data
+          rawResponse: axiosError.response?.data
         };
       }
       

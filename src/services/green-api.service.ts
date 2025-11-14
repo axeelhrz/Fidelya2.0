@@ -152,16 +152,18 @@ class GreenAPIService {
     } catch (error) {
       console.error('❌ Green API: Error crítico:', error);
       
-      if (axios.isAxiosError(error)) {
-        console.error(`❌ Green API: Status: ${error.response?.status}`);
-        console.error(`❌ Green API: Respuesta: ${JSON.stringify(error.response?.data)}`);
-        console.error(`❌ Green API: Mensaje: ${error.message}`);
+      // Verificar si es un error de axios
+      if (error && typeof error === 'object' && 'response' in error && 'config' in error) {
+        const axiosError = error as { response?: { status?: number; data?: unknown }; message?: string };
+        console.error(`❌ Green API: Status: ${axiosError.response?.status}`);
+        console.error(`❌ Green API: Respuesta: ${JSON.stringify(axiosError.response?.data)}`);
+        console.error(`❌ Green API: Mensaje: ${axiosError.message}`);
         
         return {
           success: false,
-          error: `Green API HTTP ${error.response?.status}: ${error.message}`,
+          error: `Green API HTTP ${axiosError.response?.status}: ${axiosError.message}`,
           timestamp: new Date(),
-          rawResponse: error.response?.data
+          rawResponse: axiosError.response?.data
         };
       }
       
@@ -196,11 +198,13 @@ class GreenAPIService {
     } catch (error) {
       console.error('❌ Green API: Error verificando estado:', error);
       
-      if (axios.isAxiosError(error)) {
+      // Verificar si es un error de axios
+      if (error && typeof error === 'object' && 'response' in error && 'config' in error) {
+        const axiosError = error as { response?: { status?: number; data?: unknown }; message?: string };
         return { 
           status: 'error', 
-          error: `HTTP ${error.response?.status}: ${error.message}`,
-          details: error.response?.data
+          error: `HTTP ${axiosError.response?.status}: ${axiosError.message}`,
+          details: axiosError.response?.data
         };
       }
       
