@@ -35,8 +35,11 @@ class CallMeBotService {
    * CallMeBot espera: +549XXXXXXXXXX (con +)
    */
   private formatPhoneForCallMeBot(phone: string): string {
-    // Validar y formatear con el validador estándar
-    const validation = validateAndFormatPhone(phone);
+    // Limpiar el número primero (remover +, espacios, etc)
+    const cleaned = phone.replace(/\D/g, '');
+    
+    // Ahora validar y formatear con el validador estándar
+    const validation = validateAndFormatPhone(cleaned);
     
     if (!validation.isValid) {
       console.error(`❌ CallMeBot: Número inválido: ${phone}`);
@@ -46,6 +49,7 @@ class CallMeBotService {
 
     // CallMeBot espera +549XXXXXXXXXX
     console.log(`📱 CallMeBot: Número original: ${phone}`);
+    console.log(`📱 CallMeBot: Número limpio: ${cleaned}`);
     console.log(`📱 CallMeBot: Número para API: ${validation.formatted}`);
     
     return validation.formatted;

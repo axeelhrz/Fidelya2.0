@@ -38,8 +38,11 @@ class GreenAPIService {
    * Green API espera: 549XXXXXXXXXX (sin +, sin @c.us)
    */
   private formatPhoneForGreenAPI(phone: string): string {
-    // Primero validar y formatear con el validador estándar
-    const validation = validateAndFormatPhone(phone);
+    // Limpiar el número primero (remover TODOS los caracteres no-dígitos)
+    const digitsOnly = phone.replace(/\D/g, '');
+    
+    // Ahora validar y formatear con el validador estándar
+    const validation = validateAndFormatPhone(digitsOnly);
     
     if (!validation.isValid) {
       console.error(`❌ Green API: Número inválido: ${phone}`);
@@ -52,6 +55,7 @@ class GreenAPIService {
     const formatted = validation.formatted.replace(/^\+/, '');
     
     console.log(`📱 Green API: Número original: ${phone}`);
+    console.log(`📱 Green API: Dígitos solo: ${digitsOnly}`);
     console.log(`📱 Green API: Número validado: ${validation.formatted}`);
     console.log(`📱 Green API: Número para API: ${formatted}`);
     
@@ -100,12 +104,12 @@ class GreenAPIService {
       }
 
       console.log(`📤 Green API: Enviando a ${this.baseUrl}/sendMessage/...`);
-      console.log(`📤 Green API: ChatId: ${formattedPhone}`);
+      console.log(`📤 Green API: ChatId: ${formattedPhone}@c.us`);
 
       const response = await axios.post<SendMessageResponse>(
         `${this.baseUrl}/sendMessage/${this.config.apiToken}`,
         {
-          chatId: formattedPhone,
+          chatId: `${formattedPhone}@c.us`,
           message: formattedMessage
         },
         {

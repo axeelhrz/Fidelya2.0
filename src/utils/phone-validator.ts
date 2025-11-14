@@ -124,7 +124,7 @@ export function formatPhoneForArgentina(phone: string): string {
  * Returns validation result with formatted number
  * 
  * Validation rules:
- * 1. Must contain ONLY digits (no special characters)
+ * 1. Must contain ONLY digits (no special characters except +)
  * 2. Must be 10-12 digits (after removing formatting)
  * 3. Must be a valid Argentine phone number
  */
@@ -140,26 +140,19 @@ export function validateAndFormatPhone(phone: string): PhoneValidationResult {
     };
   }
   
-  // Check if contains only digits (after cleaning)
-  if (!containsOnlyDigits(phone)) {
-    return {
-      isValid: false,
-      formatted: '',
-      original,
-      error: 'El número debe contener solo dígitos (0-9), sin caracteres especiales'
-    };
-  }
-  
-  // Clean and check length
+  // Clean and check length - remove all non-digits first
   const cleaned = cleanPhoneNumber(phone);
   
+  // Remove the + if it exists to count only digits
+  const digitsOnly = cleaned.replace(/\D/g, '');
+  
   // Must have 10-12 digits (before adding +549)
-  if (cleaned.length < 10 || cleaned.length > 12) {
+  if (digitsOnly.length < 10 || digitsOnly.length > 12) {
     return {
       isValid: false,
       formatted: '',
       original,
-      error: `El número debe tener entre 10 y 12 dígitos. Ingresaste ${cleaned.length} dígitos`
+      error: `El número debe tener entre 10 y 12 dígitos. Ingresaste ${digitsOnly.length} dígitos`
     };
   }
   

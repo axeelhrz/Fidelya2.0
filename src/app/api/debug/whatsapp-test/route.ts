@@ -105,7 +105,7 @@ export async function POST(request: NextRequest) {
     if (provider === 'green-api' || provider === 'all') {
       console.log('\n🟢 Intentando con Green API...');
       const greenResult = await greenAPIService.sendMessage(
-        validation.formatted,
+        phone,
         message,
         title
       );
@@ -122,7 +122,7 @@ export async function POST(request: NextRequest) {
     if (provider === 'callmebot' || provider === 'all') {
       console.log('\n🟡 Intentando con CallMeBot...');
       const callMeBotResult = await callMeBotService.sendMessage(
-        validation.formatted,
+        phone,
         message,
         title
       );
@@ -139,7 +139,7 @@ export async function POST(request: NextRequest) {
     if (provider === 'all') {
       console.log('\n🔵 Intentando con todos los proveedores (fallback)...');
       const allResult = await freeWhatsAppService.sendMessage(
-        validation.formatted,
+        phone,
         message,
         title
       );
