@@ -14,41 +14,35 @@ import {
   Copy,
   Eye,
   EyeOff,
-  Info,
-  Gift,
-  AlertTriangle,
 } from 'lucide-react';
 import { useSocios } from '@/hooks/useSocios';
-import { useWhatsAppNotifications, WhatsAppRecipient } from '@/hooks/useWhatsAppNotifications';
 import toast from 'react-hot-toast';
 
-type NotificationType = 'info' | 'success' | 'warning' | 'error' | 'benefit';
-type PriorityType = 'low' | 'normal' | 'high' | 'urgent';
-
-interface FormData {
-  title: string;
-  message: string;
-  type: NotificationType;
-  priority: PriorityType;
-  recipients: string;
+interface SendResult {
+  success: boolean;
+  socioId: string;
+  socioName: string;
+  phone: string;
+  messageId?: string;
+  error?: string;
+  timestamp: Date;
 }
 
 export const SendWhatsAppNotification: React.FC = () => {
   const { socios } = useSocios();
-  const { loading, results, progress, sendWhatsAppNotification, clearResults } = useWhatsAppNotifications();
   
-  const [formData, setFormData] = useState<FormData>({
+  const [formData, setFormData] = useState({
     title: '',
     message: '',
-    type: 'info',
-    priority: 'normal',
-    recipients: 'all'
   });
 
   const [selectedSocios, setSelectedSocios] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [showPhoneNumbers, setShowPhoneNumbers] = useState(false);
   const [showResults, setShowResults] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [results, setResults] = useState<SendResult[]>([]);
+  const [progress, setProgress] = useState(0);
 
   // Filtrar socios activos con teléfono
   const activeSocios = useMemo(() => {
@@ -69,9 +63,10 @@ export const SendWhatsAppNotification: React.FC = () => {
   }, [activeSocios, searchTerm]);
 
   // Preparar destinatarios
-  const recipients: WhatsAppRecipient[] = useMemo(() => {
-    const toSend = formData.recipients === 'all' ? activeSocios : 
-                   activeSocios.filter(s => selectedSocios.includes(s.id));
+  const recipients = useMemo(() => {
+    const toSend = selectedSocios.length > 0 
+      ? activeSocios.filter(s => selectedSocios.includes(s.id))
+      : activeSocios;
     
     return toSend.map(socio => ({
       id: socio.id,
@@ -79,7 +74,7 @@ export const SendWhatsAppNotification: React.FC = () => {
       phone: socio.telefono || '',
       email: socio.email
     }));
-  }, [formData.recipients, selectedSocios, activeSocios]);
+  }, [selectedSocios, activeSocios]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -100,12 +95,92 @@ export const SendWhatsAppNotification: React.FC = () => {
     }
 
     setShowResults(true);
-    await sendWhatsAppNotification({
-      title: formData.title,
-      message: formData.message,
-      recipients,
-      priority: formData.priority
-    });
+    setLoading(true);
+    setResults([]);
+    setProgress(0);
+
+    const sendResults: SendResult[] = [];
+
+    try {
+      for (let i = 0; i < recipients.length; i++) {
+        const recipient = recipients[i];
+        
+        try {
+          console.log(`📱 Enviando WhatsApp a ${recipient.name} (${recipient.phone})...`);
+
+          const response = await fetch('/api/notifications/whatsapp', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              phone: recipient.phone,
+              message: formData.message,
+              title: formData.title,
+              recipientId: recipient.id,
+              recipientName: recipient.name,
+            })
+          });
+
+          const data = await response.json();
+
+          if (response.ok && data.success) {
+            console.log(`✅ Enviado a ${recipient.name}`);
+            sendResults.push({
+              success: true,
+              socioId: recipient.id,
+              socioName: recipient.name,
+              phone: recipient.phone,
+              messageId: data.messageId,
+              timestamp: new Date()
+            });
+            toast.success(`✅ Enviado a ${recipient.name}`);
+          } else {
+            console.error(`❌ Error enviando a ${recipient.name}:`, data.error);
+            sendResults.push({
+              success: false,
+              socioId: recipient.id,
+              socioName: recipient.name,
+              phone: recipient.phone,
+              error: data.error || 'Error desconocido',
+              timestamp: new Date()
+            });
+            toast.error(`❌ Error enviando a ${recipient.name}: ${data.error}`);
+          }
+        } catch (error) {
+          const errorMsg = error instanceof Error ? error.message : 'Error desconocido';
+          console.error(`❌ Error enviando a ${recipient.name}:`, error);
+          sendResults.push({
+            success: false,
+            socioId: recipient.id,
+            socioName: recipient.name,
+            phone: recipient.phone,
+            error: errorMsg,
+            timestamp: new Date()
+          });
+          toast.error(`❌ Error enviando a ${recipient.name}: ${errorMsg}`);
+        }
+
+        setProgress(Math.round(((i + 1) / recipients.length) * 100));
+      }
+
+      setResults(sendResults);
+
+      const successCount = sendResults.filter(r => r.success).length;
+      const failureCount = sendResults.filter(r => !r.success).length;
+
+      if (successCount > 0) {
+        toast.success(`✅ ${successCount} mensaje${successCount !== 1 ? 's' : ''} enviado${successCount !== 1 ? 's' : ''} exitosamente`);
+      }
+      if (failureCount > 0) {
+        toast.error(`❌ ${failureCount} error${failureCount !== 1 ? 'es' : ''} al enviar`);
+      }
+    } catch (error) {
+      console.error('Error en envío:', error);
+      toast.error('Error al enviar notificaciones');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSelectAll = () => {
@@ -115,21 +190,6 @@ export const SendWhatsAppNotification: React.FC = () => {
       setSelectedSocios(filteredSocios.map(s => s.id));
     }
   };
-
-  const typeOptions = [
-    { value: 'info', label: 'Información', icon: Info, color: 'blue' },
-    { value: 'success', label: 'Éxito', icon: CheckCircle, color: 'emerald' },
-    { value: 'warning', label: 'Advertencia', icon: AlertTriangle, color: 'amber' },
-    { value: 'error', label: 'Error', icon: AlertTriangle, color: 'red' },
-    { value: 'benefit', label: 'Beneficio', icon: Gift, color: 'purple' }
-  ];
-
-  const priorityOptions = [
-    { value: 'low', label: 'Baja', color: 'gray' },
-    { value: 'normal', label: 'Normal', color: 'blue' },
-    { value: 'high', label: 'Alta', color: 'amber' },
-    { value: 'urgent', label: 'Urgente', color: 'red' }
-  ];
 
   const successCount = results.filter(r => r.success).length;
   const failureCount = results.filter(r => !r.success).length;
@@ -190,13 +250,10 @@ export const SendWhatsAppNotification: React.FC = () => {
                 <button
                   onClick={() => {
                     setShowResults(false);
-                    clearResults();
+                    setResults([]);
                     setFormData({
                       title: '',
                       message: '',
-                      type: 'info',
-                      priority: 'normal',
-                      recipients: 'all'
                     });
                     setSelectedSocios([]);
                   }}
@@ -222,7 +279,7 @@ export const SendWhatsAppNotification: React.FC = () => {
               <div className="divide-y divide-slate-100 max-h-96 overflow-y-auto">
                 {results.map((result, index) => (
                   <motion.div
-                    key={result.recipientId}
+                    key={result.socioId}
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: index * 0.05 }}
@@ -244,7 +301,7 @@ export const SendWhatsAppNotification: React.FC = () => {
                         
                         <div className="flex-1 min-w-0">
                           <div className="font-medium text-slate-900 truncate">
-                            {result.recipientName}
+                            {result.socioName}
                           </div>
                           <div className="text-sm text-slate-500 truncate">
                             {result.phone}
@@ -321,58 +378,6 @@ export const SendWhatsAppNotification: React.FC = () => {
               </div>
             </div>
 
-            {/* Tipo */}
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-3">
-                Tipo de Notificación
-              </label>
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                {typeOptions.map((option) => (
-                  <label
-                    key={option.value}
-                    className={`flex flex-col items-center gap-2 p-4 border-2 rounded-xl cursor-pointer transition-all ${
-                      formData.type === option.value
-                        ? `border-${option.color}-500 bg-${option.color}-50`
-                        : 'border-slate-200 hover:border-slate-300'
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="type"
-                      value={option.value}
-                      checked={formData.type === option.value}
-                      onChange={(e) =>
-                        setFormData({ ...formData, type: e.target.value as NotificationType })
-                      }
-                      className="sr-only"
-                    />
-                    <div className="w-8 h-8 rounded-lg flex items-center justify-center">
-                      <option.icon className={`w-4 h-4 text-${option.color}-600`} />
-                    </div>
-                    <span className="text-xs font-medium text-slate-700 text-center">{option.label}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            {/* Prioridad */}
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-2">
-                Prioridad
-              </label>
-              <select
-                value={formData.priority}
-                onChange={(e) => setFormData({ ...formData, priority: e.target.value as PriorityType })}
-                className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
-              >
-                {priorityOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
             {/* Destinatarios */}
             <div>
               <label className="block text-sm font-semibold text-slate-700 mb-3">
@@ -380,134 +385,103 @@ export const SendWhatsAppNotification: React.FC = () => {
               </label>
               
               <div className="space-y-4">
-                {/* Opciones de selección */}
-                <div className="flex gap-2">
+                {/* Búsqueda */}
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <input
+                    type="text"
+                    placeholder="Buscar por nombre, email o teléfono..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+
+                {/* Seleccionar todo */}
+                <div className="flex items-center justify-between p-2 bg-white rounded-lg border border-slate-200">
+                  <label className="flex items-center gap-3 cursor-pointer flex-1">
+                    <input
+                      type="checkbox"
+                      checked={selectedSocios.length === filteredSocios.length && filteredSocios.length > 0}
+                      onChange={handleSelectAll}
+                      className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                    />
+                    <span className="font-medium text-slate-700">
+                      Seleccionar todos ({filteredSocios.length})
+                    </span>
+                  </label>
                   <button
                     type="button"
-                    onClick={() => setFormData({ ...formData, recipients: 'all' })}
-                    className={`flex-1 px-4 py-2 rounded-lg font-medium transition-all ${
-                      formData.recipients === 'all'
-                        ? 'bg-emerald-500 text-white'
-                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                    }`}
+                    onClick={() => setShowPhoneNumbers(!showPhoneNumbers)}
+                    className="p-2 text-slate-500 hover:text-slate-700"
                   >
-                    Todos ({activeSocios.length})
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setFormData({ ...formData, recipients: 'specific' })}
-                    className={`flex-1 px-4 py-2 rounded-lg font-medium transition-all ${
-                      formData.recipients === 'specific'
-                        ? 'bg-emerald-500 text-white'
-                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                    }`}
-                  >
-                    Seleccionar
+                    {showPhoneNumbers ? (
+                      <EyeOff className="w-4 h-4" />
+                    ) : (
+                      <Eye className="w-4 h-4" />
+                    )}
                   </button>
                 </div>
 
                 {/* Lista de socios */}
-                {formData.recipients === 'specific' && (
-                  <div className="bg-slate-50 rounded-xl p-4 space-y-3">
-                    {/* Búsqueda */}
-                    <div className="relative">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
-                      <input
-                        type="text"
-                        placeholder="Buscar por nombre, email o teléfono..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                      />
+                <div className="max-h-64 overflow-y-auto space-y-2 bg-slate-50 rounded-lg p-3">
+                  {filteredSocios.length === 0 ? (
+                    <div className="text-center py-6 text-slate-500">
+                      No se encontraron socios
                     </div>
-
-                    {/* Seleccionar todo */}
-                    <div className="flex items-center justify-between p-2 bg-white rounded-lg border border-slate-200">
-                      <label className="flex items-center gap-3 cursor-pointer flex-1">
+                  ) : (
+                    filteredSocios.map((socio) => (
+                      <label
+                        key={socio.id}
+                        className="flex items-center gap-3 p-3 bg-white rounded-lg hover:bg-slate-50 cursor-pointer border border-slate-200"
+                      >
                         <input
                           type="checkbox"
-                          checked={selectedSocios.length === filteredSocios.length && filteredSocios.length > 0}
-                          onChange={handleSelectAll}
+                          checked={selectedSocios.includes(socio.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedSocios([...selectedSocios, socio.id]);
+                            } else {
+                              setSelectedSocios(selectedSocios.filter(id => id !== socio.id));
+                            }
+                          }}
                           className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
                         />
-                        <span className="font-medium text-slate-700">
-                          Seleccionar todos ({filteredSocios.length})
-                        </span>
-                      </label>
-                      <button
-                        type="button"
-                        onClick={() => setShowPhoneNumbers(!showPhoneNumbers)}
-                        className="p-2 text-slate-500 hover:text-slate-700"
-                      >
-                        {showPhoneNumbers ? (
-                          <EyeOff className="w-4 h-4" />
-                        ) : (
-                          <Eye className="w-4 h-4" />
-                        )}
-                      </button>
-                    </div>
-
-                    {/* Lista de socios */}
-                    <div className="max-h-64 overflow-y-auto space-y-2">
-                      {filteredSocios.length === 0 ? (
-                        <div className="text-center py-6 text-slate-500">
-                          No se encontraron socios
-                        </div>
-                      ) : (
-                        filteredSocios.map((socio) => (
-                          <label
-                            key={socio.id}
-                            className="flex items-center gap-3 p-3 bg-white rounded-lg hover:bg-slate-50 cursor-pointer border border-slate-200"
-                          >
-                            <input
-                              type="checkbox"
-                              checked={selectedSocios.includes(socio.id)}
-                              onChange={(e) => {
-                                if (e.target.checked) {
-                                  setSelectedSocios([...selectedSocios, socio.id]);
-                                } else {
-                                  setSelectedSocios(selectedSocios.filter(id => id !== socio.id));
-                                }
-                              }}
-                              className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
-                            />
-                            <div className="flex-1 min-w-0">
-                              <div className="font-medium text-slate-900">{socio.nombre}</div>
-                              <div className="text-sm text-slate-500 truncate">{socio.email}</div>
-                              {showPhoneNumbers && (
-                                <div className="text-xs text-slate-400 flex items-center gap-1 mt-1">
-                                  <Phone className="w-3 h-3" />
-                                  {socio.telefono}
-                                </div>
-                              )}
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium text-slate-900">{socio.nombre}</div>
+                          <div className="text-sm text-slate-500 truncate">{socio.email}</div>
+                          {showPhoneNumbers && (
+                            <div className="text-xs text-slate-400 flex items-center gap-1 mt-1">
+                              <Phone className="w-3 h-3" />
+                              {socio.telefono}
                             </div>
-                            {showPhoneNumbers && (
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  navigator.clipboard.writeText(socio.telefono || '');
-                                  toast.success('Teléfono copiado');
-                                }}
-                                className="p-1 text-slate-400 hover:text-slate-600"
-                              >
-                                <Copy className="w-4 h-4" />
-                              </button>
-                            )}
-                          </label>
-                        ))
-                      )}
-                    </div>
-                  </div>
-                )}
+                          )}
+                        </div>
+                        {showPhoneNumbers && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              navigator.clipboard.writeText(socio.telefono || '');
+                              toast.success('Teléfono copiado');
+                            }}
+                            className="p-1 text-slate-400 hover:text-slate-600"
+                          >
+                            <Copy className="w-4 h-4" />
+                          </button>
+                        )}
+                      </label>
+                    ))
+                  )}
+                </div>
 
                 {/* Resumen de destinatarios */}
-                {formData.recipients === 'all' && activeSocios.length > 0 && (
+                {recipients.length > 0 && (
                   <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4">
                     <div className="flex items-center gap-2 text-emerald-700">
                       <Users className="w-4 h-4" />
                       <span className="font-medium">
-                        Se enviará a {activeSocios.length} cliente{activeSocios.length !== 1 ? 's' : ''}
+                        Se enviará a {recipients.length} cliente{recipients.length !== 1 ? 's' : ''}
                       </span>
                     </div>
                   </div>
