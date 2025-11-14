@@ -24,15 +24,10 @@ import {
   Activity,
   Eye,
   RefreshCw,
-  Gift,
   Megaphone,
-  Info,
-  AlertTriangle,
 } from 'lucide-react';
 import { useNotifications } from '@/hooks/useNotifications';
-import { useSocios } from '@/hooks/useSocios';
 import { useAuth } from '@/hooks/useAuth';
-import { toast } from 'react-hot-toast';
 
 // Interfaces
 interface NotificationStats {
@@ -53,15 +48,6 @@ interface TabConfig {
   description: string;
 }
 
-interface Recipient {
-  id: string;
-  name: string;
-  email: string;
-  phone?: string;
-  type: 'socio';
-  status: string;
-}
-
 /**
  * Activity item used by the Dashboard recentActivity.
  * Adjusted: removed index signature from notification so stricter backend Notification type is assignable.
@@ -78,9 +64,6 @@ interface NotificationActivity {
   title?: string;
   date?: string;
 }
-
-type NotificationType = 'info' | 'success' | 'warning' | 'error' | 'benefit';
-type PriorityType = 'low' | 'normal' | 'high' | 'urgent';
 
 // Tab configurations
 const tabs: TabConfig[] = [
@@ -456,302 +439,8 @@ const Dashboard = ({ stats }: { stats: NotificationStats }) => {
   );
 };
 
-// Send Notification Component
-const SendNotification = () => {
-  const { createNotification } = useNotifications();
-  const { socios } = useSocios();
-  const [loading, setLoading] = useState(false);
-  const [selectedRecipients, setSelectedRecipients] = useState<Recipient[]>([]);
-  const [formData, setFormData] = useState<{
-    title: string;
-    message: string;
-    type: NotificationType;
-    priority: PriorityType;
-    category: "system" | "membership" | "payment" | "event" | "general";
-    channels: string[];
-    recipients: string;
-    actionUrl: string;
-    actionLabel: string;
-    tags: string[];
-  }>({
-    title: '',
-    message: '',
-    type: 'info',
-    priority: 'normal',
-    category: 'general',
-    channels: ['app'],
-    recipients: 'all',
-    actionUrl: '',
-    actionLabel: '',
-    tags: []
-  });
-
-  // Convert socios to recipients format
-  const availableRecipients: Recipient[] = socios
-    .filter(socio => socio.estado === 'activo')
-    .map(socio => ({
-      id: socio.id,
-      name: socio.nombre,
-      email: socio.email,
-      phone: socio.telefono,
-      type: 'socio' as const,
-      status: socio.estado
-    }));
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formData.title || !formData.message) {
-      toast.error('Por favor completa todos los campos requeridos');
-      return;
-    }
-
-    const recipientIds = formData.recipients === 'specific' 
-      ? selectedRecipients.map(r => r.id)
-      : availableRecipients.map(r => r.id);
-
-    if (recipientIds.length === 0) {
-      toast.error('No hay destinatarios disponibles');
-      return;
-    }
-
-    setLoading(true);
-    try {
-      await createNotification({
-        title: formData.title,
-        message: formData.message,
-        type: formData.type,
-        priority: formData.priority,
-        category: formData.category,
-        recipientIds,
-        recipientType: 'socio',
-        actionUrl: formData.actionUrl || undefined,
-        actionLabel: formData.actionLabel || undefined,
-        tags: formData.tags,
-        channels: formData.channels
-      });
-      
-      // Reset form
-      setFormData({
-        title: '',
-        message: '',
-        type: 'info',
-        priority: 'normal',
-        category: 'general',
-        channels: ['app'],
-        recipients: 'all',
-        actionUrl: '',
-        actionLabel: '',
-        tags: []
-      });
-      setSelectedRecipients([]);
-    } catch (error) {
-      console.error('Error sending notification:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const typeOptions = [
-    { value: 'info', label: 'Información', icon: Info, color: 'blue' },
-    { value: 'success', label: 'Éxito', icon: CheckCircle, color: 'emerald' },
-    { value: 'warning', label: 'Advertencia', icon: AlertTriangle, color: 'amber' },
-    { value: 'error', label: 'Error', icon: AlertTriangle, color: 'red' },
-    { value: 'benefit', label: 'Beneficio', icon: Gift, color: 'purple' }
-  ];
-
-  const priorityOptions = [
-    { value: 'low', label: 'Baja', color: 'gray' },
-    { value: 'normal', label: 'Normal', color: 'blue' },
-    { value: 'high', label: 'Alta', color: 'amber' },
-    { value: 'urgent', label: 'Urgente', color: 'red' }
-  ];
-
-  return (
-    <div className="max-w-4xl mx-auto space-y-6">
-      {/* Header */}
-      <div className="text-center">
-        <h2 className="text-2xl font-bold text-slate-900 mb-2">Enviar Notificación a Clientes</h2>
-        <p className="text-slate-600">Comunícate directamente con tus clientes socios</p>
-      </div>
-
-      <form onSubmit={handleSubmit} className="bg-white rounded-2xl p-8 shadow-lg border border-slate-100">
-        <div className="space-y-6">
-          {/* Title */}
-          <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-2">
-              Título *
-            </label>
-            <input
-              type="text"
-              value={formData.title}
-              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-              className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="Ej: Nueva promoción disponible"
-              required
-            />
-          </div>
-
-          {/* Message */}
-          <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-2">
-              Mensaje *
-            </label>
-            <textarea
-              value={formData.message}
-              onChange={(e) => setFormData({ ...formData, message: e.target.value })}
-              rows={4}
-              maxLength={500}
-              className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-              placeholder="Escribe tu mensaje aquí..."
-              required
-            />
-            <div className="text-xs text-slate-500 mt-1">
-              {formData.message.length}/500 caracteres
-            </div>
-          </div>
-
-          {/* Type */}
-          <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-2">
-              Tipo
-            </label>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-              {typeOptions.map((option) => (
-                <label
-                  key={option.value}
-                  className={`flex flex-col items-center gap-2 p-4 border-2 rounded-xl cursor-pointer transition-all ${
-                    formData.type === option.value
-                      ? `border-${option.color}-500 bg-${option.color}-50`
-                      : 'border-slate-200 hover:border-slate-300'
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="type"
-                    value={option.value}
-                    checked={formData.type === option.value}
-                    onChange={(e) =>
-                      setFormData({ ...formData, type: e.target.value as NotificationType })
-                    }
-                    className="sr-only"
-                  />
-                  <div className="w-8 h-8 rounded-lg flex items-center justify-center">
-                    <option.icon className={`w-4 h-4 text-${option.color}-600`} />
-                  </div>
-                  <span className="text-sm font-medium text-slate-700">{option.label}</span>
-                </label>
-              ))}
-            </div>
-          </div>
-
-          {/* Priority */}
-          <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-2">
-              Prioridad
-            </label>
-            <select
-              value={formData.priority}
-              onChange={(e) => setFormData({ ...formData, priority: e.target.value as PriorityType })}
-              className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              {priorityOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Recipients */}
-          <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-3">
-              Destinatarios
-            </label>
-            <div className="space-y-4">
-              <select
-                value={formData.recipients}
-                onChange={(e) => {
-                  setFormData({ ...formData, recipients: e.target.value });
-                  if (e.target.value !== 'specific') {
-                    setSelectedRecipients([]);
-                  }
-                }}
-                className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="all">Todos los clientes socios ({availableRecipients.length})</option>
-                <option value="specific">Seleccionar específicos</option>
-              </select>
-
-              {formData.recipients === 'specific' && (
-                <div className="bg-slate-50 rounded-xl p-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-sm font-medium text-slate-700">
-                      {selectedRecipients.length} cliente{selectedRecipients.length !== 1 ? 's' : ''} seleccionado{selectedRecipients.length !== 1 ? 's' : ''}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setSelectedRecipients([])}
-                      className="text-xs text-red-600 hover:text-red-700"
-                    >
-                      Limpiar todo
-                    </button>
-                  </div>
-                  
-                  <div className="max-h-48 overflow-y-auto space-y-2">
-                    {availableRecipients.map((recipient) => (
-                      <label
-                        key={recipient.id}
-                        className="flex items-center gap-3 p-2 bg-white rounded-lg hover:bg-slate-50 cursor-pointer"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={selectedRecipients.some(r => r.id === recipient.id)}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setSelectedRecipients(prev => [...prev, recipient]);
-                            } else {
-                              setSelectedRecipients(prev => prev.filter(r => r.id !== recipient.id));
-                            }
-                          }}
-                          className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                        />
-                        <div className="flex-1">
-                          <div className="font-medium text-slate-900">{recipient.name}</div>
-                          <div className="text-sm text-slate-500">{recipient.email}</div>
-                        </div>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Action Button */}
-          <div className="pt-6">
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-6 py-4 rounded-xl font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-lg"
-            >
-              {loading ? (
-                <>
-                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  Enviando...
-                </>
-              ) : (
-                <>
-                  <Send className="w-5 h-5" />
-                  Enviar Notificación
-                </>
-              )}
-            </button>
-          </div>
-        </div>
-      </form>
-    </div>
-  );
-};
+// Import SendWhatsAppNotification component
+import SendWhatsAppNotification from './SendWhatsAppNotification';
 
 // History Component
 const NotificationHistory = () => {
@@ -979,7 +668,7 @@ export default function EnhancedNotificationsCenter() {
       case 'dashboard':
         return <Dashboard stats={stats} />;
       case 'enviar':
-        return <SendNotification />;
+        return <SendWhatsAppNotification />;
       case 'historial':
         return <NotificationHistory />;
       default:
